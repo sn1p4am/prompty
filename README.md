@@ -31,10 +31,10 @@
 ## 🚀 快速开始
 
 ### 在线使用
-直接访问 GitHub Pages：[https://sn1p4am.github.io/prompty/prompt-tester.html](https://sn1p4am.github.io/prompty/prompt-tester.html)
+直接访问 GitHub Pages：[https://sn1p4am.github.io/prompty/](https://sn1p4am.github.io/prompty/)
 
 ### 本地使用
-1. 下载 `prompt-tester.html` 文件
+1. 下载 `index.html` 文件
 2. 在浏览器中打开文件
 3. 配置您的 OpenRouter API Key
 4. 开始测试！
