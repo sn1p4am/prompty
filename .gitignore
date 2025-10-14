@@ -1,0 +1,21 @@
+# iFlow CLI 配置
+.iflow/
+._.iflow
+
+# Claude 配置
+.claude/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 临时文件
+*.log
+*.tmp
