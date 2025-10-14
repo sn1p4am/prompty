@@ -1,0 +1,2407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI提示词批量测试工具</title>
+    <!-- Markdown 渲染库 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    <!-- Mermaid 图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <!-- 代码高亮库 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/es/highlight.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --error-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --card-bg: rgba(255, 255, 255, 0.1);
+            --card-border: rgba(255, 255, 255, 0.2);
+            --text-primary: #ffffff;
+            --text-secondary: #b3b3b3;
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --border-radius: 12px;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            background-image:
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 255, 198, 0.2) 0%, transparent 50%);
+        }
+
+        .container {
+            max-width: 1400px; /* 限制最大宽度，留出边距 */
+            width: 90%; /* 使用90%的屏幕宽度，两边留5%间距 */
+            margin: 0 auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .header-actions {
+            position: absolute;
+            top: 0;
+            right: 0;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .header h1 .gradient-text {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header h1 .emoji-icon {
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .controls {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+        }
+
+        .prompt-section {
+            margin-bottom: 20px;
+        }
+
+        .prompt-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .prompt-input {
+            width: 100%;
+            min-height: 120px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: var(--border-radius);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            transition: all 0.3s ease;
+        }
+
+        .prompt-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .setting-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .setting-label {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .select-input, .number-input {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: var(--border-radius);
+            color: var(--text-primary);
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        .select-input option {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            padding: 8px;
+        }
+
+        .select-input option:hover {
+            background: rgba(102, 126, 234, 0.2);
+        }
+
+        .select-input option:disabled {
+            color: var(--text-secondary);
+            font-style: italic;
+            background: var(--bg-primary);
+        }
+
+        .select-input:focus, .number-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .model-select-wrapper {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn-icon {
+            padding: 8px;
+            background: var(--primary-gradient);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-icon:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .add-model-dialog {
+            margin-top: 10px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+        }
+
+        .api-key-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: var(--border-radius);
+            transition: all 0.3s ease;
+        }
+
+        .api-key-section.hidden {
+            display: none;
+        }
+
+        .api-key-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(40, 167, 69, 0.15);
+            border: 1px solid rgba(40, 167, 69, 0.3);
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .api-key-badge:hover {
+            background: rgba(40, 167, 69, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .api-key-badge svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .api-key-input-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .api-key-input {
+            flex: 1;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: var(--border-radius);
+            color: var(--text-primary);
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .api-key-status {
+            font-size: 12px;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-icon {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-icon.success {
+            background: #28a745;
+        }
+
+        .status-icon.warning {
+            background: #ffc107;
+        }
+
+        .add-model-input {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: inherit;
+            margin-bottom: 10px;
+        }
+
+        .dialog-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .btn-small {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-small.btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .btn-small.btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            border: 1px solid var(--card-border);
+        }
+
+        .btn-small:hover {
+            transform: translateY(-1px);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 25px;
+        }
+
+        .btn {
+            padding: 14px 32px;
+            border: none;
+            border-radius: var(--border-radius);
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover:before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #7b8ef7 0%, #8a5cb8 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #f66b7e 0%, #f2a3fc 100%);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .stats {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            text-align: center;
+        }
+
+        .stats .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .stats .stat-value {
+            font-size: 42px;
+            font-weight: 700;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+        }
+
+        .stats .stat-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
+            margin-top: 4px;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr); /* 默认5列布局 */
+            gap: 15px;
+            width: 100%;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 1200px) {
+            .results-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .results-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 700px) {
+            .results-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 500px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .result-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            border-radius: var(--border-radius);
+            padding: 12px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            width: 100%; /* 强制宽度由grid控制 */
+            min-width: 0; /* 允许收缩，防止溢出 */
+            height: 420px; /* 固定高度 */
+            min-height: 420px; /* 最小高度 */
+            max-height: 420px; /* 最大高度 */
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden; /* 防止内容溢出 */
+        }
+
+        .result-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-header {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--card-border);
+            flex-shrink: 0;
+        }
+
+        .card-header-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .card-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            width: 100%;
+        }
+
+        .provider-info {
+            font-size: 10px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .model-name {
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+            color: var(--text-primary);
+            display: block;
+        }
+
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            align-self: flex-start;
+            white-space: nowrap;
+        }
+
+        .status-waiting {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+
+        .status-generating {
+            background: rgba(0, 123, 255, 0.2);
+            color: #007bff;
+            animation: pulse 2s infinite;
+        }
+
+        .status-completed {
+            background: rgba(40, 167, 69, 0.2);
+            color: #28a745;
+        }
+
+        .status-error {
+            background: rgba(220, 53, 69, 0.2);
+            color: #dc3545;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .card-content {
+            flex: 1 1 0; /* 占据剩余空间，可收缩可扩展，基准为0 */
+            min-height: 0; /* 允许flex子元素收缩到内容以下 */
+            overflow-y: auto; /* 内容过长时滚动 */
+            overflow-x: hidden; /* 隐藏横向滚动 */
+            font-size: 13px;
+            line-height: 1.6;
+            margin-bottom: 10px;
+            padding-right: 5px;
+            word-wrap: break-word;
+            word-break: break-word; /* 强制长单词换行 */
+            white-space: pre-wrap; /* 保留原始格式 */
+            scrollbar-width: thin;
+            scrollbar-color: var(--card-border) transparent;
+        }
+
+        /* Markdown 渲染样式 */
+        .card-content.markdown-body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .card-content.markdown-body h1,
+        .card-content.markdown-body h2,
+        .card-content.markdown-body h3 {
+            margin-top: 12px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+
+        .card-content.markdown-body h1 { font-size: 1.4em; border-bottom: 1px solid var(--card-border); padding-bottom: 4px; }
+        .card-content.markdown-body h2 { font-size: 1.2em; }
+        .card-content.markdown-body h3 { font-size: 1.1em; }
+
+        .card-content.markdown-body p {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        .card-content.markdown-body code {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+
+        .card-content.markdown-body pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+
+        .card-content.markdown-body pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .card-content.markdown-body ul,
+        .card-content.markdown-body ol {
+            margin: 8px 0;
+            padding-left: 24px;
+        }
+
+        .card-content.markdown-body li {
+            margin: 4px 0;
+        }
+
+        .card-content.markdown-body blockquote {
+            border-left: 3px solid var(--card-border);
+            padding-left: 12px;
+            margin: 8px 0;
+            color: var(--text-secondary);
+        }
+
+        .card-content.markdown-body table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 8px 0;
+        }
+
+        .card-content.markdown-body table th,
+        .card-content.markdown-body table td {
+            border: 1px solid var(--card-border);
+            padding: 6px 10px;
+            text-align: left;
+        }
+
+        .card-content.markdown-body table th {
+            background: rgba(255, 255, 255, 0.05);
+            font-weight: 600;
+        }
+
+        .card-content.markdown-body a {
+            color: #4facfe;
+            text-decoration: none;
+        }
+
+        .card-content.markdown-body a:hover {
+            text-decoration: underline;
+        }
+
+        /* Mermaid 图表样式 */
+        .card-content.markdown-body .mermaid {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 6px;
+            margin: 8px 0;
+            text-align: center;
+        }
+
+        .card-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .card-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .card-content::-webkit-scrollbar-thumb {
+            background: var(--card-border);
+            border-radius: 3px;
+        }
+
+        .card-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px 8px;
+            padding: 6px 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 10px;
+            line-height: 1.2;
+            flex-shrink: 0; /* 防止被压缩 */
+            flex-grow: 0; /* 防止扩展 */
+            height: 62px; /* 固定高度 */
+            min-height: 62px; /* 固定最小高度 */
+            max-height: 62px; /* 固定最大高度 */
+            opacity: 0; /* 初始隐藏，但占据空间 */
+            transition: opacity 0.3s ease; /* 淡入效果 */
+            overflow: hidden; /* 防止内容溢出 */
+        }
+
+        .card-stats.visible {
+            opacity: 1; /* 可见状态 */
+        }
+
+        .card-stats .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        .card-stats .stat-label {
+            color: var(--text-secondary);
+            font-size: 9px;
+            font-weight: 400;
+            opacity: 0.7;
+        }
+
+        .card-stats .stat-value {
+            color: var(--text-primary);
+            font-size: 10px;
+            font-weight: 600;
+            font-family: 'Monaco', 'Courier New', monospace;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Native tokens 标记 */
+        .stat-label:after {
+            content: attr(data-native);
+            color: #4CAF50;
+            font-size: 8px;
+            vertical-align: super;
+            margin-left: 2px;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .card-btn {
+            flex: 1;
+            padding: 6px 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .card-btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .card-btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            border: 1px solid var(--card-border);
+        }
+
+        .card-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .loading-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--card-border);
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            margin: 2% auto;
+            padding: 30px;
+            border-radius: var(--border-radius);
+            width: 90%;
+            max-width: 1200px;
+            max-height: 90%;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        #modalContent {
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        #modalContent.raw-view {
+            white-space: pre-wrap;
+            font-family: 'Monaco', 'Courier New', monospace;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        #modalContent.markdown-body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        #modalContent.markdown-body h1,
+        #modalContent.markdown-body h2,
+        #modalContent.markdown-body h3 {
+            margin-top: 20px;
+            margin-bottom: 12px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+
+        #modalContent.markdown-body h1 { font-size: 2em; border-bottom: 2px solid var(--card-border); padding-bottom: 8px; }
+        #modalContent.markdown-body h2 { font-size: 1.5em; }
+        #modalContent.markdown-body h3 { font-size: 1.25em; }
+
+        #modalContent.markdown-body p {
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+
+        #modalContent.markdown-body code {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+
+        #modalContent.markdown-body pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+
+        #modalContent.markdown-body pre code {
+            background: none;
+            padding: 0;
+        }
+
+        #modalContent.markdown-body ul,
+        #modalContent.markdown-body ol {
+            margin: 12px 0;
+            padding-left: 32px;
+        }
+
+        #modalContent.markdown-body li {
+            margin: 6px 0;
+        }
+
+        #modalContent.markdown-body blockquote {
+            border-left: 4px solid var(--card-border);
+            padding-left: 16px;
+            margin: 16px 0;
+            color: var(--text-secondary);
+        }
+
+        #modalContent.markdown-body table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 16px 0;
+        }
+
+        #modalContent.markdown-body table th,
+        #modalContent.markdown-body table td {
+            border: 1px solid var(--card-border);
+            padding: 10px 16px;
+            text-align: left;
+        }
+
+        #modalContent.markdown-body table th {
+            background: rgba(255, 255, 255, 0.05);
+            font-weight: 600;
+        }
+
+        #modalContent.markdown-body a {
+            color: #4facfe;
+            text-decoration: none;
+        }
+
+        #modalContent.markdown-body a:hover {
+            text-decoration: underline;
+        }
+
+        #modalContent.markdown-body .mermaid {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 16px 0;
+            text-align: center;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .modal-header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .view-toggle {
+            display: flex;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 4px;
+            gap: 4px;
+        }
+
+        .view-toggle-btn {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: transparent;
+            color: var(--text-secondary);
+        }
+
+        .view-toggle-btn.active {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .view-toggle-btn:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .close {
+            color: var(--text-secondary);
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: var(--text-primary);
+        }
+
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-gradient);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .error-details {
+            background: rgba(220, 53, 69, 0.1);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 11px;
+            color: #ff6b6b;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                max-width: 100%; /* 移动设备使用全宽 */
+                width: 100%; /* 移动设备使用全宽 */
+                padding: 10px;
+            }
+
+            .settings-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .action-buttons .btn {
+                width: 100%;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+
+        .typing-indicator {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #667eea;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-indicator:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.4;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-actions">
+                <div id="apiKeyBadge" class="api-key-badge" onclick="editApiKey()" style="display: none;">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+                    </svg>
+                    <span id="apiKeyBadgeText">API Key</span>
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                    </svg>
+                </div>
+            </div>
+            <h1><span class="emoji-icon">🤖</span> <span class="gradient-text">AI提示词批量测试工具</span></h1>
+            <p>使用多个AI模型同时测试您的提示词效果</p>
+        </div>
+
+        <div class="controls">
+            <div class="api-key-section" id="apiKeySection">
+                <label class="prompt-label">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; margin-right: 5px;">
+                        <path d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+                    </svg>
+                    OpenRouter API Key
+                </label>
+                <div class="api-key-input-wrapper">
+                    <input type="password" id="apiKeyInput" class="api-key-input" placeholder="sk-or-v1-..." onkeypress="if(event.key==='Enter') saveApiKey()">
+                    <button type="button" class="btn-small btn-primary" onclick="saveApiKey()">保存</button>
+                    <button type="button" class="btn-small btn-secondary" onclick="clearApiKey()">清除</button>
+                </div>
+                <div class="api-key-status" id="apiKeyStatus">
+                    <span class="status-icon warning"></span>
+                    <span>请输入您的 OpenRouter API Key</span>
+                </div>
+            </div>
+
+            <div class="prompt-section">
+                <label class="prompt-label" for="promptInput">提示词内容</label>
+                <textarea id="promptInput" class="prompt-input" placeholder="请输入您要测试的提示词...&#10;支持多行输入，可以包含复杂的指令和上下文信息。"></textarea>
+            </div>
+
+            <div class="settings-grid">
+                <div class="setting-group">
+                    <label class="setting-label">请求数</label>
+                    <select id="batchSize" class="select-input">
+                        <option value="5" selected>5</option>
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="30">30</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">间隔(ms)</label>
+                    <input type="number" id="requestInterval" class="number-input" value="200" min="0" max="5000" step="100">
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">并发数</label>
+                    <input type="number" id="maxConcurrent" class="number-input" value="5" min="1" max="20">
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Temperature</label>
+                    <input type="number" id="temperature" class="number-input" value="1" min="0" max="2" step="0.1">
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Top-p</label>
+                    <input type="number" id="topP" class="number-input" value="1" min="0" max="1" step="0.05">
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">响应模式</label>
+                    <select id="streamMode" class="select-input">
+                        <option value="true" selected>流式</option>
+                        <option value="false">非流式</option>
+                    </select>
+                </div>
+
+                <div class="setting-group" style="grid-column: span 2;">
+                    <label class="setting-label">选择模型</label>
+                    <div class="model-select-wrapper">
+                        <select id="modelSelect" class="select-input" onchange="onModelSelectChange()">
+                            <!-- 模型选项将在这里动态生成 -->
+                        </select>
+                        <button type="button" class="btn-icon" onclick="toggleAddModelDialog()" title="添加自定义模型">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="addModelDialog" class="add-model-dialog" style="display: none;">
+                        <input type="text" id="newModelInput" class="add-model-input" placeholder="输入模型ID (如: openai/gpt-4)">
+                        <div class="dialog-actions">
+                            <button type="button" class="btn-small btn-primary" onclick="confirmAddModel()">确定</button>
+                            <button type="button" class="btn-small btn-secondary" onclick="toggleAddModelDialog()">取消</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="action-buttons">
+                <button id="startBtn" class="btn btn-primary" onclick="startBatchTest()">
+                    🚀 开始生成
+                </button>
+                <button id="stopBtn" class="btn btn-danger" onclick="stopAllRequests()" disabled>
+                    ⏹ 停止所有
+                </button>
+            </div>
+
+            <div class="progress-bar" id="progressBar" style="display: none;">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <div class="stats" id="statsSection">
+            <div class="stat-item">
+                <div class="stat-value" id="totalRequests">0</div>
+                <div class="stat-label">总请求</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="successRequests">0</div>
+                <div class="stat-label">成功</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="failedRequests">0</div>
+                <div class="stat-label">失败</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="avgTime">0s</div>
+                <div class="stat-label">平均耗时</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="activeRequests">0</div>
+                <div class="stat-label">进行中</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="totalCostStat">$0.00</div>
+                <div class="stat-label">总费用</div>
+            </div>
+        </div>
+
+        <div class="results-grid" id="resultsGrid">
+            <!-- 结果卡片将在这里动态生成 -->
+        </div>
+    </div>
+
+    <!-- 全屏查看模态框 -->
+    <div id="viewModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-header-left">
+                    <h3 id="modalTitle">响应详情</h3>
+                    <div class="view-toggle">
+                        <button class="view-toggle-btn active" onclick="toggleModalView('raw')">原始内容</button>
+                        <button class="view-toggle-btn" onclick="toggleModalView('markdown')">Markdown 预览</button>
+                    </div>
+                </div>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div id="modalContent" class="raw-view"></div>
+        </div>
+    </div>
+
+    <script>
+        // 配置常量
+        const API_BASE_URL = 'https://openrouter.ai/api/v1';
+        
+        // 从 localStorage 获取 API Key
+        function getApiKey() {
+            return localStorage.getItem('openrouter_api_key') || '';
+        }
+
+        // 可用模型列表
+        const AVAILABLE_MODELS = [
+            'anthropic/claude-sonnet-4',
+            'qwen/qwen3-max',
+            'qwen/qwen3-coder-plus',
+            'openai/gpt-5-codex',
+            'deepseek/deepseek-v3.1-terminus',
+            'moonshotai/kimi-k2-0905',
+            'deepseek/deepseek-chat-v3.1'
+        ];
+
+
+        // 全局状态
+        let selectedModel = localStorage.getItem('last_selected_model') || 'anthropic/claude-sonnet-4';
+        let activeRequests = new Map();
+        let requestStats = {
+            total: 0,
+            success: 0,
+            failed: 0,
+            times: [],
+            totalCost: 0
+        };
+        let requestQueue = [];
+        let isRunning = false;
+
+        // 自定义模型列表
+        let customModels = [];
+
+        // 保存 API Key
+        function saveApiKey() {
+            const input = document.getElementById('apiKeyInput');
+            const key = input.value.trim();
+            
+            if (!key) {
+                alert('请输入有效的 API Key');
+                return;
+            }
+            
+            if (!key.startsWith('sk-or-v1-')) {
+                if (!confirm('API Key 格式似乎不正确（应以 sk-or-v1- 开头），是否仍要保存？')) {
+                    return;
+                }
+            }
+            
+            localStorage.setItem('openrouter_api_key', key);
+            updateApiKeyStatus();
+            showToast('API Key 已保存');
+        }
+
+        // 清除 API Key
+        function clearApiKey() {
+            if (!confirm('确定要清除已保存的 API Key 吗？')) {
+                return;
+            }
+            
+            localStorage.removeItem('openrouter_api_key');
+            document.getElementById('apiKeyInput').value = '';
+            updateApiKeyStatus();
+            showToast('API Key 已清除');
+        }
+
+        // 编辑 API Key
+        function editApiKey() {
+            const section = document.getElementById('apiKeySection');
+            section.classList.remove('hidden');
+            document.getElementById('apiKeyInput').focus();
+            
+            // 滚动到顶部
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 更新 API Key 状态显示
+        function updateApiKeyStatus() {
+            const key = getApiKey();
+            const section = document.getElementById('apiKeySection');
+            const badge = document.getElementById('apiKeyBadge');
+            const badgeText = document.getElementById('apiKeyBadgeText');
+            const status = document.getElementById('apiKeyStatus');
+            const input = document.getElementById('apiKeyInput');
+            
+            if (key) {
+                // 隐藏配置区域，显示徽章
+                section.classList.add('hidden');
+                badge.style.display = 'inline-flex';
+                badgeText.textContent = `${key.substring(0, 12)}...${key.substring(key.length - 4)}`;
+                input.value = key;
+            } else {
+                // 显示配置区域，隐藏徽章
+                section.classList.remove('hidden');
+                badge.style.display = 'none';
+                status.innerHTML = `
+                    <span class="status-icon warning"></span>
+                    <span>请输入您的 OpenRouter API Key（<a href="https://openrouter.ai/keys" target="_blank" style="color: #4facfe;">获取 API Key</a>）</span>
+                `;
+                input.value = '';
+            }
+        }
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCustomModels();
+            initializeModelSelect();
+            updateApiKeyStatus();
+            
+            // 初始化 Mermaid
+            mermaid.initialize({ 
+                startOnLoad: false,
+                theme: 'dark',
+                themeVariables: {
+                    primaryColor: '#667eea',
+                    primaryTextColor: '#fff',
+                    primaryBorderColor: '#764ba2',
+                    lineColor: '#667eea',
+                    secondaryColor: '#f093fb',
+                    tertiaryColor: '#4facfe'
+                }
+            });
+
+            // 配置 marked
+            marked.setOptions({
+                highlight: function(code, lang) {
+                    if (lang && hljs.getLanguage(lang)) {
+                        try {
+                            return hljs.highlight(code, { language: lang }).value;
+                        } catch (err) {}
+                    }
+                    return hljs.highlightAuto(code).value;
+                },
+                breaks: true,
+                gfm: true
+            });
+        });
+
+        // 初始化模型下拉框
+        function initializeModelSelect() {
+            const select = document.getElementById('modelSelect');
+            select.innerHTML = '';
+
+            // 添加默认模型
+            AVAILABLE_MODELS.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model;
+                option.textContent = formatModelName(model);
+                if (model === selectedModel) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            });
+
+            // 添加自定义模型
+            if (customModels.length > 0) {
+                const separator = document.createElement('option');
+                separator.disabled = true;
+                separator.textContent = '──── 自定义模型 ────';
+                select.appendChild(separator);
+
+                customModels.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model;
+                    option.textContent = formatModelName(model) + ' (自定义)';
+                    if (model === selectedModel) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                });
+            }
+        }
+
+        // 格式化模型名称显示
+        function formatModelName(model) {
+            const parts = model.split('/');
+            if (parts.length === 2) {
+                const provider = parts[0];
+                const modelName = parts[1];
+                const providerNames = {
+                    'anthropic': 'Anthropic',
+                    'openai': 'OpenAI',
+                    'google': 'Google',
+                    'deepseek': 'DeepSeek',
+                    'qwen': 'Qwen',
+                    'moonshotai': 'Moonshot',
+                    'mistralai': 'Mistral'
+                };
+                const displayProvider = providerNames[provider] || provider;
+                return `${displayProvider} - ${modelName}`;
+            }
+            return model;
+        }
+
+        // 模型选择变化
+        function onModelSelectChange() {
+            const select = document.getElementById('modelSelect');
+            selectedModel = select.value;
+            // 保存最后选择的模型
+            localStorage.setItem('last_selected_model', selectedModel);
+        }
+
+        // 切换添加模型对话框
+        function toggleAddModelDialog() {
+            const dialog = document.getElementById('addModelDialog');
+            const input = document.getElementById('newModelInput');
+
+            if (dialog.style.display === 'none') {
+                dialog.style.display = 'block';
+                input.value = '';
+                input.focus();
+            } else {
+                dialog.style.display = 'none';
+            }
+        }
+
+        // 确认添加模型
+        function confirmAddModel() {
+            const input = document.getElementById('newModelInput');
+            const modelId = input.value.trim();
+
+            if (!modelId) {
+                alert('请输入有效的模型ID');
+                return;
+            }
+
+            if (AVAILABLE_MODELS.includes(modelId) || customModels.includes(modelId)) {
+                alert('该模型已存在');
+                return;
+            }
+
+            // 验证模型ID格式
+            if (!modelId.includes('/')) {
+                alert('模型ID格式应为: provider/model-name');
+                return;
+            }
+
+            customModels.push(modelId);
+            saveCustomModels();
+            selectedModel = modelId;
+            initializeModelSelect();
+            toggleAddModelDialog();
+        }
+
+        // 保存自定义模型到本地存储
+        function saveCustomModels() {
+            localStorage.setItem('customModels', JSON.stringify(customModels));
+        }
+
+        // 加载自定义模型
+        function loadCustomModels() {
+            const saved = localStorage.getItem('customModels');
+            if (saved) {
+                customModels = JSON.parse(saved);
+            }
+        }
+
+
+        // 开始批量测试
+        async function startBatchTest() {
+            try {
+                // 检查 API Key
+                const apiKey = getApiKey();
+                if (!apiKey) {
+                    alert('请先配置 OpenRouter API Key');
+                    document.getElementById('apiKeyInput').focus();
+                    return;
+                }
+
+                console.log('开始批量测试...');
+                const prompt = document.getElementById('promptInput').value.trim();
+                if (!prompt) {
+                    alert('请输入提示词内容');
+                    return;
+                }
+
+                console.log('选中的模型:', selectedModel);
+                if (!selectedModel) {
+                    alert('请选择一个模型');
+                    return;
+                }
+                
+                // 保存最后选择的模型
+                localStorage.setItem('last_selected_model', selectedModel);
+
+                const batchSize = parseInt(document.getElementById('batchSize').value);
+                const interval = parseInt(document.getElementById('requestInterval').value);
+                const maxConcurrent = parseInt(document.getElementById('maxConcurrent').value);
+                const temperature = parseFloat(document.getElementById('temperature').value);
+                const topP = parseFloat(document.getElementById('topP').value);
+                const streamMode = document.getElementById('streamMode').value === 'true';
+
+                console.log('批量参数:', { batchSize, interval, maxConcurrent, temperature, topP });
+
+            isRunning = true;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('progressBar').style.display = 'block';
+
+            // 重置统计
+            requestStats = { total: 0, success: 0, failed: 0, times: [], totalCost: 0 };
+
+            // 生成请求队列
+            requestQueue = [];
+            for (let i = 0; i < batchSize; i++) {
+                requestQueue.push({
+                    id: generateId(),
+                    model: selectedModel,
+                    prompt,
+                    index: i,
+                    temperature,
+                    topP,
+                    streamMode
+                });
+            }
+
+            requestStats.total = requestQueue.length;
+            updateStats();
+
+            // 创建结果卡片
+            const resultsGrid = document.getElementById('resultsGrid');
+            resultsGrid.innerHTML = '';
+
+            requestQueue.forEach(request => {
+                const card = createResultCard(request);
+                resultsGrid.appendChild(card);
+            });
+
+            // 控制并发执行
+            let activeCount = 0;
+            let queueIndex = 0;
+
+            async function processNext() {
+                if (!isRunning || queueIndex >= requestQueue.length) return;
+
+                while (activeCount < maxConcurrent && queueIndex < requestQueue.length) {
+                    const request = requestQueue[queueIndex++];
+                    activeCount++;
+                    updateStats();
+
+                    processRequest(request).finally(() => {
+                        activeCount--;
+                        if (interval > 0) {
+                            setTimeout(processNext, interval);
+                        } else {
+                            processNext();
+                        }
+                    });
+
+                    if (interval > 0 && activeCount < maxConcurrent) {
+                        await new Promise(resolve => setTimeout(resolve, interval));
+                    }
+                }
+            }
+
+            processNext();
+            } catch (error) {
+                console.error('批量测试启动失败:', error);
+                alert('启动失败: ' + error.message);
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+
+        // 处理单个请求
+        async function processRequest(request) {
+            const card = document.getElementById(request.id);
+            const contentDiv = card.querySelector('.card-content');
+            const statusBadge = card.querySelector('.status-badge');
+
+            try {
+                updateCardStatus(card, 'generating');
+                const startTime = Date.now();
+
+                const response = await fetch(`${API_BASE_URL}/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getApiKey()}`,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': 'https://prompt-tester.app',
+                        'X-Title': 'Prompt Tester'
+                    },
+                    body: JSON.stringify({
+                        model: request.model,
+                        messages: [{ role: 'user', content: request.prompt }],
+                        stream: request.streamMode !== false,  // 默认为true
+                        temperature: request.temperature || 1.0,
+                        top_p: request.topP || 1,
+                        // 根据 OpenRouter 文档，必须显式启用 usage accounting
+                        usage: {
+                            include: true
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                // 获取响应headers中的provider信息
+                const responseHeaders = {};
+                response.headers.forEach((value, key) => {
+                    responseHeaders[key.toLowerCase()] = value;
+                });
+
+                let content = '';
+                let provider = 'Routing...';
+                let usage = null;
+                let modelId = request.model;
+                let actualProvider = null;
+                let generationId = null;
+
+                // 非流式模式
+                if (request.streamMode === false) {
+                    const data = await response.json();
+                    console.log('非流式响应:', data);
+
+                    // 获取内容
+                    content = data.choices?.[0]?.message?.content || '';
+                    contentDiv.textContent = content;
+                    contentDiv.setAttribute('data-raw-content', content);
+
+                    // 获取usage - 非流式模式直接包含在响应中
+                    usage = data.usage;
+                    modelId = data.model || request.model;
+                    generationId = data.id;
+
+                    if (usage) {
+                        console.log('非流式模式usage:', JSON.stringify(usage, null, 2));
+                        console.log(`Token 统计 - 输入: ${usage.prompt_tokens}, 输出: ${usage.completion_tokens}, 总计: ${usage.total_tokens}`);
+                    } else {
+                        console.warn('非流式模式未返回 usage 信息，可能需要检查 API 配置');
+                    }
+                }
+                // 流式模式
+                else {
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = ''; // 缓冲区，用于处理被分割的数据
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    buffer += chunk;
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // 保留最后一行（可能不完整）
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6).trim();
+                            if (data === '[DONE]') {
+                                console.log('流式结束标记');
+                                continue;
+                            }
+                            if (!data) continue;
+
+                            try {
+                                const json = JSON.parse(data);
+
+                                // 获取实际使用的模型信息
+                                if (json.model) {
+                                    modelId = json.model;
+                                }
+
+                                // 尝试从响应中获取provider信息
+                                // OpenRouter可能在不同字段返回这些信息
+                                if (json.provider) {
+                                    actualProvider = json.provider;
+                                }
+
+                                // 检查是否有 x_provider 或其他provider信息
+                                if (json.x_provider) {
+                                    actualProvider = json.x_provider;
+                                }
+
+                                // 如果有id字段，可能包含provider信息
+                                if (json.id && !actualProvider) {
+                                    // OpenRouter的generation ID格式可能包含provider信息
+                                    // 例如: "gen-azure-xxx" 或 "gen-bedrock-xxx"
+                                    const idParts = json.id.split('-');
+                                    if (idParts.length > 1 && idParts[0] === 'gen') {
+                                        const possibleProvider = idParts[1];
+                                        const knownProviders = ['azure', 'aws', 'bedrock', 'google', 'openai', 'anthropic', 'groq', 'together'];
+                                        if (knownProviders.includes(possibleProvider.toLowerCase())) {
+                                            actualProvider = possibleProvider;
+                                        }
+                                    }
+                                }
+
+                                // 获取增量内容
+                                const delta = json.choices?.[0]?.delta?.content;
+                                if (delta) {
+                                    content += delta;
+                                    // 卡片中显示原始内容
+                                    contentDiv.textContent = content;
+                                    contentDiv.setAttribute('data-raw-content', content);
+                                    contentDiv.scrollTop = contentDiv.scrollHeight;
+                                }
+
+                                                // 获取 generation ID（用于后续查询准确的 native_tokens）
+                                if (json.id) {
+                                    generationId = json.id;
+                                    console.log('Generation ID:', generationId);
+                                }
+
+                                // 获取 usage 信息
+                                // 根据文档，OpenRouter 在最后一个 SSE 消息中返回 usage
+                                // 通常在 finish_reason 出现后
+                                if (json.usage) {
+                                    usage = json.usage;
+                                    console.log('收到 usage 信息:', JSON.stringify(usage, null, 2));
+
+                                    // 验证 token 数据
+                                    if (usage.prompt_tokens && usage.completion_tokens) {
+                                        console.log(`Token 统计 - 输入: ${usage.prompt_tokens}, 输出: ${usage.completion_tokens}, 总计: ${usage.total_tokens}`);
+                                    }
+                                }
+
+                                // 某些模型可能在不同字段返回成本
+                                if (json.x_groq?.usage) {
+                                    usage = json.x_groq.usage;
+                                    console.log('从 x_groq 获取 usage:', usage);
+                                }
+
+                                // 检查是否完成
+                                const finishReason = json.choices?.[0]?.finish_reason;
+                                if (finishReason) {
+                                    // 流式结束
+                                }
+                            } catch (e) {
+                                console.error('解析SSE数据失败:', e);
+                            }
+                        }
+                    }
+                }
+
+                // 处理可能剩余在缓冲区的最后数据
+                if (buffer.trim()) {
+                    if (buffer.startsWith('data: ')) {
+                        const data = buffer.slice(6).trim();
+                        if (data !== '[DONE]' && data) {
+                            try {
+                                const json = JSON.parse(data);
+                                if (json.usage && !usage) {
+                                    usage = json.usage;
+                                    console.log('从最后缓冲区获取 usage:', usage);
+                                }
+                            } catch (e) {
+                                console.error('解析最后缓冲区数据失败:', e);
+                            }
+                        }
+                    }
+                    }
+
+                    // 如果没有 usage，尝试从响应头获取
+                    if (!usage) {
+                    const orUsage = responseHeaders['x-openrouter-usage'];
+                    if (orUsage) {
+                        try {
+                            usage = JSON.parse(orUsage);
+                            console.log('从响应头 x-openrouter-usage 获取 usage:', usage);
+                        } catch (e) {
+                            console.error('解析响应头 usage 失败:', e);
+                        }
+                        }
+                    }
+                }  // 结束流式模式处理
+
+                // 更新provider信息
+                const providerDiv = card.querySelector('.provider-info');
+                if (providerDiv) {
+                    // 显示实际的provider
+                    if (actualProvider) {
+                        // 美化provider名称
+                        const providerNames = {
+                            'azure': 'Azure',
+                            'aws': 'AWS Bedrock',
+                            'bedrock': 'AWS Bedrock',
+                            'google': 'Google',
+                            'openai': 'OpenAI',
+                            'anthropic': 'Anthropic',
+                            'groq': 'Groq',
+                            'together': 'Together AI',
+                            'deepinfra': 'DeepInfra',
+                            'replicate': 'Replicate',
+                            'perplexity': 'Perplexity',
+                            'mistral': 'Mistral AI',
+                            'cohere': 'Cohere'
+                        };
+                        provider = providerNames[actualProvider.toLowerCase()] || actualProvider;
+                    } else {
+                        // 如果没有获取到实际provider，显示模型提供商
+                        const modelProvider = request.model.split('/')[0];
+                        const providerNames = {
+                            'openai': 'OpenAI (via OR)',
+                            'anthropic': 'Anthropic (via OR)',
+                            'google': 'Google (via OR)',
+                            'meta-llama': 'Meta (via OR)',
+                            'mistralai': 'Mistral (via OR)',
+                            'deepseek': 'DeepSeek (via OR)',
+                            'qwen': 'Qwen (via OR)',
+                            'moonshotai': 'Moonshot (via OR)'
+                        };
+                        provider = providerNames[modelProvider] || `${modelProvider} (via OR)`;
+                    }
+                    providerDiv.textContent = `Provider: ${provider}`;
+
+                    // 如果有响应headers中的provider信息，也显示出来
+                    if (responseHeaders['x-provider']) {
+                        providerDiv.textContent = `Provider: ${responseHeaders['x-provider']}`;
+                    }
+                }
+
+                const endTime = Date.now();
+                const duration = (endTime - startTime) / 1000;
+
+                // 如果有 generation ID，尝试获取准确的 native_tokens
+                if (generationId && !usage?.native_tokens_prompt) {
+                    console.log('等待 500ms 后查询 native_tokens...');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    try {
+                        const genResponse = await fetch(`https://openrouter.ai/api/v1/generation?id=${generationId}`, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${getApiKey()}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        if (genResponse.ok) {
+                            const genData = await genResponse.json();
+                            console.log('Generation API 响应:', genData);
+
+                            // 更新 usage 信息
+                            if (genData.data) {
+                                const gen = genData.data;
+                                if (gen.native_tokens_prompt || gen.native_tokens_completion) {
+                                    console.log('获取到 native_tokens:');
+                                    console.log('  native_tokens_prompt:', gen.native_tokens_prompt);
+                                    console.log('  native_tokens_completion:', gen.native_tokens_completion);
+
+                                    // 更新 usage 对象
+                                    if (!usage) usage = {};
+                                    usage.native_tokens_prompt = gen.native_tokens_prompt;
+                                    usage.native_tokens_completion = gen.native_tokens_completion;
+                                    usage.total_cost = gen.total_cost; // 准确的成本
+
+                                    // 如果之前没有 cost，使用 total_cost
+                                    if (!usage.cost && gen.total_cost) {
+                                        usage.cost = gen.total_cost;
+                                    }
+                                }
+                            }
+                        } else {
+                            console.warn('无法获取 generation 信息:', genResponse.status);
+                        }
+                    } catch (error) {
+                        console.error('查询 generation 失败:', error);
+                    }
+                }
+
+                // 更新统计信息
+                const statsDiv = card.querySelector('.card-stats');
+                if (statsDiv) {
+                    if (usage) {
+                        // 优先使用 native_tokens（更准确）
+                        const promptTokens = usage.native_tokens_prompt || usage.prompt_tokens || 0;
+                        const completionTokens = usage.native_tokens_completion || usage.completion_tokens || 0;
+                        const totalTokens = usage.total_tokens || (promptTokens + completionTokens);
+                        const isNative = usage.native_tokens_prompt || usage.native_tokens_completion;
+
+                        // 检查是否有实际成本数据
+                        let actualCost = null;
+
+                        // 根据 OpenRouter 文档：
+                        // 1. cost 字段单位是 credits
+                        // 2. 1 credit = 1 USD（美元）
+                        // 3. 返回的 token 数量可能不准确（见 Reddit 说明）
+                        if (typeof usage.cost === 'number' && usage.cost >= 0) {
+                            actualCost = usage.cost; // Credits，但 1 credit = $1
+
+                            // 详细的成本调试信息
+                            console.log('=== 成本计算详情 ===');
+                            console.log('模型:', request.model);
+                            if (isNative) {
+                                console.log('使用 Native Tokens（准确）:');
+                            } else {
+                                console.log('使用 API 返回的 tokens（可能不准确）:');
+                            }
+                            console.log('  输入:', promptTokens, isNative ? '(native)' : '');
+                            console.log('  输出:', completionTokens, isNative ? '(native)' : '');
+                            console.log('  总计:', totalTokens);
+                            console.log('实际收费:', actualCost, 'USD');
+
+                            // 如果使用 native_tokens，计算应该更准确
+                            if (request.model.includes('deepseek')) {
+                                const expectedInputCost = (promptTokens / 1000000) * 0.14;
+                                const expectedOutputCost = (completionTokens / 1000000) * 0.28;
+                                const expectedTotal = expectedInputCost + expectedOutputCost;
+
+                                if (isNative) {
+                                    console.log('基于 Native Tokens 的成本计算:');
+                                } else {
+                                    console.log('理论成本（基于显示的 token 数）:');
+                                }
+                                console.log('  输入: $', expectedInputCost.toFixed(8));
+                                console.log('  输出: $', expectedOutputCost.toFixed(8));
+                                console.log('  计算总计: $', expectedTotal.toFixed(8));
+
+                                const ratio = actualCost / expectedTotal;
+                                console.log('实际收费/计算值:', ratio.toFixed(2), '倍');
+
+                                if (!isNative && ratio > 2) {
+                                    console.log('⚠️ 费用差异较大，原因可能是：');
+                                    console.log('1. API 返回的 token 数量不准确（需要 native_tokens）');
+                                    console.log('2. 包含 OpenRouter 服务费');
+                                    console.log('3. 路由到的提供商价格不同');
+                                    console.log('💡 系统正在尝试获取准确的 native_tokens...');
+                                } else if (isNative && Math.abs(ratio - 1) > 0.1) {
+                                    console.log('⚠️ 即使使用 native_tokens，仍有差异：');
+                                    console.log('可能是 OpenRouter 的服务费或路由差异');
+                                }
+                            }
+
+                            // 检查是否有更详细的成本信息
+                            if (usage.cost_details?.upstream_inference_cost) {
+                                console.log('上游提供商成本:', usage.cost_details.upstream_inference_cost);
+                            }
+                            console.log('==================');
+                        }
+
+                        // 调试：打印完整的 usage 对象
+                        console.log('完整 usage 对象:', JSON.stringify(usage, null, 2));
+
+                        // 重要提示：不同模型使用不同的 tokenizer
+                        // 因此同样的文本在不同模型中的 token 数量会不同
+                        console.log(`模型 ${request.model} 使用其原生 tokenizer 计算 tokens`);
+
+                        // 格式化成本显示
+                        const formatCost = (cost) => {
+                            // OpenRouter 返回的 cost 字段是 credits
+                            // 1 credit = 1 USD
+
+                            if (cost === 0) return '$0.0000';
+
+                            // 始终显示为美元，保留足够的小数位
+                            if (cost < 0.01) {
+                                // 小额费用显示 6-8 位小数
+                                return `$${cost.toFixed(8).replace(/\.?0+$/, '')}`;
+                            } else if (cost < 1) {
+                                // 中等费用显示 4-6 位小数
+                                return `$${cost.toFixed(6).replace(/\.?0+$/, '')}`;
+                            } else {
+                                // 大额费用显示 2-4 位小数
+                                return `$${cost.toFixed(4)}`;
+                            }
+                        };
+
+                        // 只有当有实际成本时才显示费用
+                        const costDisplay = actualCost !== null
+                            ? `<span class="stat-value" style="color: #4CAF50;">${formatCost(actualCost)}</span>`
+                            : `<span class="stat-value" style="opacity: 0.5;">--</span>`;
+
+                        statsDiv.innerHTML = `
+                            <div class="stat-item">
+                                <span class="stat-label">输入${isNative ? '*' : ''}</span>
+                                <span class="stat-value" title="${promptTokens.toLocaleString()} ${isNative ? 'native' : ''} tokens">${promptTokens.toLocaleString()}</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">输出${isNative ? '*' : ''}</span>
+                                <span class="stat-value" title="${completionTokens.toLocaleString()} ${isNative ? 'native' : ''} tokens">${completionTokens.toLocaleString()}</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">总计${isNative ? '*' : ''}</span>
+                                <span class="stat-value" title="${totalTokens.toLocaleString()} ${isNative ? 'native' : ''} tokens">${totalTokens.toLocaleString()}</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">耗时</span>
+                                <span class="stat-value">${duration.toFixed(1)}s</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">速度</span>
+                                <span class="stat-value">${Math.round(completionTokens / duration)}t/s</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">费用</span>
+                                ${costDisplay}
+                            </div>
+                        `;
+
+                        // 只有当有实际成本时才累加
+                        if (actualCost !== null) {
+                            requestStats.totalCost += actualCost;
+                            console.log(`请求 #${request.index + 1} - 实际费用: ${formatCost(actualCost)}`, usage);
+                        } else {
+                            console.log(`请求 #${request.index + 1} - 无费用信息`, usage);
+                        }
+                    } else {
+                        // 没有 usage 信息时的显示
+                        // 计算响应字符数和速度
+                        const responseChars = content.length;
+                        const charsPerSecond = Math.round(responseChars / duration);
+
+                        statsDiv.innerHTML = `
+                            <div class="stat-item">
+                                <span class="stat-label">字符数</span>
+                                <span class="stat-value" title="${responseChars.toLocaleString()} 个字符">${responseChars.toLocaleString()}</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">耗时</span>
+                                <span class="stat-value">${duration.toFixed(1)}s</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">速度</span>
+                                <span class="stat-value">${charsPerSecond}c/s</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Tokens</span>
+                                <span class="stat-value" style="opacity: 0.5;">--</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">费用</span>
+                                <span class="stat-value" style="opacity: 0.5;">--</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">状态</span>
+                                <span class="stat-value" style="color: #ffc107; font-size: 10px;">无计量</span>
+                            </div>
+                        `;
+
+                        console.warn(`请求 #${request.index + 1} - 无 usage 信息`);
+                        console.log(`可能原因：
+1. API 未正确返回 usage 信息
+2. 流式响应中 usage 信息在最后一个 chunk，可能被截断
+3. 某些模型可能不支持 token 计量
+4. 建议尝试非流式模式以获得更可靠的 usage 信息`);
+                    }
+                }
+
+                requestStats.success++;
+                requestStats.times.push(duration);
+                updateCardStatus(card, 'completed');
+
+            } catch (error) {
+                console.error('Request failed:', error);
+                requestStats.failed++;
+                updateCardStatus(card, 'error', error.message);
+                contentDiv.innerHTML = `<div class="error-details">错误: ${error.message}</div>`;
+            } finally {
+                activeRequests.delete(request.id);
+                updateStats();
+                updateProgress();
+
+                // 检查是否所有请求都完成
+                if (requestStats.success + requestStats.failed >= requestStats.total) {
+                    completeAllRequests();
+                }
+            }
+        }
+
+        // 创建结果卡片
+        function createResultCard(request) {
+            const card = document.createElement('div');
+            card.className = 'result-card';
+            card.id = request.id;
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="card-header-row">
+                        <div class="card-info">
+                            <div class="model-name" title="${request.model}">${request.model.split('/')[1] || request.model}</div>
+                            <div class="provider-info">Provider: 路由中...</div>
+                        </div>
+                        <div class="status-badge status-waiting">等待中</div>
+                    </div>
+                </div>
+                <div class="card-content"></div>
+                <div class="card-stats"></div>
+                <div class="card-actions">
+                    <button class="card-btn card-btn-primary" onclick="viewFullContent('${request.id}')" title="全屏查看">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M5 5h5V3H3v7h2V5zm14 0h-5V3h7v7h-2V5zM5 19h5v2H3v-7h2v5zm14 0v-5h2v7h-7v-2h5z"/>
+                        </svg>
+                    </button>
+                    <button class="card-btn card-btn-secondary" onclick="copyContent('${request.id}')" title="复制内容">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                        </svg>
+                    </button>
+                    <button class="card-btn card-btn-secondary" onclick="debugRequest('${request.id}')" title="调试信息">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M22 9V7h-2V5c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-2h2v-2h-2v-2h2v-2h-2V9h2zm-4 10H4V5h14v14z"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+
+            return card;
+        }
+
+        // 更新卡片状态
+        function updateCardStatus(card, status, error = null) {
+            const statusBadge = card.querySelector('.status-badge');
+            statusBadge.className = `status-badge status-${status}`;
+
+            const statusText = {
+                waiting: '等待中',
+                generating: '生成中',
+                completed: '已完成',
+                error: '出错了'
+            };
+
+            statusBadge.textContent = statusText[status];
+
+            if (status === 'generating') {
+                statusBadge.innerHTML = '生成中 <span class="loading-spinner"></span>';
+            }
+
+            // 显示统计信息 - 使用类而不是style,避免改变卡片高度
+            if (status === 'completed') {
+                const statsDiv = card.querySelector('.card-stats');
+                if (statsDiv) {
+                    statsDiv.classList.add('visible'); // 添加visible类,触发淡入
+                }
+            }
+
+            if (error) {
+                card.setAttribute('data-error', error);
+            }
+        }
+
+        // 更新统计信息
+        function updateStats() {
+            document.getElementById('totalRequests').textContent = requestStats.total;
+            document.getElementById('successRequests').textContent = requestStats.success;
+            document.getElementById('failedRequests').textContent = requestStats.failed;
+            document.getElementById('activeRequests').textContent = activeRequests.size;
+
+            if (requestStats.times.length > 0) {
+                const avgTime = requestStats.times.reduce((a, b) => a + b, 0) / requestStats.times.length;
+                document.getElementById('avgTime').textContent = `${avgTime.toFixed(1)}s`;
+            }
+
+            // 更新总费用显示 - 只显示实际值（美元）
+            const formatTotalCost = (cost) => {
+                if (cost === 0) return '$0.0000';
+
+                // 始终显示为美元
+                if (cost < 0.01) {
+                    return `$${cost.toFixed(6).replace(/\.?0+$/, '')}`;
+                } else if (cost < 1) {
+                    return `$${cost.toFixed(4).replace(/\.?0+$/, '')}`;
+                } else {
+                    return `$${cost.toFixed(2)}`;
+                }
+            };
+            document.getElementById('totalCostStat').textContent = formatTotalCost(requestStats.totalCost);
+        }
+
+        // 更新进度条
+        function updateProgress() {
+            const completed = requestStats.success + requestStats.failed;
+            const progress = (completed / requestStats.total) * 100;
+            document.getElementById('progressFill').style.width = `${progress}%`;
+        }
+
+        // 完成所有请求
+        function completeAllRequests() {
+            isRunning = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+
+            setTimeout(() => {
+                document.getElementById('progressBar').style.display = 'none';
+            }, 2000);
+        }
+
+        // 停止所有请求
+        function stopAllRequests() {
+            isRunning = false;
+            activeRequests.clear();
+            completeAllRequests();
+        }
+
+        // 查看完整内容
+        function viewFullContent(cardId) {
+            const card = document.getElementById(cardId);
+            const contentDiv = card.querySelector('.card-content');
+            const rawContent = contentDiv.getAttribute('data-raw-content') || contentDiv.textContent;
+            const modelName = card.querySelector('.model-name').textContent;
+
+            document.getElementById('modalTitle').textContent = `${modelName} - 响应详情`;
+            const modalContent = document.getElementById('modalContent');
+            
+            // 默认显示原始内容
+            modalContent.textContent = rawContent;
+            modalContent.setAttribute('data-raw-content', rawContent);
+            modalContent.className = 'raw-view';
+            
+            // 重置切换按钮状态
+            document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector('.view-toggle-btn:first-child').classList.add('active');
+            
+            document.getElementById('viewModal').style.display = 'block';
+        }
+
+        // 切换模态框视图
+        async function toggleModalView(mode) {
+            const modalContent = document.getElementById('modalContent');
+            const rawContent = modalContent.getAttribute('data-raw-content') || '';
+            
+            // 更新按钮状态
+            document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            if (mode === 'raw') {
+                // 显示原始内容
+                modalContent.textContent = rawContent;
+                modalContent.className = 'raw-view';
+            } else if (mode === 'markdown') {
+                // 渲染 Markdown
+                modalContent.className = '';
+                await renderMarkdown(modalContent, rawContent);
+            }
+        }
+
+        // 复制内容
+        function copyContent(cardId) {
+            const card = document.getElementById(cardId);
+            const contentDiv = card.querySelector('.card-content');
+            const rawContent = contentDiv.getAttribute('data-raw-content') || contentDiv.textContent;
+
+            navigator.clipboard.writeText(rawContent).then(() => {
+                showToast('内容已复制到剪贴板');
+            }).catch(() => {
+                alert('复制失败，请手动选择内容复制');
+            });
+        }
+
+        // 调试请求
+        function debugRequest(cardId) {
+            const card = document.getElementById(cardId);
+            const error = card.getAttribute('data-error');
+            const modelName = card.querySelector('.model-name').textContent;
+
+            if (error) {
+                alert(`模型: ${modelName}\n错误信息: ${error}`);
+            } else {
+                alert(`模型: ${modelName}\n状态: 正常`);
+            }
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            document.getElementById('viewModal').style.display = 'none';
+        }
+
+
+        // 渲染 Markdown
+        async function renderMarkdown(element, content) {
+            if (!element.hasAttribute('data-raw-content')) {
+                element.setAttribute('data-raw-content', content);
+            }
+            
+            // 解析 Markdown
+            let html = marked.parse(content);
+            
+            // 处理 Mermaid 代码块
+            html = html.replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g, 
+                '<div class="mermaid">$1</div>');
+            
+            element.innerHTML = html;
+            element.classList.add('markdown-body');
+            
+            // 渲染所有 Mermaid 图表
+            const mermaidDivs = element.querySelectorAll('.mermaid');
+            if (mermaidDivs.length > 0) {
+                try {
+                    await mermaid.run({
+                        nodes: mermaidDivs,
+                        suppressErrors: true
+                    });
+                } catch (err) {
+                    console.error('Mermaid 渲染失败:', err);
+                }
+            }
+        }
+
+        // 生成唯一ID
+        function generateId() {
+            return 'card-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // 显示提示信息
+        function showToast(message) {
+            // 简单的提示实现
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: var(--success-gradient);
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 2000);
+        }
+
+        // 添加动画样式
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('viewModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // 键盘快捷键
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+            if (e.ctrlKey && e.key === 'Enter') {
+                if (!document.getElementById('startBtn').disabled) {
+                    startBatchTest();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
