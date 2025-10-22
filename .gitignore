@@ -3,7 +3,8 @@
 ._.iflow
 
 # Claude 配置
-.claude/
+.claude/*
+!.claude/CLAUDE.md
 
 # 系统文件
 .DS_Store
