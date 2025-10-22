@@ -1129,12 +1129,12 @@
 
                 <div class="setting-group">
                     <label class="setting-label">间隔(ms)</label>
-                    <input type="number" id="requestInterval" class="number-input" value="200" min="0" max="5000" step="100">
+                    <input type="number" id="requestInterval" class="number-input" value="500" min="0" max="5000" step="100">
                 </div>
 
                 <div class="setting-group">
                     <label class="setting-label">并发数</label>
-                    <input type="number" id="maxConcurrent" class="number-input" value="5" min="1" max="20">
+                    <input type="number" id="maxConcurrent" class="number-input" value="3" min="1" max="20">
                 </div>
 
                 <div class="setting-group">
@@ -1619,7 +1619,16 @@
                 updateCardStatus(card, 'generating');
                 const startTime = Date.now();
 
+                // 创建 AbortController 用于超时控制
+                const controller = new AbortController();
+                const TIMEOUT_MS = 120000; // 120秒超时
+                const timeoutId = setTimeout(() => {
+                    console.warn(`请求超时 (${TIMEOUT_MS/1000}秒)，中止连接`);
+                    controller.abort();
+                }, TIMEOUT_MS);
+
                 const response = await fetch(`${API_BASE_URL}/chat/completions`, {
+                    signal: controller.signal,
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${getApiKey()}`,
@@ -1639,6 +1648,9 @@
                         }
                     })
                 });
+
+                // 清除超时定时器
+                clearTimeout(timeoutId);
 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1684,10 +1696,36 @@
                     const reader = response.body.getReader();
                     const decoder = new TextDecoder();
                     let buffer = ''; // 缓冲区，用于处理被分割的数据
+                    let lastChunkTime = Date.now();
+                    const CHUNK_TIMEOUT = 30000; // 30秒无数据则认为超时
 
                 while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
+                    try {
+                        // 添加分块超时检测
+                        const readPromise = reader.read();
+                        const timeoutPromise = new Promise((_, reject) => {
+                            setTimeout(() => {
+                                reject(new Error(`流式读取超时: ${CHUNK_TIMEOUT/1000}秒内未收到数据`));
+                            }, CHUNK_TIMEOUT);
+                        });
+
+                        const { done, value } = await Promise.race([readPromise, timeoutPromise]);
+
+                        if (done) {
+                            console.log('流式传输正常结束');
+                            break;
+                        }
+
+                        lastChunkTime = Date.now();
+                    } catch (readError) {
+                        console.error('流式读取错误:', readError);
+                        // 如果是超时或网络错误，保存已有内容并抛出错误
+                        if (content) {
+                            console.warn('已接收部分内容，保存并标记为不完整');
+                            contentDiv.setAttribute('data-incomplete', 'true');
+                        }
+                        throw readError;
+                    }
 
                     const chunk = decoder.decode(value, { stream: true });
                     buffer += chunk;
@@ -2089,13 +2127,80 @@
 
                 requestStats.success++;
                 requestStats.times.push(duration);
-                updateCardStatus(card, 'completed');
+
+                // 检查是否为不完整响应
+                if (contentDiv.getAttribute('data-incomplete') === 'true') {
+                    updateCardStatus(card, 'completed');
+                    // 添加警告标记
+                    const statusBadge = card.querySelector('.status-badge');
+                    statusBadge.innerHTML = '⚠️ 部分完成';
+                    statusBadge.style.background = 'rgba(255, 193, 7, 0.2)';
+                    statusBadge.style.color = '#ffc107';
+
+                    // 在内容前添加提示
+                    contentDiv.innerHTML = `<div style="background: rgba(255, 193, 7, 0.1); padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 11px; border: 1px solid rgba(255, 193, 7, 0.3);">
+                        ⚠️ 此响应不完整（连接中断）
+                    </div>` + contentDiv.innerHTML;
+                } else {
+                    updateCardStatus(card, 'completed');
+                }
 
             } catch (error) {
                 console.error('Request failed:', error);
-                requestStats.failed++;
-                updateCardStatus(card, 'error', error.message);
-                contentDiv.innerHTML = `<div class="error-details">错误: ${error.message}</div>`;
+
+                // 检测是否为 HTTP/2 协议错误或网络错误
+                const isNetworkError = error.message.includes('network') ||
+                                      error.message.includes('ERR_HTTP2') ||
+                                      error.message.includes('fetch') ||
+                                      error.name === 'TypeError';
+
+                const isRetryableError = isNetworkError ||
+                                        error.message.includes('timeout') ||
+                                        error.message.includes('aborted');
+
+                // 获取重试次数
+                const currentRetries = request.retryCount || 0;
+                const MAX_RETRIES = 2;
+
+                if (isRetryableError && currentRetries < MAX_RETRIES) {
+                    // 计算退避延迟：1秒、2秒、4秒
+                    const backoffDelay = Math.pow(2, currentRetries) * 1000;
+
+                    console.warn(`请求失败（第 ${currentRetries + 1} 次），${backoffDelay/1000} 秒后重试...`, error.message);
+
+                    // 更新卡片显示重试状态
+                    const statusBadge = card.querySelector('.status-badge');
+                    statusBadge.className = 'status-badge status-waiting';
+                    statusBadge.textContent = `重试中 (${currentRetries + 1}/${MAX_RETRIES})`;
+
+                    // 延迟后重试
+                    await new Promise(resolve => setTimeout(resolve, backoffDelay));
+
+                    // 增加重试计数并重新处理
+                    request.retryCount = currentRetries + 1;
+                    return processRequest(request);
+                } else {
+                    // 达到最大重试次数或非可重试错误
+                    requestStats.failed++;
+                    updateCardStatus(card, 'error', error.message);
+
+                    // 提供更详细的错误信息
+                    let errorHtml = `<div class="error-details">`;
+                    if (error.message.includes('ERR_HTTP2') || error.message.includes('network')) {
+                        errorHtml += `<strong>网络协议错误</strong><br>`;
+                        errorHtml += `错误: ${error.message}<br>`;
+                        errorHtml += `<small>可能原因：<br>`;
+                        errorHtml += `• OpenRouter 服务器连接中断<br>`;
+                        errorHtml += `• HTTP/2 协议异常<br>`;
+                        errorHtml += `• 网络不稳定<br>`;
+                        errorHtml += `建议：减少并发数或切换到非流式模式</small>`;
+                    } else {
+                        errorHtml += `错误: ${error.message}`;
+                    }
+                    errorHtml += `</div>`;
+
+                    contentDiv.innerHTML = errorHtml;
+                }
             } finally {
                 activeRequests.delete(request.id);
                 updateStats();
