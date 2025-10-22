@@ -1168,18 +1168,18 @@
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
-                    <span>v1.2.1</span>
+                    <span>v1.2.2</span>
                     <div class="version-tooltip">
                         <h4>
                             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            v1.2.1 更新内容
+                            v1.2.2 更新内容
                         </h4>
                         <ul>
-                            <li>🐛 修复版本号 tooltip 被下方卡片遮挡的问题</li>
-                            <li>✨ 提升 tooltip 的 z-index 确保始终显示在最上层</li>
-                            <li>🎨 增强 tooltip 阴影效果，提升视觉层次</li>
+                            <li>🐛 修复流式读取中的严重变量作用域错误</li>
+                            <li>✅ 修复 "value is not defined" 导致所有请求失败</li>
+                            <li>🔧 将 done 和 value 变量提升到 try 块外部</li>
                         </ul>
                     </div>
                 </div>
@@ -1809,6 +1809,7 @@
                     const CHUNK_TIMEOUT = 30000; // 30秒无数据则认为超时
 
                 while (true) {
+                    let done, value;
                     try {
                         // 添加分块超时检测
                         const readPromise = reader.read();
@@ -1818,7 +1819,7 @@
                             }, CHUNK_TIMEOUT);
                         });
 
-                        const { done, value } = await Promise.race([readPromise, timeoutPromise]);
+                        ({ done, value } = await Promise.race([readPromise, timeoutPromise]));
 
                         if (done) {
                             console.log('流式传输正常结束');
