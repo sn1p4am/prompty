@@ -1270,7 +1270,9 @@
             success: 0,
             failed: 0,
             times: [],
-            totalCost: 0
+            totalCost: 0,
+            retries: 0,        // 重试次数统计
+            incomplete: 0      // 不完整响应统计
         };
         let requestQueue = [];
         let isRunning = false;
@@ -1545,7 +1547,7 @@
             document.getElementById('progressBar').style.display = 'block';
 
             // 重置统计
-            requestStats = { total: 0, success: 0, failed: 0, times: [], totalCost: 0 };
+            requestStats = { total: 0, success: 0, failed: 0, times: [], totalCost: 0, retries: 0, incomplete: 0 };
 
             // 生成请求队列
             requestQueue = [];
@@ -2131,6 +2133,9 @@
                 // 检查是否为不完整响应
                 if (contentDiv.getAttribute('data-incomplete') === 'true') {
                     updateCardStatus(card, 'completed');
+                    // 统计不完整响应
+                    requestStats.incomplete++;
+
                     // 添加警告标记
                     const statusBadge = card.querySelector('.status-badge');
                     statusBadge.innerHTML = '⚠️ 部分完成';
@@ -2166,7 +2171,11 @@
                     // 计算退避延迟：1秒、2秒、4秒
                     const backoffDelay = Math.pow(2, currentRetries) * 1000;
 
-                    console.warn(`请求失败（第 ${currentRetries + 1} 次），${backoffDelay/1000} 秒后重试...`, error.message);
+                    // 统计重试次数
+                    requestStats.retries++;
+                    updateStats();
+
+                    console.warn(`🔄 请求失败（第 ${currentRetries + 1} 次），${backoffDelay/1000} 秒后重试...`, error.message);
 
                     // 更新卡片显示重试状态
                     const statusBadge = card.querySelector('.status-badge');
@@ -2324,6 +2333,28 @@
             isRunning = false;
             document.getElementById('startBtn').disabled = false;
             document.getElementById('stopBtn').disabled = true;
+
+            // 输出详细统计
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log('📊 批量测试完成统计:');
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log(`✅ 成功: ${requestStats.success} / ${requestStats.total}`);
+            console.log(`❌ 失败: ${requestStats.failed} / ${requestStats.total}`);
+            console.log(`🔄 重试次数: ${requestStats.retries}`);
+            console.log(`⚠️  不完整响应: ${requestStats.incomplete}`);
+            console.log(`💰 总费用: $${requestStats.totalCost.toFixed(6)}`);
+            if (requestStats.times.length > 0) {
+                const avgTime = requestStats.times.reduce((a, b) => a + b, 0) / requestStats.times.length;
+                console.log(`⏱️  平均耗时: ${avgTime.toFixed(2)}s`);
+            }
+            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+            if (requestStats.retries > 0) {
+                console.warn(`⚠️  注意: 有 ${requestStats.retries} 次请求重试（原始错误被自动修复）`);
+            }
+            if (requestStats.incomplete > 0) {
+                console.warn(`⚠️  注意: 有 ${requestStats.incomplete} 个响应不完整（连接中断）`);
+            }
 
             setTimeout(() => {
                 document.getElementById('progressBar').style.display = 'none';
