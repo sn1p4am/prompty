@@ -1738,11 +1738,15 @@
                     controller.abort();
                 }, TIMEOUT_MS);
 
+                // 调试: 检查 API Key
+                const apiKey = getApiKey();
+                console.log('🔑 使用的 API Key:', apiKey ? `${apiKey.substring(0, 20)}...` : '(空)');
+
                 const response = await fetch(`${API_BASE_URL}/chat/completions`, {
                     signal: controller.signal,
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${getApiKey()}`,
+                        'Authorization': `Bearer ${apiKey}`,
                         'Content-Type': 'application/json',
                         'HTTP-Referer': 'https://prompt-tester.app',
                         'X-Title': 'Prompt Tester'
