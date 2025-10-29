@@ -1016,6 +1016,51 @@
             text-align: center;
         }
 
+        /* HTML 预览样式 */
+        #modalContent.html-preview {
+            background: white;
+            padding: 0;
+            border-radius: 8px;
+            overflow: hidden;
+            min-height: 400px;
+        }
+
+        #modalContent.html-preview iframe {
+            width: 100%;
+            min-height: 500px;
+            border: none;
+            background: white;
+        }
+
+        /* HTML 预览警告信息 */
+        .html-preview-warning {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            color: #ffc107;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .html-preview-warning svg {
+            flex-shrink: 0;
+        }
+
+        /* HTML 截断警告 */
+        .html-truncated-warning {
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            color: #f44336;
+            font-size: 13px;
+        }
+
         .modal-header {
             display: flex;
             justify-content: space-between;
@@ -1168,20 +1213,21 @@
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
-                    <span>v1.2.3</span>
+                    <span>v1.3.0</span>
                     <div class="version-tooltip">
                         <h4>
                             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            v1.2.3 更新内容
+                            v1.3.0 更新内容
                         </h4>
                         <ul>
-                            <li>🐛 修复 OpenRouter 预设与 provider 限制冲突</li>
-                            <li>🔧 移除代码中硬编码的 max_tokens 参数</li>
-                            <li>📝 允许通过 OpenRouter 预设灵活配置 max_tokens</li>
-                            <li>✨ 增强错误日志,显示 provider 原始错误信息</li>
-                            <li>💡 添加注释说明不同 provider 的 max_tokens 限制差异</li>
+                            <li>✨ 新增 HTML 预览功能</li>
+                            <li>🎨 支持从 LLM 输出中自动提取 HTML 代码</li>
+                            <li>🔧 智能检测并尝试修复截断的 HTML</li>
+                            <li>🛡️ 在隔离的 iframe 中安全渲染 HTML</li>
+                            <li>⚠️ 显示截断警告和安全提示</li>
+                            <li>🎯 支持多种 HTML 格式(代码块/直接输出)</li>
                         </ul>
                     </div>
                 </div>
@@ -1342,6 +1388,7 @@
                     <div class="view-toggle">
                         <button class="view-toggle-btn active" onclick="toggleModalView('raw')">原始内容</button>
                         <button class="view-toggle-btn" onclick="toggleModalView('markdown')">Markdown 预览</button>
+                        <button class="view-toggle-btn" onclick="toggleModalView('html')">HTML 预览</button>
                     </div>
                 </div>
                 <span class="close" onclick="closeModal()">&times;</span>
@@ -2550,13 +2597,13 @@
         async function toggleModalView(mode) {
             const modalContent = document.getElementById('modalContent');
             const rawContent = modalContent.getAttribute('data-raw-content') || '';
-            
+
             // 更新按钮状态
             document.querySelectorAll('.view-toggle-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
             event.target.classList.add('active');
-            
+
             if (mode === 'raw') {
                 // 显示原始内容
                 modalContent.textContent = rawContent;
@@ -2565,7 +2612,179 @@
                 // 渲染 Markdown
                 modalContent.className = '';
                 await renderMarkdown(modalContent, rawContent);
+            } else if (mode === 'html') {
+                // 渲染 HTML 预览
+                modalContent.className = 'html-preview';
+                renderHtmlPreview(modalContent, rawContent);
             }
+        }
+
+        // 从内容中提取 HTML
+        function extractHtml(content) {
+            // 尝试匹配各种 HTML 代码块格式
+            const patterns = [
+                // Markdown 代码块: ```html ... ```
+                /```html\s*([\s\S]*?)```/i,
+                // Markdown 代码块: ```HTML ... ```
+                /```HTML\s*([\s\S]*?)```/,
+                // 无标记的代码块: ``` ... ``` (如果包含 HTML 标签)
+                /```\s*([\s\S]*?<html[\s\S]*?)```/i,
+                // 直接的 HTML 内容(以 <!DOCTYPE 或 <html 开头)
+                /(<!DOCTYPE[\s\S]*|<html[\s\S]*)/i
+            ];
+
+            for (const pattern of patterns) {
+                const match = content.match(pattern);
+                if (match) {
+                    return match[1] || match[0];
+                }
+            }
+
+            // 如果没有匹配到明确的 HTML,检查是否包含 HTML 标签
+            if (/<[a-z][\s\S]*>/i.test(content)) {
+                return content;
+            }
+
+            return null;
+        }
+
+        // 检测 HTML 是否截断
+        function isHtmlTruncated(html) {
+            const trimmed = html.trim();
+
+            // 检查常见的截断模式
+            const truncationIndicators = [
+                // 未闭合的标签(简单检测)
+                /<[a-z]+[^>]*$/i,
+                // Markdown 代码块未闭合
+                /```\s*$/,
+                // 明显的截断标记
+                /\.{3,}\s*$/,
+                /\[truncated\]/i,
+                /\[被截断\]/,
+            ];
+
+            for (const pattern of truncationIndicators) {
+                if (pattern.test(trimmed)) {
+                    return true;
+                }
+            }
+
+            // 检查 HTML 标签是否平衡
+            const openTags = (html.match(/<([a-z]+)(?:\s|>)/gi) || [])
+                .map(tag => tag.match(/<([a-z]+)/i)[1].toLowerCase())
+                .filter(tag => !['br', 'hr', 'img', 'input', 'meta', 'link'].includes(tag));
+
+            const closeTags = (html.match(/<\/([a-z]+)>/gi) || [])
+                .map(tag => tag.match(/<\/([a-z]+)>/i)[1].toLowerCase());
+
+            // 简单的标签平衡检查
+            if (openTags.length !== closeTags.length) {
+                return true;
+            }
+
+            return false;
+        }
+
+        // 尝试修复截断的 HTML
+        function repairHtml(html) {
+            let repaired = html.trim();
+
+            // 移除末尾不完整的标签
+            repaired = repaired.replace(/<[a-z]+[^>]*$/i, '');
+
+            // 移除未闭合的 Markdown 代码块标记
+            repaired = repaired.replace(/```\s*$/, '');
+
+            // 尝试闭合基本的 HTML 结构
+            const needsHtmlClose = /<html[\s\S]*>/i.test(repaired) && !/<\/html>/i.test(repaired);
+            const needsBodyClose = /<body[\s\S]*>/i.test(repaired) && !/<\/body>/i.test(repaired);
+            const needsHeadClose = /<head[\s\S]*>/i.test(repaired) && !/<\/head>/i.test(repaired);
+
+            if (needsHeadClose) repaired += '\n</head>';
+            if (needsBodyClose) repaired += '\n</body>';
+            if (needsHtmlClose) repaired += '\n</html>';
+
+            return repaired;
+        }
+
+        // 渲染 HTML 预览
+        function renderHtmlPreview(container, content) {
+            container.innerHTML = '';
+
+            // 提取 HTML
+            const extractedHtml = extractHtml(content);
+
+            if (!extractedHtml) {
+                container.innerHTML = `
+                    <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-bottom: 16px;">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                        </svg>
+                        <p>未检测到 HTML 内容</p>
+                        <p style="font-size: 12px; margin-top: 8px;">内容中没有找到完整的 HTML 代码</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // 检测是否截断
+            const isTruncated = isHtmlTruncated(extractedHtml);
+            let htmlToRender = extractedHtml;
+
+            if (isTruncated) {
+                // 显示截断警告
+                const warning = document.createElement('div');
+                warning.className = 'html-truncated-warning';
+                warning.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle; margin-right: 8px;">
+                        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                    </svg>
+                    <span>检测到 HTML 可能被截断，已尝试自动修复。预览可能不完整。</span>
+                `;
+                container.appendChild(warning);
+
+                // 尝试修复
+                htmlToRender = repairHtml(extractedHtml);
+            }
+
+            // 显示安全警告
+            const safetyWarning = document.createElement('div');
+            safetyWarning.className = 'html-preview-warning';
+            safetyWarning.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2L1 21h22M12 6l7.53 13H4.47M11 10v4h2v-4m-2 6v2h2v-2"/>
+                </svg>
+                <span>HTML 内容在隔离的 iframe 中渲染，JavaScript 已被禁用以确保安全。</span>
+            `;
+            container.appendChild(safetyWarning);
+
+            // 创建 iframe 预览
+            const iframe = document.createElement('iframe');
+            iframe.sandbox = 'allow-same-origin'; // 禁用脚本但允许样式
+            iframe.style.width = '100%';
+            iframe.style.minHeight = '500px';
+            iframe.style.border = 'none';
+            iframe.style.background = 'white';
+
+            container.appendChild(iframe);
+
+            // 写入 HTML 内容
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+            iframeDoc.open();
+            iframeDoc.write(htmlToRender);
+            iframeDoc.close();
+
+            // 调整 iframe 高度以适应内容
+            setTimeout(() => {
+                try {
+                    const height = iframeDoc.body.scrollHeight;
+                    iframe.style.height = Math.max(height + 20, 500) + 'px';
+                } catch (e) {
+                    console.warn('无法调整 iframe 高度:', e);
+                }
+            }, 100);
         }
 
         // 复制内容
