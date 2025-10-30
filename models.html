@@ -352,12 +352,12 @@
                 <div class="stat-label">平均上下文长度</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="avgInputPrice">$0</div>
-                <div class="stat-label">平均输入价格 (每百万token)</div>
+                <div class="stat-value" id="avgInputPrice">$0/M</div>
+                <div class="stat-label">平均输入价格</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="avgOutputPrice">$0</div>
-                <div class="stat-label">平均输出价格 (每百万token)</div>
+                <div class="stat-value" id="avgOutputPrice">$0/M</div>
+                <div class="stat-label">平均输出价格</div>
             </div>
         </div>
 
@@ -399,8 +399,8 @@
                     <thead>
                         <tr>
                             <th>模型名称</th>
+                            <th class="tooltip" data-tooltip="模型创建日期">创建日期</th>
                             <th class="tooltip" data-tooltip="上下文窗口大小">上下文长度</th>
-                            <th class="tooltip" data-tooltip="最大输出token数">最大输出</th>
                             <th class="tooltip" data-tooltip="每百万输入token的价格">输入价格</th>
                             <th class="tooltip" data-tooltip="每百万输出token的价格">输出价格</th>
                             <th class="tooltip" data-tooltip="支持的功能特性">功能特性</th>
@@ -426,18 +426,26 @@
             }
         }
 
-        // 格式化价格（转换为每百万token）
+        // 格式化价格（转换为每百万token，使用 /M 格式）
         function formatPrice(priceStr) {
             const price = parseFloat(priceStr);
             if (isNaN(price) || price === 0) return '-';
             const pricePerMillion = price * 1000000;
-            return '$' + pricePerMillion.toFixed(2);
+            return '$' + pricePerMillion.toFixed(2) + '/M';
         }
 
-        // 格式化数字
+        // 格式化数字（使用英文逗号分隔）
         function formatNumber(num) {
             if (!num) return '-';
-            return num.toLocaleString('zh-CN');
+            return num.toLocaleString('en-US');
+        }
+
+        // 格式化日期
+        function formatDate(timestamp) {
+            if (!timestamp) return '-';
+            const date = new Date(timestamp * 1000);
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return date.toLocaleDateString('en-US', options);
         }
 
         // 获取功能特性徽章
@@ -522,19 +530,19 @@
                         </div>
                         <div class="model-id">${model.id}</div>
                     </td>
-                    <td>
-                        <span class="context-length">${formatNumber(model.context_length)}</span>
+                    <td style="color: var(--text-secondary);">
+                        ${formatDate(model.created)}
                     </td>
                     <td>
-                        ${formatNumber(model.max_completion_tokens)}
+                        <span class="context-length">${formatNumber(model.context_length)} context</span>
                     </td>
                     <td>
                         <div class="price price-input">${formatPrice(model.pricing?.prompt)}</div>
-                        <div class="price-per-million">每百万token</div>
+                        <div class="price-per-million">input tokens</div>
                     </td>
                     <td>
                         <div class="price price-output">${formatPrice(model.pricing?.completion)}</div>
-                        <div class="price-per-million">每百万token</div>
+                        <div class="price-per-million">output tokens</div>
                     </td>
                     <td>
                         ${getFeatureBadges(model)}
@@ -562,7 +570,7 @@
             const avgInputPrice = validInputPrices.length > 0
                 ? validInputPrices.reduce((sum, p) => sum + p, 0) / validInputPrices.length * 1000000
                 : 0;
-            document.getElementById('avgInputPrice').textContent = '$' + avgInputPrice.toFixed(2);
+            document.getElementById('avgInputPrice').textContent = '$' + avgInputPrice.toFixed(2) + '/M';
 
             // 平均输出价格
             const validOutputPrices = models
@@ -571,7 +579,7 @@
             const avgOutputPrice = validOutputPrices.length > 0
                 ? validOutputPrices.reduce((sum, p) => sum + p, 0) / validOutputPrices.length * 1000000
                 : 0;
-            document.getElementById('avgOutputPrice').textContent = '$' + avgOutputPrice.toFixed(2);
+            document.getElementById('avgOutputPrice').textContent = '$' + avgOutputPrice.toFixed(2) + '/M';
         }
 
         // 页面加载时执行
