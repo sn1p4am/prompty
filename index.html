@@ -1062,11 +1062,15 @@
         }
 
         .modal-header {
+            position: sticky;
+            top: -30px;
+            z-index: 10;
+            background: var(--bg-secondary);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
+            margin: -30px -30px 20px -30px;
+            padding: 30px 30px 15px 30px;
             border-bottom: 1px solid var(--card-border);
         }
 
@@ -1213,21 +1217,20 @@
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
-                    <span>v1.3.0</span>
+                    <span>v1.3.1</span>
                     <div class="version-tooltip">
                         <h4>
                             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            v1.3.0 更新内容
+                            v1.3.1 更新内容
                         </h4>
                         <ul>
-                            <li>✨ 新增 HTML 预览功能</li>
-                            <li>🎨 支持从 LLM 输出中自动提取 HTML 代码</li>
-                            <li>🔧 智能检测并尝试修复截断的 HTML</li>
-                            <li>🛡️ 在隔离的 iframe 中安全渲染 HTML</li>
-                            <li>⚠️ 显示截断警告和安全提示</li>
-                            <li>🎯 支持多种 HTML 格式(代码块/直接输出)</li>
+                            <li>📌 详情弹窗顶部切换按钮栏固定置顶</li>
+                            <li>🎯 优化 HTML 预览，仅接受完整的 HTML 文档</li>
+                            <li>🔍 严格验证 HTML 必须包含 &lt;!DOCTYPE html&gt; 和 &lt;/html&gt;</li>
+                            <li>🚫 移除自动修复功能，避免预览不准确的内容</li>
+                            <li>💡 改进提示信息，明确告知 HTML 不完整原因</li>
                         </ul>
                     </div>
                 </div>
@@ -2621,30 +2624,43 @@
 
         // 从内容中提取 HTML
         function extractHtml(content) {
-            // 尝试匹配各种 HTML 代码块格式
-            const patterns = [
-                // Markdown 代码块: ```html ... ```
+            // 尝试从各种格式中提取完整的 HTML
+            let html = null;
+
+            // 尝试匹配 Markdown 代码块中的 HTML
+            const codeBlockPatterns = [
                 /```html\s*([\s\S]*?)```/i,
-                // Markdown 代码块: ```HTML ... ```
                 /```HTML\s*([\s\S]*?)```/,
-                // 无标记的代码块: ``` ... ``` (如果包含 HTML 标签)
-                /```\s*([\s\S]*?<html[\s\S]*?)```/i,
-                // 直接的 HTML 内容(以 <!DOCTYPE 或 <html 开头)
-                /(<!DOCTYPE[\s\S]*|<html[\s\S]*)/i
+                /```\s*(<!DOCTYPE html[\s\S]*?)<\/html>\s*```/i
             ];
 
-            for (const pattern of patterns) {
+            for (const pattern of codeBlockPatterns) {
                 const match = content.match(pattern);
                 if (match) {
-                    return match[1] || match[0];
+                    html = match[1];
+                    break;
                 }
             }
 
-            // 如果没有匹配到明确的 HTML,检查是否包含 HTML 标签
-            if (/<[a-z][\s\S]*>/i.test(content)) {
-                return content;
+            // 如果代码块中没找到，尝试直接从内容中提取
+            if (!html) {
+                const directMatch = content.match(/(<!DOCTYPE html[\s\S]*?<\/html>)/i);
+                if (directMatch) {
+                    html = directMatch[1];
+                }
             }
 
+            // 验证是否为完整的 HTML
+            if (html) {
+                const hasDoctype = /<!DOCTYPE\s+html/i.test(html);
+                const hasHtmlEnd = /<\/html>/i.test(html);
+
+                if (hasDoctype && hasHtmlEnd) {
+                    return html;
+                }
+            }
+
+            // 如果不是完整的 HTML，返回 null
             return null;
         }
 
@@ -2722,31 +2738,11 @@
                             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
                             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
                         </svg>
-                        <p>未检测到 HTML 内容</p>
-                        <p style="font-size: 12px; margin-top: 8px;">内容中没有找到完整的 HTML 代码</p>
+                        <p>HTML 不完整</p>
+                        <p style="font-size: 12px; margin-top: 8px;">内容中没有找到完整的 HTML 代码（缺少 &lt;!DOCTYPE html&gt; 或 &lt;/html&gt; 标签）</p>
                     </div>
                 `;
                 return;
-            }
-
-            // 检测是否截断
-            const isTruncated = isHtmlTruncated(extractedHtml);
-            let htmlToRender = extractedHtml;
-
-            if (isTruncated) {
-                // 显示截断警告
-                const warning = document.createElement('div');
-                warning.className = 'html-truncated-warning';
-                warning.innerHTML = `
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle; margin-right: 8px;">
-                        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-                    </svg>
-                    <span>检测到 HTML 可能被截断，已尝试自动修复。预览可能不完整。</span>
-                `;
-                container.appendChild(warning);
-
-                // 尝试修复
-                htmlToRender = repairHtml(extractedHtml);
             }
 
             // 显示安全警告
@@ -2773,7 +2769,7 @@
             // 写入 HTML 内容
             const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
             iframeDoc.open();
-            iframeDoc.write(htmlToRender);
+            iframeDoc.write(extractedHtml);
             iframeDoc.close();
 
             // 调整 iframe 高度以适应内容
