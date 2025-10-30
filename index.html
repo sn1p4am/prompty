@@ -100,9 +100,9 @@
             background: var(--bg-secondary);
             border: 1px solid var(--card-border);
             border-radius: var(--border-radius);
-            padding: 15px;
+            padding: 20px;
             min-width: 320px;
-            max-width: 400px;
+            max-width: 450px;
             box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
             opacity: 0;
             visibility: hidden;
@@ -110,7 +110,8 @@
             transition: all 0.3s ease;
             z-index: 10000;
             font-size: 13px;
-            line-height: 1.6;
+            line-height: 1.7;
+            text-align: left;
         }
 
         .version-badge:hover .version-tooltip {
@@ -120,22 +121,37 @@
         }
 
         .version-tooltip h4 {
-            margin: 0 0 10px 0;
+            margin: 0 0 12px 0;
             font-size: 14px;
+            font-weight: 600;
             color: var(--text-primary);
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .version-tooltip ul {
             margin: 0;
-            padding-left: 20px;
+            padding-left: 0;
+            list-style: none;
             color: var(--text-secondary);
         }
 
         .version-tooltip li {
-            margin: 4px 0;
+            margin: 8px 0;
+            padding-left: 0;
+            line-height: 1.6;
+            text-align: left;
+        }
+
+        .version-tooltip li:first-child {
+            margin-top: 0;
+        }
+
+        .version-tooltip li:last-child {
+            margin-bottom: 0;
         }
 
         .version-tooltip::before {
@@ -1217,20 +1233,19 @@
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
-                    <span>v1.3.1</span>
+                    <span>v1.3.2</span>
                     <div class="version-tooltip">
                         <h4>
                             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            v1.3.1 更新内容
+                            v1.3.2 更新内容
                         </h4>
                         <ul>
-                            <li>📌 详情弹窗顶部切换按钮栏固定置顶</li>
-                            <li>🎯 优化 HTML 预览，仅接受完整的 HTML 文档</li>
-                            <li>🔍 严格验证 HTML 必须包含 &lt;!DOCTYPE html&gt; 和 &lt;/html&gt;</li>
-                            <li>🚫 移除自动修复功能，避免预览不准确的内容</li>
-                            <li>💡 改进提示信息，明确告知 HTML 不完整原因</li>
+                            <li>🎨 优化更新日志卡片排版，内容左对齐</li>
+                            <li>✨ 增加标题下划线分隔，视觉层次更清晰</li>
+                            <li>📐 调整内边距和行高，提升可读性</li>
+                            <li>🎯 移除列表符号，界面更简洁</li>
                         </ul>
                     </div>
                 </div>
