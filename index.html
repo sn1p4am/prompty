@@ -344,6 +344,31 @@
             height: 14px;
         }
 
+        .models-link-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(102, 126, 234, 0.15);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--text-primary);
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .models-link-badge:hover {
+            background: rgba(102, 126, 234, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .models-link-badge svg {
+            width: 14px;
+            height: 14px;
+        }
+
         .api-key-input-wrapper {
             display: flex;
             gap: 10px;
@@ -1229,23 +1254,31 @@
     <div class="container">
         <div class="header">
             <div class="header-actions">
+                <a href="models.html" class="models-link-badge" title="查看模型参数与价格">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 3h18v2H3V3zm0 4h18v2H3V7zm0 4h18v2H3v-2zm0 4h18v2H3v-2zm0 4h18v2H3v-2z"/>
+                    </svg>
+                    <span>模型参数</span>
+                </a>
                 <div class="version-badge">
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
-                    <span>v1.3.2</span>
+                    <span>v1.4.0</span>
                     <div class="version-tooltip">
                         <h4>
                             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            v1.3.2 更新内容
+                            v1.4.0 更新内容
                         </h4>
                         <ul>
-                            <li>🎨 优化更新日志卡片排版，内容左对齐</li>
-                            <li>✨ 增加标题下划线分隔，视觉层次更清晰</li>
-                            <li>📐 调整内边距和行高，提升可读性</li>
-                            <li>🎯 移除列表符号，界面更简洁</li>
+                            <li>✨ 新增模型参数与价格一览表页面</li>
+                            <li>📊 展示上下文长度、输入/输出价格、功能特性</li>
+                            <li>🎯 仅显示用户添加的模型信息</li>
+                            <li>📈 自动统计平均参数和价格</li>
+                            <li>🔗 主页面新增模型参数查询入口</li>
+                            <li>💾 自动同步模型列表到本地存储</li>
                         </ul>
                     </div>
                 </div>
@@ -1528,6 +1561,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             loadCustomModels();
             initializeModelSelect();
+            syncUserModels(); // 同步模型列表到 localStorage
             updateApiKeyStatus();
             
             // 初始化 Mermaid
@@ -1668,6 +1702,14 @@
         // 保存自定义模型到本地存储
         function saveCustomModels() {
             localStorage.setItem('customModels', JSON.stringify(customModels));
+            // 同步所有模型（默认+自定义）到 user_models，供模型参数页面使用
+            syncUserModels();
+        }
+
+        // 同步用户模型列表到 localStorage
+        function syncUserModels() {
+            const allModels = [...AVAILABLE_MODELS, ...customModels];
+            localStorage.setItem('user_models', JSON.stringify(allModels));
         }
 
         // 加载自定义模型
