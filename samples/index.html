@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>首页 - 示例网站</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f5f5f5;
+        }
+
+        .navbar {
+            background: #333;
+            padding: 15px 0;
+        }
+
+        .navbar nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            gap: 20px;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            transition: background 0.3s;
+        }
+
+        .navbar a:hover {
+            background: #555;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 100px 20px;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .hero p {
+            font-size: 20px;
+            margin-bottom: 30px;
+        }
+
+        .btn-primary {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+        }
+
+        .features {
+            max-width: 1200px;
+            margin: 60px auto;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            padding: 0 20px;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .feature-card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <nav class="main-navigation">
+            <a href="index.html">首页</a>
+            <a href="about.html">关于我们</a>
+            <a href="contact.html">联系我们</a>
+        </nav>
+    </div>
+
+    <div class="hero">
+        <h1>欢迎来到示例网站</h1>
+        <p>这是一个用于测试 Prompty V2 索引和查询功能的示例页面</p>
+        <button class="btn-primary" onclick="alert('购买功能')">立即购买</button>
+    </div>
+
+    <div class="features">
+        <div class="feature-card">
+            <h3>功能一</h3>
+            <p>强大的代码索引能力，支持多文件多片段定位</p>
+        </div>
+        <div class="feature-card">
+            <h3>功能二</h3>
+            <p>自然语言查询，轻松找到需要修改的代码</p>
+        </div>
+        <div class="feature-card">
+            <h3>功能三</h3>
+            <p>批量修改，一次性更新所有相关文件</p>
+        </div>
+    </div>
+
+    <script>
+        // 简单的交互逻辑
+        document.querySelector('.btn-primary').addEventListener('click', function() {
+            console.log('购买按钮被点击');
+        });
+    </script>
+</body>
+</html>

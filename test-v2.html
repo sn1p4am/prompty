@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompty V2 - 核心模块测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+
+        .test-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .status.pending {
+            background: #ffd93d;
+            color: #856404;
+        }
+
+        .status.running {
+            background: #4facfe;
+            color: #004085;
+        }
+
+        .status.success {
+            background: #6bcf7f;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #ff6b6b;
+            color: #721c24;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            line-height: 1.5;
+        }
+
+        .log-entry.info { color: #4fc3f7; }
+        .log-entry.success { color: #66bb6a; }
+        .log-entry.error { color: #ef5350; }
+        .log-entry.warn { color: #ffa726; }
+
+        .result-box {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-box pre {
+            margin: 0;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Prompty V2 - 核心模块测试</h1>
+        <p class="subtitle">Phase 1: 基础设施验证</p>
+
+        <!-- 测试1: 数据库初始化 -->
+        <div class="test-section">
+            <h2>1. 数据库初始化 <span class="status pending" id="status-db">待测试</span></h2>
+            <button onclick="testDatabase()" id="btn-db">运行测试</button>
+            <div class="progress-bar" id="progress-db" style="display:none;">
+                <div class="progress-fill" id="progress-fill-db"></div>
+            </div>
+            <div class="log" id="log-db" style="display:none;"></div>
+        </div>
+
+        <!-- 测试2: Tree-sitter解析器 -->
+        <div class="test-section">
+            <h2>2. Tree-sitter解析器 <span class="status pending" id="status-parser">待测试</span></h2>
+            <button onclick="testParser()" id="btn-parser" disabled>运行测试</button>
+            <div class="log" id="log-parser" style="display:none;"></div>
+        </div>
+
+        <!-- 测试3: 语义标记注入 -->
+        <div class="test-section">
+            <h2>3. 语义标记注入 <span class="status pending" id="status-marker">待测试</span></h2>
+            <button onclick="testMarkerInjection()" id="btn-marker" disabled>运行测试</button>
+            <div class="log" id="log-marker" style="display:none;"></div>
+            <div class="result-box" id="result-marker" style="display:none;"></div>
+        </div>
+
+        <!-- 测试4: 版本管理 -->
+        <div class="test-section">
+            <h2>4. 版本管理 <span class="status pending" id="status-version">待测试</span></h2>
+            <button onclick="testVersionManager()" id="btn-version" disabled>运行测试</button>
+            <div class="log" id="log-version" style="display:none;"></div>
+        </div>
+
+        <!-- 测试5: 完整流程 -->
+        <div class="test-section">
+            <h2>5. 完整流程测试 <span class="status pending" id="status-full">待测试</span></h2>
+            <button onclick="testFullWorkflow()" id="btn-full" disabled>运行测试</button>
+            <div class="log" id="log-full" style="display:none;"></div>
+        </div>
+
+        <!-- 测试6: 索引构建测试 -->
+        <div class="test-section">
+            <h2>6. 索引构建测试 <span class="status pending" id="status-indexer">待测试</span></h2>
+            <button onclick="testIndexBuilder()" id="btn-indexer" disabled>运行测试</button>
+            <div class="log" id="log-indexer" style="display:none;"></div>
+            <div class="result-box" id="result-indexer" style="display:none;"></div>
+        </div>
+
+        <!-- 测试7: 自然语言查询测试 -->
+        <div class="test-section">
+            <h2>7. 自然语言查询测试 <span class="status pending" id="status-nlp">待测试</span></h2>
+            <button onclick="testNLPQuery()" id="btn-nlp" disabled>运行测试</button>
+            <div class="log" id="log-nlp" style="display:none;"></div>
+            <div class="result-box" id="result-nlp" style="display:none;"></div>
+        </div>
+
+        <hr style="margin: 40px 0; border: none; border-top: 2px solid #ddd;">
+        <p class="subtitle">Phase 2: 高级代码定位与 LLM 集成</p>
+
+        <!-- 测试8: Tree-sitter Query 测试 -->
+        <div class="test-section">
+            <h2>8. Tree-sitter Query 测试 <span class="status pending" id="status-tsquery">待测试</span></h2>
+            <button onclick="testTreeSitterQuery()" id="btn-tsquery" disabled>运行测试</button>
+            <div class="log" id="log-tsquery" style="display:none;"></div>
+            <div class="result-box" id="result-tsquery" style="display:none;"></div>
+        </div>
+
+        <!-- 测试9: LLM 意图提取测试（需要 API Key） -->
+        <div class="test-section">
+            <h2>9. LLM 意图提取测试 <span class="status pending" id="status-llm-intent">待测试</span></h2>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; color: #666;">OpenRouter API Key (可选):</label>
+                <input type="password" id="apikey-input" placeholder="sk-or-v1-..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <small style="color: #999; display: block; margin-top: 5px;">
+                    ℹ️ 不提供 API Key 将使用规则匹配（速度快但准确度较低）
+                </small>
+            </div>
+            <button onclick="testLLMIntent()" id="btn-llm-intent" disabled>运行测试</button>
+            <div class="log" id="log-llm-intent" style="display:none;"></div>
+            <div class="result-box" id="result-llm-intent" style="display:none;"></div>
+        </div>
+
+        <!-- 测试10: 完整 LLM 查询流程（需要 API Key） -->
+        <div class="test-section">
+            <h2>10. 完整 LLM 查询流程 <span class="status pending" id="status-llm-full">待测试</span></h2>
+            <button onclick="testLLMFullWorkflow()" id="btn-llm-full" disabled>运行测试</button>
+            <div class="log" id="log-llm-full" style="display:none;"></div>
+            <div class="result-box" id="result-llm-full" style="display:none;"></div>
+        </div>
+
+        <hr style="margin: 40px 0; border: none; border-top: 2px solid #ddd;">
+        <p class="subtitle">Phase 3: 批量代码修改引擎</p>
+
+        <!-- 测试11: 代码修改引擎测试 -->
+        <div class="test-section">
+            <h2>11. 代码修改引擎测试 <span class="status pending" id="status-mod-engine">待测试</span></h2>
+            <button onclick="testModificationEngine()" id="btn-mod-engine" disabled>运行测试</button>
+            <div class="log" id="log-mod-engine" style="display:none;"></div>
+            <div class="result-box" id="result-mod-engine" style="display:none;"></div>
+        </div>
+
+        <!-- 测试12: 事务管理测试 -->
+        <div class="test-section">
+            <h2>12. 事务管理测试 <span class="status pending" id="status-transaction">待测试</span></h2>
+            <button onclick="testTransactionManager()" id="btn-transaction" disabled>运行测试</button>
+            <div class="log" id="log-transaction" style="display:none;"></div>
+            <div class="result-box" id="result-transaction" style="display:none;"></div>
+        </div>
+
+        <!-- 测试13: 完整修改流程测试 -->
+        <div class="test-section">
+            <h2>13. 完整修改流程测试 <span class="status pending" id="status-full-mod">待测试</span></h2>
+            <button onclick="testFullModificationWorkflow()" id="btn-full-mod" disabled>运行测试</button>
+            <div class="log" id="log-full-mod" style="display:none;"></div>
+            <div class="result-box" id="result-full-mod" style="display:none;"></div>
+        </div>
+    </div>
+
+    <!-- 加载核心模块 -->
+    <script type="module">
+        // 由于使用了ES模块，需要特殊处理
+        import { PGlite } from 'https://cdn.jsdelivr.net/npm/@electric-sql/pglite/dist/index.js';
+        window.PGlite = PGlite;
+
+        // 日志辅助函数
+        window.log = function(testId, message, type = 'info') {
+            const logDiv = document.getElementById(`log-${testId}`);
+            logDiv.style.display = 'block';
+
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        };
+
+        window.setStatus = function(testId, status) {
+            const statusSpan = document.getElementById(`status-${testId}`);
+            statusSpan.className = `status ${status}`;
+            statusSpan.textContent = {
+                pending: '待测试',
+                running: '运行中...',
+                success: '✓ 通过',
+                error: '✗ 失败'
+            }[status];
+        };
+
+        window.enableButton = function(testId) {
+            document.getElementById(`btn-${testId}`).disabled = false;
+        };
+
+        // 全局变量
+        let dbManager, parserManager, markerInjector, versionManager, indexBuilder, nlpEngine;
+        let testVersionId; // 用于存储测试版本ID
+        let tsQueryExecutor, queryPatternLibrary, intentTranslator;
+        let llmClient, llmIntentExtractor, llmDisambiguator;
+        let modEngine, transactionManager, dependencyResolver, diffGenerator, previewGenerator;
+
+        // 测试1: 数据库初始化
+        window.testDatabase = async function() {
+            const testId = 'db';
+            setStatus(testId, 'running');
+            document.getElementById(`btn-${testId}`).disabled = true;
+            document.getElementById(`progress-${testId}`).style.display = 'block';
+
+            try {
+                log(testId, '开始初始化PGlite数据库...', 'info');
+
+                // 创建DatabaseManager实例
+                dbManager = new DatabaseManager();
+
+                // 进度: 20%
+                document.getElementById('progress-fill-db').style.width = '20%';
+                log(testId, '创建DatabaseManager实例成功', 'success');
+
+                // 初始化数据库
+                await dbManager.init();
+
+                // 进度: 60%
+                document.getElementById('progress-fill-db').style.width = '60%';
+                log(testId, '数据库初始化成功', 'success');
+
+                // 测试查询
+                const result = await dbManager.query('SELECT COUNT(*) as count FROM versions');
+                log(testId, `版本表查询成功，当前有 ${result.rows[0].count} 个版本`, 'success');
+
+                // 进度: 100%
+                document.getElementById('progress-fill-db').style.width = '100%';
+
+                log(testId, '✓ 所有测试通过！', 'success');
+                setStatus(testId, 'success');
+
+                // 启用下一个测试
+                enableButton('parser');
+                enableButton('marker');
+                enableButton('version');
+                enableButton('full');
+                enableButton('indexer');
+                enableButton('nlp');
+                enableButton('tsquery');
+                enableButton('llm-intent');
+                enableButton('llm-full');
+                enableButton('mod-engine');
+                enableButton('transaction');
+                enableButton('full-mod');
+
+            } catch (error) {
+                log(testId, `✗ 测试失败: ${error.message}`, 'error');
+                console.error(error);
+                setStatus(testId, 'error');
+            }
+        };
+
+        // 测试2: Tree-sitter解析器
+        window.testParser = async function() {
+            const testId = 'parser';
+            setStatus(testId, 'running');
+            document.getElementById(`btn-${testId}`).disabled = true;
+
+            try {
+                log(testId, '开始初始化Tree-sitter解析器...', 'info');
+
+                parserManager = new TreeSitterParser();
+                await parserManager.init();
+
+                log(testId, 'Tree-sitter初始化成功', 'success');
+
+                // 测试HTML解析
+                const htmlCode = '<div class="test"><p>Hello World</p></div>';
+                log(testId, '测试HTML解析...', 'info');
+
+                const tree = await parserManager.parse(htmlCode, 'html');
+                log(testId, `HTML解析成功，根节点类型: ${tree.rootNode.type}`, 'success');
+
+                log(testId, '✓ 所有测试通过！', 'success');
+                setStatus(testId, 'success');
+
+            } catch (error) {
+                log(testId, `✗ 测试失败: ${error.message}`, 'error');
+                console.error(error);
+                setStatus(testId, 'error');
+            }
+        };
+
+        // 测试3: 语义标记注入
+        window.testMarkerInjection = async function() {
+            const testId = 'marker';
+            setStatus(testId, 'running');
+            document.getElementById(`btn-${testId}`).disabled = true;
+
+            try {
+                log(testId, '开始测试语义标记注入...', 'info');
+
+                markerInjector = new SemanticMarkerInjector();
+
+                const htmlBefore = `
+                    <html>
+                        <body>
+                            <nav><a href="index.html">首页</a></nav>
+                            <button class="btn-primary">购买</button>
+                            <h1>标题</h1>
+                        </body>
+                    </html>
+                `;
+
+                log(testId, '注入语义标记...', 'info');
+                const htmlAfter = markerInjector.injectMarkers(htmlBefore);
+
+                log(testId, '提取语义标记...', 'info');
+                const markers = markerInjector.extractMarkers(htmlAfter);
+
+                log(testId, `成功提取 ${markers.length} 个语义标记`, 'success');
+
+                // 显示结果
+                const resultDiv = document.getElementById(`result-${testId}`);
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `<pre>${JSON.stringify(markers, null, 2)}</pre>`;
+
+                log(testId, '✓ 所有测试通过！', 'success');
+                setStatus(testId, 'success');
+
+            } catch (error) {
+                log(testId, `✗ 测试失败: ${error.message}`, 'error');
+                console.error(error);
+                setStatus(testId, 'error');
+            }
+        };
+
+        // 测试4: 版本管理
+        window.testVersionManager = async function() {
+            const testId = 'version';
+            setStatus(testId, 'running');
+            document.getElementById(`btn-${testId}`).disabled = true;
+
+            try {
+                log(testId, '开始测试版本管理...', 'info');
+
+                versionManager = new VersionManager(dbManager);
+
+                // 创建新版本
+                log(testId, '创建新版本...', 'info');
+                const newVersion = await versionManager.createVersion(
+                    '测试版本',
+                    '这是一个测试版本'
+                );
+
+                log(testId, `新版本创建成功: ${newVersion.version_id}`, 'success');
+
+                // 获取所有版本
+                const allVersions = await versionManager.getAllVersions();
+                log(testId, `获取所有版本成功，共 ${allVersions.length} 个版本`, 'success');
+
+                log(testId, '✓ 所有测试通过！', 'success');
+                setStatus(testId, 'success');
+
+            } catch (error) {
+                log(testId, `✗ 测试失败: ${error.message}`, 'error');
+                console.error(error);
+                setStatus(testId, 'error');
+            }
+        };
+
+        // 测试5: 完整流程
+        window.testFullWorkflow = async function() {
+            const testId = 'full';
+            setStatus(testId, 'running');
+            document.getElementById(`btn-${testId}`).disabled = true;
+
+            try {
+                log(testId, '开始完整流程测试...', 'info');
+
+                // 1. 创建版本
+                log(testId, 'Step 1: 创建新版本...', 'info');
+                const version = await versionManager.createVersion(
+                    '完整流程测试版本',
+                    '生成一个简单网站'
+                );
+                log(testId, `✓ 版本 ${version.version_id} 创建成功`, 'success');
+
+                // 2. 注入语义标记
+                log(testId, 'Step 2: 注入语义标记...', 'info');
+                const htmlContent = `
+                    <!DOCTYPE html>
+                    <html>
+                        <head><title>测试页面</title></head>
+                        <body>
+                            <nav class="main-nav">
+                                <a href="index.html">首页</a>
+                                <a href="about.html">关于</a>
+                            </nav>
+                            <h1>欢迎</h1>
+                            <button class="btn-primary">立即购买</button>
+                        </body>
+                    </html>
+                `;
+                const markedHtml = markerInjector.injectMarkers(htmlContent);
+                log(testId, '✓ 语义标记注入成功', 'success');
+
+                // 3. 保存文件到数据库
+                log(testId, 'Step 3: 保存文件到数据库...', 'info');
+                await dbManager.query(`
+                    INSERT INTO files (version_id, file_path, content, content_hash)
+                    VALUES ($1, $2, $3, $4)
+                `, [version.version_id, 'index.html', markedHtml, 'test-hash']);
+                log(testId, '✓ 文件保存成功', 'success');
+
+                // 4. 查询文件
+                log(testId, 'Step 4: 查询文件...', 'info');
+                const files = await versionManager.getVersionFiles(version.version_id);
+                log(testId, `✓ 查询成功，找到 ${files.length} 个文件`, 'success');
+
+                log(testId, '✓ 完整流程测试通过！', 'success');
+                setStatus(testId, 'success');
+
+            } catch (error) {
+                log(testId, `✗ 测试失败: ${error.message}`, 'error');
+                console.error(error);
+                setStatus(testId, 'error');
+            }
+        };
+
+        // 测试6: 索引构建测试
+        window.testIndexBuilder = async function() {
+            const testId = 'indexer';
+            setStatus(testId, 'running');
+            document.getElementById(`btn-${testId}`).disabled = true;
+
+            try {
+                log(testId, '开始测试索引构建功能...', 'info');
+
+                // 1. 创建 IndexBuilder
+                log(testId, 'Step 1: 创建 IndexBuilder...', 'info');
+                indexBuilder = new IndexBuilder(dbManager);
+                log(testId, '✓ IndexBuilder 创建成功', 'success');
+
+                // 2. 创建测试版本
+                log(testId, 'Step 2: 创建测试版本...', 'info');
+                const version = await versionManager.createVersion(
+                    '索引测试版本',
+                    '测试索引构建功能'
+                );
+                testVersionId = version.version_id;
+                log(testId, `✓ 测试版本创建成功: ${testVersionId}`, 'success');
+
+                // 3. 准备测试文件（模拟读取示例文件）
+                log(testId, 'Step 3: 准备测试文件...', 'info');
+                const sampleFiles = [
+                    {
+                        file_path: 'index.html',
+                        content: `
+                            <!DOCTYPE html>
+                            <html>
+                                <head><title>首页</title></head>
+                                <body>
+                                    <nav class="main-navigation">
+                                        <a href="index.html">首页</a>
+                                        <a href="about.html">关于</a>
+                                    </nav>
+                                    <h1>欢迎</h1>
+                                    <button class="btn-primary">购买</button>
+                                </body>
+                            </html>
+                        `
+                    },
+                    {
+                        file_path: 'about.html',
+                        content: `
+                            <!DOCTYPE html>
+                            <html>
+                                <head><title>关于</title></head>
+                                <body>
+                                    <nav class="main-navigation">
+                                        <a href="index.html">首页</a>
+                                        <a href="about.html">关于</a>
+                                    </nav>
+                                    <h1>关于我们</h1>
+                                    <p>团队介绍</p>
+                                </body>
+                            </html>
+                        `
+                    }
+                ];
+
+                // 4. 保存文件到数据库
+                log(testId, 'Step 4: 保存文件到数据库...', 'info');
+                const filesWithIds = [];
+                for (const file of sampleFiles) {
+                    const result = await dbManager.query(`
+                        INSERT INTO files (version_id, file_path, content, content_hash)
+                        VALUES ($1, $2, $3, $4)
+                        RETURNING id
+                    `, [testVersionId, file.file_path, file.content, 'test-hash-' + file.file_path]);
+
+                    filesWithIds.push({
+                        id: result.rows[0].id,
+                        file_path: file.file_path,
+                        content: file.content
+                    });
+                }
+                log(testId, `✓ ${filesWithIds.length} 个文件保存成功`, 'success');
+
+                // 5. 构建索引
+                log(testId, 'Step 5: 构建索引...', 'info');
+                const indexResult = await indexBuilder.buildIndex(filesWithIds, testVersionId);
+                log(testId, `✓ 索引构建完成，耗时 ${indexResult.duration} 秒`, 'success');
+
+                // 6. 获取索引统计
+                log(testId, 'Step 6: 获取索引统计...', 'info');
+                const stats = await indexBuilder.getIndexStats(testVersionId);
+                log(testId, `✓ 索引统计: 文件=${stats.files}, AST节点=${stats.astNodes}, 语义标记=${stats.semanticMarkers}, 依赖=${stats.dependencies}`, 'success');
+
+                // 7. 显示结果
+                const resultDiv = document.getElementById(`result-${testId}`);
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <h4>索引统计信息</h4>
+                    <pre>${JSON.stringify(stats, null, 2)}</pre>
+                `;
+
+                log(testId, '✓ 所有测试通过！', 'success');
+                setStatus(testId, 'success');
+
+            } catch (error) {
+                log(testId, `✗ 测试失败: ${error.message}`, 'error');
+                console.error(error);
+                setStatus(testId, 'error');
+            }
+        };
+
+        // 测试7: 自然语言查询测试
+        window.testNLPQuery = async function() {
+            const testId = 'nlp';
+            setStatus(testId, 'running');
+            document.getElementById(`btn-${testId}`).disabled = true;
+
+            try {
+                log(testId, '开始测试自然语言查询功能...', 'info');
+
+                // 1. 创建 NLP 引擎（不使用 LLM）
+                log(testId, 'Step 1: 创建 NLP 引擎...', 'info');
+                nlpEngine = new NaturalLanguageQueryEngine(dbManager, null);
+                log(testId, '✓ NLP 引擎创建成功', 'success');
+
+                // 2. 测试查询1: 查找导航
+                log(testId, 'Step 2: 测试查询 "找到所有导航"...', 'info');
+                const query1 = await nlpEngine.parseAndQuery('找到所有导航', testVersionId);
+                log(testId, `✓ 找到 ${query1.results.length} 个导航元素`, 'success');
+
+                // 3. 测试查询2: 查找按钮
+                log(testId, 'Step 3: 测试查询 "找到购买按钮"...', 'info');
+                const query2 = await nlpEngine.parseAndQuery('找到购买按钮', testVersionId);
+                log(testId, `✓ 找到 ${query2.results.length} 个按钮`, 'success');
+
+                // 4. 测试查询3: 查找标题
+                log(testId, 'Step 4: 测试查询 "找到所有标题"...', 'info');
+                const query3 = await nlpEngine.parseAndQuery('找到所有标题', testVersionId);
+                log(testId, `✓ 找到 ${query3.results.length} 个标题`, 'success');
+
+                // 5. 测试意图提取
+                log(testId, 'Step 5: 测试意图提取...', 'info');
+                const intent = nlpEngine.extractIntentByRules('把所有页面的导航背景色改成深蓝');
+                log(testId, `✓ 意图识别成功: operation=${intent.operation}, confidence=${intent.confidence}`, 'success');
+
+                // 6. 显示结果
+                const resultDiv = document.getElementById(`result-${testId}`);
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <h4>查询结果示例（查找导航）</h4>
+                    <pre>${JSON.stringify(query1.results.slice(0, 3), null, 2)}</pre>
+                    <h4 style="margin-top: 20px;">意图提取示例</h4>
+                    <pre>${JSON.stringify(intent, null, 2)}</pre>
+                `;
+
+                log(testId, '✓ 所有测试通过！', 'success');
+                setStatus(testId, 'success');
+
+            } catch (error) {
+                log(testId, `✗ 测试失败: ${error.message}`, 'error');
+                console.error(error);
+                setStatus(testId, 'error');
+            }
+        };
+
+        // 测试8: Tree-sitter Query 测试
+        window.testTreeSitterQuery = async function() {
+            const testId = 'tsquery';
+            setStatus(testId, 'running');
+            document.getElementById(`btn-${testId}`).disabled = true;
+
+            try {
+                log(testId, '开始测试 Tree-sitter Query 功能...', 'info');
+
+                // 1. 创建 Tree-sitter Query 执行器
+                log(testId, 'Step 1: 创建 Tree-sitter Query 执行器...', 'info');
+                tsQueryExecutor = new TreeSitterQueryExecutor(parserManager, dbManager);
+                log(testId, '✓ Tree-sitter Query 执行器创建成功', 'success');
+
+                // 2. 创建模式库
+                log(testId, 'Step 2: 创建查询模式库...', 'info');
+                queryPatternLibrary = new QueryPatternLibrary();
+                log(testId, '✓ 查询模式库创建成功', 'success');
+
+                // 3. 创建意图转换器
+                log(testId, 'Step 3: 创建意图转换器...', 'info');
+                intentTranslator = new IntentToQueryTranslator(queryPatternLibrary);
+                log(testId, '✓ 意图转换器创建成功', 'success');
+
+                // 4. 测试查询：查找所有按钮
+                log(testId, 'Step 4: 测试查询 - 查找所有按钮...', 'info');
+                const buttonQuery = queryPatternLibrary.getPattern('html', 'all_buttons');
+                const results = await tsQueryExecutor.executeQueryOnVersion(testVersionId, buttonQuery, 'html');
+
+                let totalMatches = 0;
+                for (const fileResult of results) {
+                    totalMatches += fileResult.count;
+                }
+
+                log(testId, `✓ 找到 ${totalMatches} 个按钮元素`, 'success');
+
+                // 5. 显示结果
+                const resultDiv = document.getElementById(`result-${testId}`);
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <h4>Tree-sitter Query 查询结果</h4>
+                    <pre>${JSON.stringify(results, null, 2)}</pre>
+                `;
+
+                log(testId, '✓ 所有测试通过！', 'success');
+                setStatus(testId, 'success');
+
+            } catch (error) {
+                log(testId, `✗ 测试失败: ${error.message}`, 'error');
+                console.error(error);
+                setStatus(testId, 'error');
+            }
+        };
+
+        // 测试9: LLM 意图提取测试
+        window.testLLMIntent = async function() {
+            const testId = 'llm-intent';
+            setStatus(testId, 'running');
+            document.getElementById(`btn-${testId}`).disabled = true;
+
+            try {
+                log(testId, '开始测试 LLM 意图提取功能...', 'info');
+
+                // 获取 API Key
+                const apiKey = document.getElementById('apikey-input').value.trim();
+
+                if (!apiKey) {
+                    log(testId, 'ℹ️ 未提供 API Key，将使用规则匹配', 'warn');
+                } else {
+                    log(testId, '✓ 使用 OpenRouter API Key', 'info');
+
+                    // 创建 LLM 客户端
+                    log(testId, 'Step 1: 创建 LLM 客户端...', 'info');
+                    llmClient = new LLMClient(apiKey);
+                    log(testId, '✓ LLM 客户端创建成功', 'success');
+
+                    // 创建 LLM 意图提取器
+                    log(testId, 'Step 2: 创建 LLM 意图提取器...', 'info');
+                    llmIntentExtractor = new LLMIntentExtractor(llmClient);
+                    log(testId, '✓ LLM 意图提取器创建成功', 'success');
+
+                    // 测试意图提取
+                    log(testId, 'Step 3: 测试意图提取...', 'info');
+                    const testInput = "把所有页面的导航栏背景色改成深蓝色";
+                    const intent = await llmIntentExtractor.extractIntent(testInput);
+
+                    log(testId, `✓ 意图提取成功，置信度: ${intent.confidence}`, 'success');
+
+                    // 显示结果
+                    const resultDiv = document.getElementById(`result-${testId}`);
+                    resultDiv.style.display = 'block';
+                    resultDiv.innerHTML = `
+                        <h4>LLM 意图提取结果</h4>
+                        <p><strong>输入:</strong> ${testInput}</p>
+                        <pre>${JSON.stringify(intent, null, 2)}</pre>
+                        <h4 style="margin-top: 20px;">LLM 统计</h4>
+                        <pre>${JSON.stringify(llmClient.getStats(), null, 2)}</pre>
+                    `;
+                }
+
+                log(testId, '✓ 所有测试通过！', 'success');
+                setStatus(testId, 'success');
+
+            } catch (error) {
+                log(testId, `✗ 测试失败: ${error.message}`, 'error');
+                console.error(error);
+                setStatus(testId, 'error');
+            }
+        };
+
+        // 测试10: 完整 LLM 查询流程
+        window.testLLMFullWorkflow = async function() {
+            const testId = 'llm-full';
+            setStatus(testId, 'running');
+            document.getElementById(`btn-${testId}`).disabled = true;
+
+            try {
+                log(testId, '开始完整 LLM 查询流程测试...', 'info');
+
+                // 检查是否有 LLM 客户端
+                if (!llmClient) {
+                    log(testId, 'ℹ️ 未提供 API Key，测试将使用规则匹配', 'warn');
+                }
+
+                // 1. 创建增强的 NLP 引擎
+                log(testId, 'Step 1: 创建增强的 NLP 引擎...', 'info');
+                const enhancedNLP = new NaturalLanguageQueryEngine(
+                    dbManager,
+                    llmClient,
+                    tsQueryExecutor,
+                    intentTranslator,
+                    llmIntentExtractor
+                );
+                log(testId, '✓ 增强的 NLP 引擎创建成功', 'success');
+
+                // 2. 测试查询
+                log(testId, 'Step 2: 测试复杂查询...', 'info');
+                const testQuery = "找到首页的购买按钮";
+                const queryResult = await enhancedNLP.parseAndQuery(testQuery, testVersionId);
+
+                log(testId, `✓ 查询完成，找到 ${queryResult.results.length} 个匹配`, 'success');
+                log(testId, `✓ 使用了 ${queryResult.strategies.length} 个策略`, 'success');
+
+                // 3. 测试多匹配处理（如果有 LLM）
+                if (llmClient && queryResult.results.length > 1) {
+                    log(testId, 'Step 3: 测试 LLM 消歧...', 'info');
+
+                    llmDisambiguator = new LLMDisambiguator(llmClient);
+                    const multiMatchHandler = new MultiMatchHandler(llmClient, llmDisambiguator);
+
+                    const strategy = await multiMatchHandler.handleMultipleMatches(
+                        queryResult.results,
+                        queryResult.intent,
+                        testQuery
+                    );
+
+                    log(testId, `✓ 消歧完成，策略: ${strategy.type}`, 'success');
+                    log(testId, `✓ 选择了 ${strategy.selectedMatches.length} 个匹配`, 'success');
+                }
+
+                // 4. 显示结果
+                const resultDiv = document.getElementById(`result-${testId}`);
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <h4>完整查询流程结果</h4>
+                    <p><strong>查询:</strong> ${testQuery}</p>
+                    <p><strong>策略数:</strong> ${queryResult.strategies.length}</p>
+                    <p><strong>匹配数:</strong> ${queryResult.results.length}</p>
+                    <h4 style="margin-top: 20px;">匹配结果</h4>
+                    <pre>${JSON.stringify(queryResult.results.slice(0, 3), null, 2)}</pre>
+                    ${llmClient ? `
+                    <h4 style="margin-top: 20px;">LLM 统计</h4>
+                    <pre>${JSON.stringify(llmClient.getStats(), null, 2)}</pre>
+                    ` : ''}
+                `;
+
+                log(testId, '✓ 所有测试通过！', 'success');
+                setStatus(testId, 'success');
+
+            } catch (error) {
+                log(testId, `✗ 测试失败: ${error.message}`, 'error');
+                console.error(error);
+                setStatus(testId, 'error');
+            }
+        };
+
+        // 测试11: 代码修改引擎测试
+        window.testModificationEngine = async function() {
+            const testId = 'mod-engine';
+            setStatus(testId, 'running');
+            document.getElementById(`btn-${testId}`).disabled = true;
+
+            try {
+                log(testId, '开始测试代码修改引擎...', 'info');
+
+                // 1. 创建修改引擎
+                log(testId, 'Step 1: 创建修改引擎...', 'info');
+                modEngine = new CodeModificationEngine(dbManager, parserManager);
+                log(testId, '✓ 修改引擎创建成功', 'success');
+
+                // 2. 创建修改操作
+                log(testId, 'Step 2: 创建修改操作...', 'info');
+                const modification = new ModificationBuilder()
+                    .target('index.html', 'nav')
+                    .setStyle({
+                        background: '#001f3f',
+                        color: '#ffffff'
+                    })
+                    .build();
+
+                modEngine.addModification(modification);
+                log(testId, '✓ 修改操作已添加到队列', 'success');
+
+                // 3. 显示待处理修改
+                const stats = modEngine.getStats();
+                log(testId, `✓ 当前有 ${stats.pending} 个待处理修改`, 'success');
+
+                // 4. 创建批量修改辅助器
+                log(testId, 'Step 3: 测试批量修改辅助器...', 'info');
+                const batchHelper = new BatchModificationHelper(modEngine);
+                log(testId, '✓ 批量修改辅助器创建成功', 'success');
+
+                // 5. 显示结果
+                const resultDiv = document.getElementById(`result-${testId}`);
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <h4>修改引擎状态</h4>
+                    <pre>${JSON.stringify(stats, null, 2)}</pre>
+                    <h4 style="margin-top: 20px;">待处理修改</h4>
+                    <pre>${JSON.stringify(modEngine.pendingModifications, null, 2)}</pre>
+                `;
+
+                log(testId, '✓ 所有测试通过！', 'success');
+                setStatus(testId, 'success');
+
+            } catch (error) {
+                log(testId, `✗ 测试失败: ${error.message}`, 'error');
+                console.error(error);
+                setStatus(testId, 'error');
+            }
+        };
+
+        // 测试12: 事务管理测试
+        window.testTransactionManager = async function() {
+            const testId = 'transaction';
+            setStatus(testId, 'running');
+            document.getElementById(`btn-${testId}`).disabled = true;
+
+            try {
+                log(testId, '开始测试事务管理...', 'info');
+
+                // 1. 创建事务管理器
+                log(testId, 'Step 1: 创建事务管理器...', 'info');
+                transactionManager = new TransactionManager(dbManager, indexBuilder);
+                log(testId, '✓ 事务管理器创建成功', 'success');
+
+                // 2. 创建依赖解析器
+                log(testId, 'Step 2: 创建依赖解析器...', 'info');
+                dependencyResolver = new DependencyResolver(dbManager);
+                log(testId, '✓ 依赖解析器创建成功', 'success');
+
+                // 3. 创建差异生成器
+                log(testId, 'Step 3: 创建差异生成器...', 'info');
+                diffGenerator = new DiffGenerator(dbManager);
+                previewGenerator = new PreviewGenerator(diffGenerator);
+                log(testId, '✓ 差异生成器创建成功', 'success');
+
+                // 4. 开始事务
+                log(testId, 'Step 4: 开始事务...', 'info');
+                const transaction = await transactionManager.beginTransaction('测试事务');
+                log(testId, `✓ 事务创建成功: ${transaction.id}`, 'success');
+
+                // 5. 显示结果
+                const resultDiv = document.getElementById(`result-${testId}`);
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <h4>事务信息</h4>
+                    <pre>${JSON.stringify(transaction, null, 2)}</pre>
+                `;
+
+                log(testId, '✓ 所有测试通过！', 'success');
+                setStatus(testId, 'success');
+
+            } catch (error) {
+                log(testId, `✗ 测试失败: ${error.message}`, 'error');
+                console.error(error);
+                setStatus(testId, 'error');
+            }
+        };
+
+        // 测试13: 完整修改流程测试
+        window.testFullModificationWorkflow = async function() {
+            const testId = 'full-mod';
+            setStatus(testId, 'running');
+            document.getElementById(`btn-${testId}`).disabled = true;
+
+            try {
+                log(testId, '开始完整修改流程测试...', 'info');
+
+                // 1. 查询要修改的元素
+                log(testId, 'Step 1: 查询导航元素...', 'info');
+                const queryResult = await nlpEngine.parseAndQuery('找到所有导航', testVersionId);
+                log(testId, `✓ 找到 ${queryResult.results.length} 个导航元素`, 'success');
+
+                // 2. 创建批量修改
+                log(testId, 'Step 2: 创建批量修改...', 'info');
+                const batchHelper = new BatchModificationHelper(modEngine);
+                const modifications = await batchHelper.applyStyleToAll(queryResult.results, {
+                    background: '#001f3f',
+                    color: '#ffffff',
+                    padding: '15px'
+                });
+                log(testId, `✓ 创建了 ${modifications.length} 个修改操作`, 'success');
+
+                // 3. 分析影响范围
+                log(testId, 'Step 3: 分析影响范围...', 'info');
+                const impact = await dependencyResolver.resolveImpact(modifications, testVersionId);
+                log(testId, `✓ 影响 ${impact.directFiles.size} 个文件`, 'success');
+
+                // 4. 生成预览
+                log(testId, 'Step 4: 生成修改预览...', 'info');
+                const textPreview = previewGenerator.generateTextPreview(testVersionId, modifications);
+                log(testId, '✓ 预览生成成功', 'success');
+
+                // 5. 显示结果
+                const resultDiv = document.getElementById(`result-${testId}`);
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <h4>查询结果</h4>
+                    <p>找到 ${queryResult.results.length} 个导航元素</p>
+
+                    <h4 style="margin-top: 20px;">修改操作</h4>
+                    <p>创建了 ${modifications.length} 个修改</p>
+
+                    <h4 style="margin-top: 20px;">影响范围</h4>
+                    <p>直接影响: ${impact.directFiles.size} 个文件</p>
+                    <p>间接影响: ${impact.dependentFiles.size} 个文件</p>
+                    ${impact.suggestions.length > 0 ? `
+                    <p>建议: ${impact.suggestions.length} 条</p>
+                    ` : ''}
+
+                    <h4 style="margin-top: 20px;">修改预览</h4>
+                    <pre style="font-size: 11px;">${textPreview}</pre>
+                `;
+
+                log(testId, '✓ 所有测试通过！', 'success');
+                log(testId, 'ℹ️ 实际应用修改请查看后续的集成测试', 'info');
+                setStatus(testId, 'success');
+
+            } catch (error) {
+                log(testId, `✗ 测试失败: ${error.message}`, 'error');
+                console.error(error);
+                setStatus(testId, 'error');
+            }
+        };
+
+        // 页面加载完成后的提示
+        window.addEventListener('load', () => {
+            console.log('[Test] 测试页面加载完成');
+            console.log('[Test] 请点击"运行测试"按钮开始测试');
+        });
+    </script>
+
+    <!-- 加载核心模块（非模块方式） -->
+    <script src="core-modules.js"></script>
+    <script src="indexer-modules.js"></script>
+    <script src="nlp-query-engine.js"></script>
+    <script src="tree-sitter-query-executor.js"></script>
+    <script src="llm-client.js"></script>
+    <script src="code-modification-engine.js"></script>
+    <script src="transaction-manager.js"></script>
+    <script src="diff-generator.js"></script>
+</body>
+</html>

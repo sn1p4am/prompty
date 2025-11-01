@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>关于我们 - 示例网站</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f5f5f5;
+        }
+
+        .navbar {
+            background: #333;
+            padding: 15px 0;
+        }
+
+        .navbar nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            gap: 20px;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+        }
+
+        .navbar a:hover {
+            background: #555;
+        }
+
+        .content {
+            max-width: 1200px;
+            margin: 60px auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .content h1 {
+            color: #667eea;
+            margin-bottom: 30px;
+        }
+
+        .content p {
+            line-height: 1.8;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .team-section {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .team-member {
+            text-align: center;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 10px;
+        }
+
+        .team-member img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: #ddd;
+        }
+
+        .team-member h3 {
+            margin: 15px 0 5px;
+            color: #333;
+        }
+
+        .team-member p {
+            color: #999;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <nav class="main-navigation">
+            <a href="index.html">首页</a>
+            <a href="about.html">关于我们</a>
+            <a href="contact.html">联系我们</a>
+        </nav>
+    </div>
+
+    <div class="content">
+        <h1>关于我们</h1>
+        <p>我们是一个致力于开发智能代码编辑工具的团队。Prompty V2 是我们的最新项目，旨在通过自然语言处理和智能索引技术，让代码修改变得更加简单高效。</p>
+        <p>我们的使命是让每个人都能轻松管理复杂的代码库，无需记忆繁琐的语法或搜索命令。只需用自然语言描述你想做什么，Prompty V2 就能帮你找到并修改相关代码。</p>
+
+        <div class="team-section">
+            <div class="team-member">
+                <img src="avatar1.png" alt="团队成员1">
+                <h3>张三</h3>
+                <p>首席架构师</p>
+            </div>
+            <div class="team-member">
+                <img src="avatar2.png" alt="团队成员2">
+                <h3>李四</h3>
+                <p>全栈工程师</p>
+            </div>
+            <div class="team-member">
+                <img src="avatar3.png" alt="团队成员3">
+                <h3>王五</h3>
+                <p>UI/UX 设计师</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

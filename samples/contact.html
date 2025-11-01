@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>联系我们 - 示例网站</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f5f5f5;
+        }
+
+        .navbar {
+            background: #333;
+            padding: 15px 0;
+        }
+
+        .navbar nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            gap: 20px;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+        }
+
+        .navbar a:hover {
+            background: #555;
+        }
+
+        .content {
+            max-width: 800px;
+            margin: 60px auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .content h1 {
+            color: #667eea;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 150px;
+        }
+
+        .btn-submit {
+            background: #667eea;
+            color: white;
+            padding: 12px 40px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .btn-submit:hover {
+            background: #5568d3;
+        }
+
+        .btn-cancel {
+            background: #999;
+            color: white;
+            padding: 12px 40px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .btn-cancel:hover {
+            background: #777;
+        }
+
+        .contact-info {
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 1px solid #eee;
+        }
+
+        .contact-info h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .contact-info p {
+            color: #666;
+            line-height: 1.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <nav class="main-navigation">
+            <a href="index.html">首页</a>
+            <a href="about.html">关于我们</a>
+            <a href="contact.html">联系我们</a>
+        </nav>
+    </div>
+
+    <div class="content">
+        <h1>联系我们</h1>
+
+        <form id="contactForm">
+            <div class="form-group">
+                <label for="name">姓名</label>
+                <input type="text" id="name" name="name" placeholder="请输入您的姓名" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">邮箱</label>
+                <input type="email" id="email" name="email" placeholder="your@email.com" required>
+            </div>
+
+            <div class="form-group">
+                <label for="subject">主题</label>
+                <input type="text" id="subject" name="subject" placeholder="您想咨询的主题">
+            </div>
+
+            <div class="form-group">
+                <label for="message">留言</label>
+                <textarea id="message" name="message" placeholder="请输入您的留言内容..." required></textarea>
+            </div>
+
+            <button type="submit" class="btn-submit">提交</button>
+            <button type="reset" class="btn-cancel">重置</button>
+        </form>
+
+        <div class="contact-info">
+            <h2>其他联系方式</h2>
+            <p><strong>电话:</strong> 400-123-4567</p>
+            <p><strong>邮箱:</strong> contact@example.com</p>
+            <p><strong>地址:</strong> 北京市朝阳区示例大厦 1001 室</p>
+            <p><strong>工作时间:</strong> 周一至周五 9:00-18:00</p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('contactForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('感谢您的留言！我们会尽快回复。');
+            this.reset();
+        });
+    </script>
+</body>
+</html>

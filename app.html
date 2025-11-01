@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompty V2 - 智能网站编辑工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #4a90e2;
+            --primary-dark: #357abd;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --bg-color: #f5f7fa;
+            --sidebar-bg: #2c3e50;
+            --card-bg: white;
+            --text-primary: #2c3e50;
+            --text-secondary: #6c757d;
+            --border-color: #dee2e6;
+            --shadow: 0 2px 8px rgba(0,0,0,0.1);
+            --shadow-lg: 0 4px 16px rgba(0,0,0,0.15);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        /* ========== Header ========== */
+        .header {
+            height: 60px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            box-shadow: var(--shadow);
+            position: relative;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .version {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: white;
+            color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background: #f0f0f0;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* ========== Main Layout ========== */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 60px);
+        }
+
+        /* ========== Sidebar ========== */
+        .sidebar {
+            width: 280px;
+            background: var(--sidebar-bg);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow);
+        }
+
+        .sidebar-section {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-section h3 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            opacity: 0.7;
+        }
+
+        .version-list {
+            list-style: none;
+        }
+
+        .version-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .version-item:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .version-item.active {
+            background: var(--primary-color);
+        }
+
+        .file-upload-zone {
+            border: 2px dashed rgba(255,255,255,0.3);
+            border-radius: 8px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .file-upload-zone:hover {
+            border-color: rgba(255,255,255,0.6);
+            background: rgba(255,255,255,0.05);
+        }
+
+        .file-upload-zone input[type="file"] {
+            display: none;
+        }
+
+        /* ========== Content Area ========== */
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ========== Query Panel ========== */
+        .query-panel {
+            padding: 30px;
+            background: white;
+            box-shadow: var(--shadow);
+        }
+
+        .query-input-container {
+            position: relative;
+        }
+
+        .query-input {
+            width: 100%;
+            padding: 16px 60px 16px 20px;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .query-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+        }
+
+        .query-submit {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .query-submit:hover {
+            background: var(--primary-dark);
+        }
+
+        .query-examples {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .example-tag {
+            padding: 6px 12px;
+            background: #f0f0f0;
+            border-radius: 16px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .example-tag:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        /* ========== Results Panel ========== */
+        .results-panel {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .result-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            transition: all 0.2s;
+        }
+
+        .result-card:hover {
+            box-shadow: var(--shadow-lg);
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .result-title {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .result-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .result-details {
+            display: grid;
+            gap: 10px;
+        }
+
+        .detail-row {
+            display: flex;
+            gap: 10px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            min-width: 80px;
+            color: var(--text-secondary);
+        }
+
+        .detail-value {
+            flex: 1;
+            font-family: 'Courier New', monospace;
+        }
+
+        .code-preview {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid var(--primary-color);
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+        }
+
+        /* ========== Action Buttons ========== */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .btn-outline:hover {
+            background: #f8f9fa;
+        }
+
+        /* ========== Preview Modal ========== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1200px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .modal-footer {
+            padding: 20px 30px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* ========== Diff Viewer ========== */
+        .diff-viewer {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .diff-file {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .diff-file:last-child {
+            border-bottom: none;
+        }
+
+        .diff-file-header {
+            padding: 12px 20px;
+            background: #e9ecef;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .diff-stats {
+            color: var(--text-secondary);
+            font-weight: normal;
+        }
+
+        .diff-line {
+            padding: 4px 20px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .diff-line.added {
+            background: #e6ffed;
+            color: #22863a;
+        }
+
+        .diff-line.removed {
+            background: #ffeef0;
+            color: #cb2431;
+        }
+
+        .diff-line.modified {
+            background: #fff5e6;
+            color: #e36209;
+        }
+
+        /* ========== Status Bar ========== */
+        .status-bar {
+            height: 30px;
+            background: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .status-left, .status-right {
+            display: flex;
+            gap: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success-color);
+        }
+
+        .status-indicator.loading {
+            background: var(--warning-color);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ========== Loading States ========== */
+        .loading-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ========== Empty States ========== */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .empty-state-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+        }
+
+        .empty-state-description {
+            font-size: 14px;
+        }
+
+        /* ========== Scrollbar ========== */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* ========== Responsive ========== */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 240px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                top: 60px;
+                height: calc(100vh - 60px);
+                z-index: 99;
+                transition: left 0.3s;
+            }
+
+            .sidebar.active {
+                left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <div class="logo">
+                🎨 Prompty V2
+                <span class="version">v2.0.0-beta</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-secondary" onclick="showSettings()">
+                ⚙️ 设置
+            </button>
+            <button class="btn btn-secondary" onclick="showHelp()">
+                ❓ 帮助
+            </button>
+            <button class="btn btn-primary" onclick="showHistory()">
+                📋 历史记录
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- Project Section -->
+            <div class="sidebar-section">
+                <h3>项目文件</h3>
+                <div class="file-upload-zone" onclick="document.getElementById('file-input').click()">
+                    <input type="file" id="file-input" multiple accept=".html,.css,.js" onchange="handleFileUpload(event)">
+                    <div style="font-size: 32px; margin-bottom: 10px;">📁</div>
+                    <div>点击上传 HTML 文件</div>
+                    <div style="font-size: 12px; opacity: 0.7; margin-top: 5px;">支持多文件上传</div>
+                </div>
+            </div>
+
+            <!-- Version Section -->
+            <div class="sidebar-section" style="flex: 1; overflow-y: auto;">
+                <h3>版本管理</h3>
+                <ul class="version-list" id="version-list">
+                    <li class="empty-state" style="padding: 20px 0;">
+                        <div style="font-size: 32px; opacity: 0.3;">📦</div>
+                        <div style="font-size: 12px; margin-top: 10px;">暂无版本</div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Stats Section -->
+            <div class="sidebar-section">
+                <h3>统计信息</h3>
+                <div style="font-size: 12px; opacity: 0.8;">
+                    <div style="margin-bottom: 8px;">
+                        <span>文件数量: </span>
+                        <span id="stats-files">0</span>
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <span>查询次数: </span>
+                        <span id="stats-queries">0</span>
+                    </div>
+                    <div>
+                        <span>修改次数: </span>
+                        <span id="stats-modifications">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content">
+            <!-- Query Panel -->
+            <div class="query-panel">
+                <div class="query-input-container">
+                    <input
+                        type="text"
+                        class="query-input"
+                        id="query-input"
+                        placeholder="用自然语言描述你想要修改的内容，例如：把所有页面的导航栏背景色改成深蓝色..."
+                        onkeypress="handleQueryKeyPress(event)"
+                    >
+                    <button class="query-submit" onclick="handleQuery()">
+                        🔍 执行
+                    </button>
+                </div>
+                <div class="query-examples">
+                    <div class="example-tag" onclick="setExampleQuery('找到首页的购买按钮')">
+                        找到首页的购买按钮
+                    </div>
+                    <div class="example-tag" onclick="setExampleQuery('把所有导航的背景色改成深蓝色')">
+                        修改导航栏样式
+                    </div>
+                    <div class="example-tag" onclick="setExampleQuery('删除所有页面的页脚')">
+                        删除页脚
+                    </div>
+                    <div class="example-tag" onclick="setExampleQuery('给所有按钮添加圆角')">
+                        批量修改按钮
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Panel -->
+            <div class="results-panel" id="results-panel">
+                <div class="empty-state">
+                    <div class="empty-state-icon">🎯</div>
+                    <div class="empty-state-title">准备就绪</div>
+                    <div class="empty-state-description">
+                        上传 HTML 文件并输入查询内容开始使用
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading Overlay -->
+            <div class="loading-overlay" id="loading-overlay">
+                <div style="text-align: center;">
+                    <div class="spinner"></div>
+                    <div style="margin-top: 20px; color: var(--text-secondary);">
+                        正在处理...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-left">
+            <div class="status-item">
+                <div class="status-indicator" id="status-indicator"></div>
+                <span id="status-text">就绪</span>
+            </div>
+        </div>
+        <div class="status-right">
+            <div class="status-item">
+                <span>Prompty V2 - Powered by PGlite + Tree-sitter + LLM</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div class="modal" id="preview-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">📝 修改预览</div>
+                <button class="modal-close" onclick="closePreviewModal()">×</button>
+            </div>
+            <div class="modal-body" id="preview-content">
+                <!-- Diff content will be inserted here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closePreviewModal()">
+                    取消
+                </button>
+                <button class="btn btn-success" onclick="applyModifications()">
+                    ✓ 应用修改
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal" id="settings-modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <div class="modal-title">⚙️ 设置</div>
+                <button class="modal-close" onclick="closeSettingsModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">
+                        OpenRouter API Key
+                    </label>
+                    <input
+                        type="password"
+                        id="api-key-input"
+                        class="query-input"
+                        style="padding: 12px;"
+                        placeholder="sk-or-v1-..."
+                    >
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+                        API Key 用于 LLM 智能查询和消歧功能（可选）
+                    </div>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">
+                        LLM 模型
+                    </label>
+                    <select id="model-select" class="query-input" style="padding: 12px;">
+                        <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                        <option value="openai/gpt-4">GPT-4</option>
+                        <option value="openai/gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="auto-preview">
+                        <span>自动显示预览</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeSettingsModal()">
+                    取消
+                </button>
+                <button class="btn btn-success" onclick="saveSettings()">
+                    保存设置
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Core Modules -->
+    <script src="core-modules.js"></script>
+    <script src="indexer-modules.js"></script>
+    <script src="nlp-query-engine.js"></script>
+    <script src="tree-sitter-query-executor.js"></script>
+    <script src="llm-client.js"></script>
+    <script src="code-modification-engine.js"></script>
+    <script src="transaction-manager.js"></script>
+    <script src="diff-generator.js"></script>
+    <script src="performance-utils.js"></script>
+
+    <!-- Application Logic -->
+    <script>
+        // ============================================================================
+        // Global State
+        // ============================================================================
+
+        let app = {
+            // Core instances
+            dbManager: null,
+            parserManager: null,
+            versionManager: null,
+            indexBuilder: null,
+            nlpEngine: null,
+            tsQueryExecutor: null,
+            llmClient: null,
+            modEngine: null,
+            transactionManager: null,
+            diffGenerator: null,
+            previewGenerator: null,
+
+            // State
+            currentVersionId: null,
+            currentQuery: null,
+            currentResults: null,
+            currentModifications: null,
+
+            // Stats
+            stats: {
+                files: 0,
+                queries: 0,
+                modifications: 0
+            }
+        };
+
+        // ============================================================================
+        // Initialization
+        // ============================================================================
+
+        async function initializeApp() {
+            console.log('[App] 初始化应用...');
+            updateStatus('初始化中...', 'loading');
+
+            try {
+                // Initialize database
+                app.dbManager = new DatabaseManager();
+                await app.dbManager.init();
+                console.log('[App] ✓ 数据库初始化完成');
+
+                // Initialize parser
+                app.parserManager = new TreeSitterParser();
+                await app.parserManager.init();
+                console.log('[App] ✓ 解析器初始化完成');
+
+                // Initialize version manager
+                app.versionManager = new VersionManager(app.dbManager);
+                console.log('[App] ✓ 版本管理器初始化完成');
+
+                // Initialize index builder
+                app.indexBuilder = new IndexBuilder(app.dbManager, app.parserManager);
+                console.log('[App] ✓ 索引构建器初始化完成');
+
+                // Initialize NLP engine
+                app.nlpEngine = new NaturalLanguageQueryEngine(app.dbManager);
+                console.log('[App] ✓ NLP 引擎初始化完成');
+
+                // Initialize Tree-sitter query executor
+                app.tsQueryExecutor = new TreeSitterQueryExecutor(app.parserManager, app.dbManager);
+                console.log('[App] ✓ Tree-sitter 查询执行器初始化完成');
+
+                // Initialize modification engine
+                app.modEngine = new CodeModificationEngine(app.dbManager, app.parserManager);
+                console.log('[App] ✓ 代码修改引擎初始化完成');
+
+                // Initialize transaction manager
+                app.transactionManager = new TransactionManager(app.dbManager, app.indexBuilder);
+                console.log('[App] ✓ 事务管理器初始化完成');
+
+                // Initialize diff generator
+                app.diffGenerator = new DiffGenerator(app.dbManager);
+                app.previewGenerator = new PreviewGenerator(app.diffGenerator);
+                console.log('[App] ✓ 差异生成器初始化完成');
+
+                // Load settings
+                loadSettings();
+                console.log('[App] ✓ 设置加载完成');
+
+                updateStatus('就绪', 'ready');
+                console.log('[App] ✅ 应用初始化完成！');
+
+            } catch (error) {
+                console.error('[App] 初始化失败:', error);
+                updateStatus('初始化失败（降级模式）', 'error');
+
+                // 显示友好的错误信息
+                const errorMsg = `
+                    应用初始化失败\n\n
+                    错误: ${error.message}\n\n
+                    可能的原因:\n
+                    1. CDN 加载失败（网络问题）\n
+                    2. 浏览器不支持某些功能\n\n
+                    建议:\n
+                    - 检查网络连接\n
+                    - 使用最新版 Chrome/Firefox\n
+                    - 查看控制台了解详细错误\n\n
+                    当前以降级模式运行，部分功能不可用。
+                `;
+
+                alert(errorMsg);
+
+                // 降级模式：至少显示 UI
+                console.log('[App] 以降级模式运行');
+            }
+        }
+
+        // ============================================================================
+        // File Upload & Version Management
+        // ============================================================================
+
+        async function handleFileUpload(event) {
+            const files = Array.from(event.target.files);
+
+            if (files.length === 0) return;
+
+            updateStatus('上传文件中...', 'loading');
+
+            try {
+                // Create new version
+                const versionName = `上传 ${new Date().toLocaleString()}`;
+                const version = await app.versionManager.createVersion(versionName);
+                app.currentVersionId = version.id;
+
+                console.log(`[App] 创建版本: ${version.id}`);
+
+                // Read and save files
+                for (const file of files) {
+                    const content = await readFileContent(file);
+                    const filePath = file.name;
+
+                    // Parse file
+                    const language = getLanguageFromFileName(file.name);
+                    const parseResult = await app.parserManager.parse(content, language);
+
+                    // Save to database
+                    await app.dbManager.query(`
+                        INSERT INTO files (version_id, file_path, content, language)
+                        VALUES ($1, $2, $3, $4)
+                    `, [version.id, filePath, content, language]);
+
+                    console.log(`[App] 保存文件: ${filePath}`);
+                }
+
+                // Build index
+                updateStatus('构建索引中...', 'loading');
+                await app.indexBuilder.buildCompleteIndex(version.id);
+
+                // Update UI
+                app.stats.files += files.length;
+                updateStats();
+                await loadVersionList();
+                setActiveVersion(version.id);
+
+                updateStatus(`成功上传 ${files.length} 个文件`, 'ready');
+
+                // Clear file input
+                event.target.value = '';
+
+            } catch (error) {
+                console.error('[App] 文件上传失败:', error);
+                updateStatus('上传失败', 'error');
+                alert('文件上传失败: ' + error.message);
+            }
+        }
+
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                reader.readAsText(file);
+            });
+        }
+
+        function getLanguageFromFileName(fileName) {
+            const ext = fileName.split('.').pop().toLowerCase();
+            const languageMap = {
+                'html': 'html',
+                'htm': 'html',
+                'css': 'css',
+                'js': 'javascript',
+                'javascript': 'javascript'
+            };
+            return languageMap[ext] || 'html';
+        }
+
+        async function loadVersionList() {
+            const versions = await app.versionManager.listVersions();
+            const versionList = document.getElementById('version-list');
+
+            if (versions.length === 0) {
+                versionList.innerHTML = `
+                    <li class="empty-state" style="padding: 20px 0;">
+                        <div style="font-size: 32px; opacity: 0.3;">📦</div>
+                        <div style="font-size: 12px; margin-top: 10px;">暂无版本</div>
+                    </li>
+                `;
+                return;
+            }
+
+            versionList.innerHTML = versions.map(v => `
+                <li class="version-item ${v.id === app.currentVersionId ? 'active' : ''}"
+                    onclick="setActiveVersion(${v.id})">
+                    <div>
+                        <div style="font-weight: 600;">${v.version_name}</div>
+                        <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">
+                            ${new Date(v.created_at).toLocaleString()}
+                        </div>
+                    </div>
+                    <div style="font-size: 12px; opacity: 0.7;">
+                        v${v.id}
+                    </div>
+                </li>
+            `).join('');
+        }
+
+        function setActiveVersion(versionId) {
+            app.currentVersionId = versionId;
+            loadVersionList();
+            console.log(`[App] 切换到版本: ${versionId}`);
+        }
+
+        // ============================================================================
+        // Query Handling
+        // ============================================================================
+
+        async function handleQuery() {
+            const queryInput = document.getElementById('query-input');
+            const query = queryInput.value.trim();
+
+            if (!query) {
+                alert('请输入查询内容');
+                return;
+            }
+
+            if (!app.currentVersionId) {
+                alert('请先上传文件');
+                return;
+            }
+
+            updateStatus('查询中...', 'loading');
+            showLoading();
+
+            try {
+                console.log(`[App] 执行查询: "${query}"`);
+
+                // Execute query
+                const result = await app.nlpEngine.parseAndQuery(query, app.currentVersionId);
+
+                app.currentQuery = query;
+                app.currentResults = result.results;
+                app.stats.queries++;
+                updateStats();
+
+                // Display results
+                displayQueryResults(result);
+
+                updateStatus(`找到 ${result.results.length} 个匹配`, 'ready');
+                hideLoading();
+
+            } catch (error) {
+                console.error('[App] 查询失败:', error);
+                updateStatus('查询失败', 'error');
+                hideLoading();
+                alert('查询失败: ' + error.message);
+            }
+        }
+
+        function handleQueryKeyPress(event) {
+            if (event.key === 'Enter') {
+                handleQuery();
+            }
+        }
+
+        function setExampleQuery(query) {
+            document.getElementById('query-input').value = query;
+        }
+
+        function displayQueryResults(result) {
+            const resultsPanel = document.getElementById('results-panel');
+
+            if (result.results.length === 0) {
+                resultsPanel.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <div class="empty-state-title">未找到匹配结果</div>
+                        <div class="empty-state-description">
+                            尝试使用不同的查询词或检查文件内容
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            const resultsHTML = result.results.map((match, index) => `
+                <div class="result-card">
+                    <div class="result-header">
+                        <div class="result-title">
+                            匹配 ${index + 1}: ${match.file_path || '未知文件'}
+                        </div>
+                        <div class="result-badge badge-success">
+                            ${(match.confidence * 100).toFixed(0)}% 匹配度
+                        </div>
+                    </div>
+                    <div class="result-details">
+                        ${match.tag_name ? `
+                        <div class="detail-row">
+                            <div class="detail-label">标签:</div>
+                            <div class="detail-value">&lt;${match.tag_name}&gt;</div>
+                        </div>
+                        ` : ''}
+                        ${match.selector ? `
+                        <div class="detail-row">
+                            <div class="detail-label">选择器:</div>
+                            <div class="detail-value">${match.selector}</div>
+                        </div>
+                        ` : ''}
+                        ${match.semantic_type ? `
+                        <div class="detail-row">
+                            <div class="detail-label">语义类型:</div>
+                            <div class="detail-value">${match.semantic_type}</div>
+                        </div>
+                        ` : ''}
+                        ${match.text_content ? `
+                        <div class="detail-row">
+                            <div class="detail-label">内容:</div>
+                            <div class="detail-value">${match.text_content.substring(0, 100)}${match.text_content.length > 100 ? '...' : ''}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                    ${match.code_snippet ? `
+                    <div class="code-preview">
+                        ${escapeHTML(match.code_snippet.substring(0, 200))}${match.code_snippet.length > 200 ? '...' : ''}
+                    </div>
+                    ` : ''}
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" onclick="createModification(${index})">
+                            ✏️ 创建修改
+                        </button>
+                        <button class="btn btn-outline" onclick="viewFullCode(${index})">
+                            👁️ 查看完整代码
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            resultsPanel.innerHTML = resultsHTML;
+        }
+
+        function escapeHTML(str) {
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // ============================================================================
+        // Modification Handling
+        // ============================================================================
+
+        async function createModification(resultIndex) {
+            const match = app.currentResults[resultIndex];
+
+            // Show modification dialog
+            const modificationType = prompt(
+                '选择修改类型:\n\n' +
+                '1. 修改样式 (setStyle)\n' +
+                '2. 修改属性 (setAttribute)\n' +
+                '3. 修改内容 (setContent)\n' +
+                '4. 删除元素 (delete)\n\n' +
+                '请输入数字 1-4:',
+                '1'
+            );
+
+            if (!modificationType) return;
+
+            let modification = null;
+
+            switch (modificationType) {
+                case '1': // setStyle
+                    const styleChanges = prompt(
+                        '输入样式修改 (JSON 格式):\n\n' +
+                        '例如: {"background": "#001f3f", "color": "#fff"}',
+                        '{"background": "#001f3f", "color": "#fff"}'
+                    );
+
+                    if (!styleChanges) return;
+
+                    modification = new ModificationBuilder()
+                        .target(match.file_path, match.selector)
+                        .setStyle(JSON.parse(styleChanges))
+                        .build();
+                    break;
+
+                case '2': // setAttribute
+                    const attrChanges = prompt(
+                        '输入属性修改 (JSON 格式):\n\n' +
+                        '例如: {"class": "new-class", "id": "new-id"}',
+                        '{"class": "new-class"}'
+                    );
+
+                    if (!attrChanges) return;
+
+                    modification = new ModificationBuilder()
+                        .target(match.file_path, match.selector)
+                        .setAttribute(JSON.parse(attrChanges))
+                        .build();
+                    break;
+
+                case '3': // setContent
+                    const newContent = prompt('输入新的文本内容:', match.text_content || '');
+
+                    if (newContent === null) return;
+
+                    modification = new ModificationBuilder()
+                        .target(match.file_path, match.selector)
+                        .setContent(newContent)
+                        .build();
+                    break;
+
+                case '4': // delete
+                    if (!confirm(`确定要删除这个元素吗？\n\n文件: ${match.file_path}\n选择器: ${match.selector}`)) {
+                        return;
+                    }
+
+                    modification = new ModificationBuilder()
+                        .target(match.file_path, match.selector)
+                        .delete()
+                        .build();
+                    break;
+
+                default:
+                    alert('无效的修改类型');
+                    return;
+            }
+
+            // Add modification
+            app.modEngine.addModification(modification);
+            app.currentModifications = app.modEngine.getPendingModifications();
+
+            console.log('[App] 添加修改:', modification);
+
+            // Show preview
+            const autoPreview = document.getElementById('auto-preview').checked;
+            if (autoPreview) {
+                showPreview();
+            } else {
+                if (confirm('修改已添加！是否查看预览？')) {
+                    showPreview();
+                }
+            }
+        }
+
+        async function showPreview() {
+            if (!app.currentModifications || app.currentModifications.length === 0) {
+                alert('没有待应用的修改');
+                return;
+            }
+
+            updateStatus('生成预览中...', 'loading');
+            showLoading();
+
+            try {
+                // Generate preview HTML
+                const previewHTML = await app.previewGenerator.generateHTMLPreview(
+                    app.currentVersionId,
+                    app.currentModifications
+                );
+
+                // Display in modal
+                const previewContent = document.getElementById('preview-content');
+                previewContent.innerHTML = `<iframe style="width: 100%; height: 100%; border: none;" srcdoc="${escapeHTML(previewHTML)}"></iframe>`;
+
+                document.getElementById('preview-modal').classList.add('active');
+
+                updateStatus('预览已生成', 'ready');
+                hideLoading();
+
+            } catch (error) {
+                console.error('[App] 预览生成失败:', error);
+                updateStatus('预览失败', 'error');
+                hideLoading();
+                alert('预览生成失败: ' + error.message);
+            }
+        }
+
+        function closePreviewModal() {
+            document.getElementById('preview-modal').classList.remove('active');
+        }
+
+        async function applyModifications() {
+            if (!confirm(`确定要应用 ${app.currentModifications.length} 个修改吗？\n\n此操作无法撤销！`)) {
+                return;
+            }
+
+            updateStatus('应用修改中...', 'loading');
+            showLoading();
+            closePreviewModal();
+
+            try {
+                // Begin transaction
+                const transaction = await app.transactionManager.beginTransaction(
+                    `应用修改: ${app.currentQuery}`
+                );
+
+                // Apply modifications
+                await app.modEngine.applyModifications(app.currentVersionId);
+
+                // Commit transaction
+                await app.transactionManager.commit();
+
+                app.stats.modifications += app.currentModifications.length;
+                updateStats();
+
+                // Clear modifications
+                app.modEngine.clearPendingModifications();
+                app.currentModifications = null;
+
+                updateStatus('修改已应用', 'ready');
+                hideLoading();
+
+                alert('修改已成功应用！');
+
+                // Reload version
+                await loadVersionList();
+
+            } catch (error) {
+                console.error('[App] 应用修改失败:', error);
+
+                // Rollback
+                try {
+                    await app.transactionManager.rollback();
+                } catch (rollbackError) {
+                    console.error('[App] 回滚失败:', rollbackError);
+                }
+
+                updateStatus('修改失败', 'error');
+                hideLoading();
+                alert('修改应用失败: ' + error.message);
+            }
+        }
+
+        // ============================================================================
+        // Settings
+        // ============================================================================
+
+        function showSettings() {
+            document.getElementById('settings-modal').classList.add('active');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').classList.remove('active');
+        }
+
+        function loadSettings() {
+            const apiKey = localStorage.getItem('prompty_api_key') || '';
+            const model = localStorage.getItem('prompty_model') || 'anthropic/claude-3.5-sonnet';
+            const autoPreview = localStorage.getItem('prompty_auto_preview') === 'true';
+
+            document.getElementById('api-key-input').value = apiKey;
+            document.getElementById('model-select').value = model;
+            document.getElementById('auto-preview').checked = autoPreview;
+
+            // Initialize LLM client if API key exists
+            if (apiKey) {
+                app.llmClient = new LLMClient(apiKey, { model });
+                console.log('[App] LLM 客户端已初始化');
+            }
+        }
+
+        function saveSettings() {
+            const apiKey = document.getElementById('api-key-input').value.trim();
+            const model = document.getElementById('model-select').value;
+            const autoPreview = document.getElementById('auto-preview').checked;
+
+            localStorage.setItem('prompty_api_key', apiKey);
+            localStorage.setItem('prompty_model', model);
+            localStorage.setItem('prompty_auto_preview', autoPreview);
+
+            // Update LLM client
+            if (apiKey) {
+                app.llmClient = new LLMClient(apiKey, { model });
+                console.log('[App] LLM 客户端已更新');
+            }
+
+            closeSettingsModal();
+            alert('设置已保存！');
+        }
+
+        // ============================================================================
+        // UI Helpers
+        // ============================================================================
+
+        function updateStatus(text, type = 'ready') {
+            const statusText = document.getElementById('status-text');
+            const statusIndicator = document.getElementById('status-indicator');
+
+            statusText.textContent = text;
+
+            statusIndicator.className = 'status-indicator';
+            if (type === 'loading') {
+                statusIndicator.classList.add('loading');
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('stats-files').textContent = app.stats.files;
+            document.getElementById('stats-queries').textContent = app.stats.queries;
+            document.getElementById('stats-modifications').textContent = app.stats.modifications;
+        }
+
+        function showLoading() {
+            document.getElementById('loading-overlay').classList.add('active');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.remove('active');
+        }
+
+        function showHelp() {
+            alert(
+                'Prompty V2 - 智能网站编辑工具\n\n' +
+                '使用说明:\n\n' +
+                '1. 上传 HTML 文件到项目\n' +
+                '2. 输入自然语言查询来定位元素\n' +
+                '3. 创建修改并预览\n' +
+                '4. 应用修改到代码\n\n' +
+                '支持的操作:\n' +
+                '- 修改样式 (CSS)\n' +
+                '- 修改属性\n' +
+                '- 修改内容\n' +
+                '- 删除元素\n\n' +
+                '技术支持: GitHub Issues'
+            );
+        }
+
+        function showHistory() {
+            const history = app.transactionManager?.getHistory() || [];
+
+            if (history.length === 0) {
+                alert('暂无历史记录');
+                return;
+            }
+
+            const historyText = history.map((txn, i) =>
+                `${i + 1}. ${txn.description}\n` +
+                `   状态: ${txn.status}\n` +
+                `   时间: ${new Date(txn.createdAt).toLocaleString()}\n` +
+                `   修改数: ${txn.modifications.length}`
+            ).join('\n\n');
+
+            alert('历史记录:\n\n' + historyText);
+        }
+
+        function viewFullCode(resultIndex) {
+            const match = app.currentResults[resultIndex];
+            alert(
+                `文件: ${match.file_path}\n\n` +
+                `完整代码:\n\n${match.code_snippet || '无代码片段'}`
+            );
+        }
+
+        // ============================================================================
+        // Initialize on load
+        // ============================================================================
+
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('[App] DOM 加载完成，开始初始化...');
+            initializeApp();
+        });
+    </script>
+</body>
+</html>
