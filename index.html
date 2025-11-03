@@ -1057,6 +1057,34 @@
             text-align: center;
         }
 
+        /* 优化嵌入 HTML 内容的字体显示 */
+        #modalContent.markdown-body div[style],
+        .card-content.markdown-body div[style] {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+        }
+
+        #modalContent.markdown-body div[style] p,
+        .card-content.markdown-body div[style] p {
+            line-height: 1.6;
+            color: inherit;
+        }
+
+        #modalContent.markdown-body div[style] h1,
+        #modalContent.markdown-body div[style] h2,
+        #modalContent.markdown-body div[style] h3,
+        #modalContent.markdown-body div[style] h4,
+        #modalContent.markdown-body div[style] h5,
+        #modalContent.markdown-body div[style] h6,
+        .card-content.markdown-body div[style] h1,
+        .card-content.markdown-body div[style] h2,
+        .card-content.markdown-body div[style] h3,
+        .card-content.markdown-body div[style] h4,
+        .card-content.markdown-body div[style] h5,
+        .card-content.markdown-body div[style] h6 {
+            font-family: inherit;
+            font-weight: 600;
+        }
+
         /* HTML 预览样式 */
         #modalContent.html-preview {
             background: white;
@@ -1264,21 +1292,19 @@
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
-                    <span>v1.4.1</span>
+                    <span>v2.1.0</span>
                     <div class="version-tooltip">
                         <h4>
                             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            v1.4.1 更新内容
+                            v2.1.0 更新内容
                         </h4>
                         <ul>
-                            <li>📅 模型参数表新增创建日期列</li>
-                            <li>💰 优化价格格式（如 $0.22/M）</li>
-                            <li>🔢 优化数字格式（如 262,144 context）</li>
-                            <li>🚀 HTML 预览移除安全限制</li>
-                            <li>✅ 支持 JavaScript 执行和外部资源加载</li>
-                            <li>🌐 允许跨域请求，完整预览效果</li>
+                            <li>✨ 优化 Markdown 预览中 HTML 内容的字体显示</li>
+                            <li>🔤 新增中文字体支持（微软雅黑、苹方等）</li>
+                            <li>📖 改善嵌入式 HTML 样式的可读性</li>
+                            <li>🎨 自动继承父级字体，保证一致性</li>
                         </ul>
                     </div>
                 </div>
