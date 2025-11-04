@@ -1342,6 +1342,12 @@
             height: 100%;
             object-fit: cover;
             display: block;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .generated-image-item img:hover {
+            transform: scale(1.05);
         }
 
         .generated-image-item .image-actions {
@@ -1392,6 +1398,54 @@
             .generated-images-grid {
                 grid-template-columns: 1fr;
             }
+        }
+
+        /* 图片预览Modal样式 */
+        .image-preview-modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px);
+        }
+
+        .image-preview-content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .image-preview-content img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .image-preview-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 10001;
+            transition: all 0.2s ease;
+        }
+
+        .image-preview-close:hover {
+            transform: scale(1.1);
+            color: #f5576c;
         }
     </style>
 </head>
@@ -1599,6 +1653,14 @@
         </div>
     </div>
 
+    <!-- 图片预览模态框 -->
+    <div id="imagePreviewModal" class="image-preview-modal" onclick="closeImagePreview()">
+        <span class="image-preview-close">&times;</span>
+        <div class="image-preview-content">
+            <img id="imagePreviewImg" src="" alt="图片预览">
+        </div>
+    </div>
+
     <!-- AI生图模态框 -->
     <div id="imageGenModal" class="modal">
         <div class="modal-content">
@@ -1607,6 +1669,19 @@
                 <span class="close" onclick="closeImageGenModal()">&times;</span>
             </div>
             <div class="image-gen-container">
+                <!-- API Key 徽章（已配置时显示） -->
+                <div style="margin-bottom: 20px;">
+                    <div id="togetherApiKeyBadge" class="api-key-badge" onclick="editTogetherApiKey()" style="display: none;">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+                        </svg>
+                        <span id="togetherApiKeyBadgeText">API Key</span>
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                        </svg>
+                    </div>
+                </div>
+
                 <!-- API Key 配置区域 -->
                 <div class="api-key-section" id="togetherApiKeySection">
                     <label class="prompt-label">
@@ -3116,15 +3191,32 @@
         function updateTogetherApiKeyStatus() {
             const key = getTogetherApiKey();
             const section = document.getElementById('togetherApiKeySection');
+            const badge = document.getElementById('togetherApiKeyBadge');
+            const badgeText = document.getElementById('togetherApiKeyBadgeText');
             const status = document.getElementById('togetherApiKeyStatus');
             const input = document.getElementById('togetherApiKeyInput');
 
             if (key) {
-                status.innerHTML = '<span class="status-icon success"></span><span>API Key 已配置</span>';
+                // 隐藏配置区域，显示徽章
+                section.classList.add('hidden');
+                badge.style.display = 'inline-flex';
+                badgeText.textContent = `${key.substring(0, 12)}...${key.substring(key.length - 4)}`;
                 input.value = key;
             } else {
-                status.innerHTML = '<span class="status-icon warning"></span><span>请输入您的 Together AI API Key</span>';
+                // 显示配置区域，隐藏徽章
+                section.classList.remove('hidden');
+                badge.style.display = 'none';
             }
+        }
+
+        // 编辑 Together AI API Key
+        function editTogetherApiKey() {
+            const section = document.getElementById('togetherApiKeySection');
+            section.classList.remove('hidden');
+            document.getElementById('togetherApiKeyInput').focus();
+
+            // 隐藏徽章
+            document.getElementById('togetherApiKeyBadge').style.display = 'none';
         }
 
         // 打开/关闭AI生图Modal
@@ -3197,7 +3289,7 @@
                             const imageItem = document.createElement('div');
                             imageItem.className = 'generated-image-item';
                             imageItem.innerHTML = `
-                                <img src="${imageUrl}" alt="生成的图片 ${index + 1}">
+                                <img src="${imageUrl}" alt="生成的图片 ${index + 1}" onclick="openImagePreview('${imageUrl}')">
                                 <div class="image-actions">
                                     <button class="image-action-btn" onclick="downloadImage('${imageUrl}', '生成图片_${index + 1}.png')">下载</button>
                                 </div>
@@ -3239,6 +3331,22 @@
                 console.error('下载图片失败:', error);
                 alert('下载图片失败，请右键图片另存为');
             }
+        }
+
+        // 打开图片预览
+        function openImagePreview(imageUrl) {
+            const modal = document.getElementById('imagePreviewModal');
+            const img = document.getElementById('imagePreviewImg');
+            img.src = imageUrl;
+            modal.style.display = 'block';
+
+            // 阻止事件冒泡，避免点击图片关闭Modal
+            event.stopPropagation();
+        }
+
+        // 关闭图片预览
+        function closeImagePreview() {
+            document.getElementById('imagePreviewModal').style.display = 'none';
         }
 
 
@@ -3333,6 +3441,7 @@
             if (e.key === 'Escape') {
                 closeModal();
                 closeImageGenModal();
+                closeImagePreview();
             }
             if (e.ctrlKey && e.key === 'Enter') {
                 if (!document.getElementById('startBtn').disabled) {
