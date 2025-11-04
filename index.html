@@ -67,6 +67,15 @@
             align-items: center;
         }
 
+        .header-actions-left {
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
         .version-badge {
             display: inline-flex;
             align-items: center;
@@ -1389,13 +1398,15 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="header-actions">
+            <div class="header-actions-left">
                 <button class="models-link-badge" onclick="openImageGenModal()" title="AI图片生成" style="border: none; background: rgba(240, 147, 251, 0.15); border: 1px solid rgba(240, 147, 251, 0.3);">
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
                     </svg>
                     <span>AI生图</span>
                 </button>
+            </div>
+            <div class="header-actions">
                 <a href="models.html" class="models-link-badge" title="查看模型参数与价格">
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M3 3h18v2H3V3zm0 4h18v2H3V7zm0 4h18v2H3v-2zm0 4h18v2H3v-2zm0 4h18v2H3v-2z"/>
