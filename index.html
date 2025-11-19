@@ -1393,19 +1393,19 @@
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
-                    <span>v2.4.2</span>
+                    <span>v2.4.3</span>
                     <div class="version-tooltip">
                         <h4>
                             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            v2.4.2 更新内容
+                            v2.4.3 更新内容
                         </h4>
                         <ul>
-                            <li>🎨 优化控件布局：短选项（请求数、间隔等）宽度缩短至 100-120px</li>
-                            <li>📐 改用 Flexbox 布局，所有控件尽量排列在一行，空间利用更高效</li>
-                            <li>📱 优化移动端适配：小屏幕上短选项两列排列，供应商和模型选择器占满宽</li>
-                            <li>✨ 界面更紧凑美观，信息密度更合理</li>
+                            <li>✅ 将供应商选择器从按钮组改为下拉框，节省大量水平空间</li>
+                            <li>📏 所有控件真正实现单行布局，空间利用率最大化</li>
+                            <li>🔄 两个供应商下拉框自动同步状态</li>
+                            <li>🎨 界面更加简洁紧凑</li>
                         </ul>
                     </div>
                 </div>
@@ -1433,16 +1433,13 @@
                 </label>
 
                 <!-- 供应商选择器 -->
-                <div class="provider-selector">
-                    <button type="button" class="provider-btn active" data-provider="openrouter" onclick="switchProvider('openrouter')">
-                        OpenRouter
-                    </button>
-                    <button type="button" class="provider-btn" data-provider="volcengine" onclick="switchProvider('volcengine')">
-                        火山引擎
-                    </button>
-                    <button type="button" class="provider-btn" data-provider="alibailian" onclick="switchProvider('alibailian')">
-                        阿里百炼
-                    </button>
+                <div style="margin: 10px 0;">
+                    <label class="setting-label">选择供应商</label>
+                    <select id="providerSelectApiKey" class="select-input" onchange="switchProvider(this.value)" style="max-width: 200px;">
+                        <option value="openrouter" selected>OpenRouter</option>
+                        <option value="volcengine">火山引擎</option>
+                        <option value="alibailian">阿里百炼</option>
+                    </select>
                 </div>
 
                 <div class="api-key-input-wrapper">
@@ -1502,22 +1499,17 @@
                     </select>
                 </div>
 
+                <div class="setting-group compact">
+                    <label class="setting-label">供应商</label>
+                    <select id="providerSelect" class="select-input" onchange="switchProvider(this.value)">
+                        <option value="openrouter" selected>OpenRouter</option>
+                        <option value="volcengine">火山引擎</option>
+                        <option value="alibailian">阿里百炼</option>
+                    </select>
+                </div>
+
                 <div class="setting-group flexible">
-                    <label class="setting-label">选择供应商和模型</label>
-
-                    <!-- 供应商选择器（模型区域） -->
-                    <div class="provider-selector" style="margin-bottom: 10px;">
-                        <button type="button" class="provider-btn active" data-provider="openrouter" onclick="switchProvider('openrouter')">
-                            OpenRouter
-                        </button>
-                        <button type="button" class="provider-btn" data-provider="volcengine" onclick="switchProvider('volcengine')">
-                            火山引擎
-                        </button>
-                        <button type="button" class="provider-btn" data-provider="alibailian" onclick="switchProvider('alibailian')">
-                            阿里百炼
-                        </button>
-                    </div>
-
+                    <label class="setting-label">模型</label>
                     <div class="model-select-wrapper">
                         <select id="modelSelect" class="select-input" onchange="onModelSelectChange()">
                             <!-- 模型选项将在这里动态生成 -->
@@ -1689,14 +1681,12 @@
 
         // 更新供应商 UI
         function updateProviderUI() {
-            const buttons = document.querySelectorAll('.provider-btn');
-            buttons.forEach(btn => {
-                if (btn.dataset.provider === currentProvider) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
+            // 同步两个供应商下拉框的值
+            const apiKeySelect = document.getElementById('providerSelectApiKey');
+            const modelSelect = document.getElementById('providerSelect');
+
+            if (apiKeySelect) apiKeySelect.value = currentProvider;
+            if (modelSelect) modelSelect.value = currentProvider;
         }
 
         // 保存 API Key
