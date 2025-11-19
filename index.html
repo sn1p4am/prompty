@@ -329,6 +329,39 @@
             display: none;
         }
 
+        .provider-selector {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+
+        .provider-btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .provider-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .provider-btn.active {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: rgba(102, 126, 234, 0.5);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
         .api-key-badge {
             display: inline-flex;
             align-items: center;
@@ -1334,19 +1367,20 @@
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
-                    <span>v2.3.0</span>
+                    <span>v2.4.0</span>
                     <div class="version-tooltip">
                         <h4>
                             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            v2.3.0 更新内容
+                            v2.4.0 更新内容
                         </h4>
                         <ul>
-                            <li>✨ 新增 AI 图片生成功能（Together AI FLUX.1-schnell）</li>
-                            <li>🎨 一键生成 4 张 1024×1024 高质量图片</li>
-                            <li>💾 支持图片直接下载保存</li>
-                            <li>🔐 API Key 使用 localStorage 安全存储</li>
+                            <li>🌐 新增多供应商支持：OpenRouter、火山引擎、阿里百炼</li>
+                            <li>🔑 支持为不同供应商单独配置 API Key</li>
+                            <li>🤖 每个供应商有独立的默认模型列表</li>
+                            <li>📊 优化 provider 显示：OpenRouter 显示实际路由商，其他显示供应商名</li>
+                            <li>⚙️ 优化模型管理：按供应商组织自定义模型</li>
                         </ul>
                     </div>
                 </div>
@@ -1370,16 +1404,30 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; margin-right: 5px;">
                         <path d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
                     </svg>
-                    OpenRouter API Key
+                    <span id="apiKeyLabel">API Key 配置</span>
                 </label>
+
+                <!-- 供应商选择器 -->
+                <div class="provider-selector">
+                    <button type="button" class="provider-btn active" data-provider="openrouter" onclick="switchProvider('openrouter')">
+                        OpenRouter
+                    </button>
+                    <button type="button" class="provider-btn" data-provider="volcengine" onclick="switchProvider('volcengine')">
+                        火山引擎
+                    </button>
+                    <button type="button" class="provider-btn" data-provider="alibailian" onclick="switchProvider('alibailian')">
+                        阿里百炼
+                    </button>
+                </div>
+
                 <div class="api-key-input-wrapper">
-                    <input type="password" id="apiKeyInput" class="api-key-input" placeholder="sk-or-v1-..." onkeypress="if(event.key==='Enter') saveApiKey()">
+                    <input type="password" id="apiKeyInput" class="api-key-input" placeholder="请输入 API Key..." onkeypress="if(event.key==='Enter') saveApiKey()">
                     <button type="button" class="btn-small btn-primary" onclick="saveApiKey()">保存</button>
                     <button type="button" class="btn-small btn-secondary" onclick="clearApiKey()">清除</button>
                 </div>
                 <div class="api-key-status" id="apiKeyStatus">
                     <span class="status-icon warning"></span>
-                    <span>请输入您的 OpenRouter API Key</span>
+                    <span>请选择供应商并输入 API Key</span>
                 </div>
             </div>
 
@@ -1517,25 +1565,61 @@
     </div>
 
     <script>
-        // 配置常量
-        const API_BASE_URL = 'https://openrouter.ai/api/v1';
-        
-        // 从 localStorage 获取 API Key
-        function getApiKey() {
-            return localStorage.getItem('openrouter_api_key') || '';
+        // 供应商配置
+        const PROVIDERS = {
+            openrouter: {
+                name: 'OpenRouter',
+                baseUrl: 'https://openrouter.ai/api/v1',
+                keyPrefix: 'sk-or-v1-',
+                keyStorageKey: 'openrouter_api_key',
+                getKeyUrl: 'https://openrouter.ai/keys',
+                defaultModels: [
+                    'anthropic/claude-sonnet-4',
+                    'qwen/qwen3-max',
+                    'qwen/qwen3-coder-plus',
+                    'openai/gpt-5-codex',
+                    'deepseek/deepseek-v3.1-terminus',
+                    'moonshotai/kimi-k2-0905',
+                    'deepseek/deepseek-chat-v3.1'
+                ]
+            },
+            volcengine: {
+                name: '火山引擎',
+                baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+                keyPrefix: '',  // 火山引擎 API Key 没有固定前缀
+                keyStorageKey: 'volcengine_api_key',
+                getKeyUrl: 'https://console.volcengine.com/ark',
+                defaultModels: [
+                    'deepseek-r1-0528'
+                ]
+            },
+            alibailian: {
+                name: '阿里百炼',
+                baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+                keyPrefix: 'sk-',
+                keyStorageKey: 'alibailian_api_key',
+                getKeyUrl: 'https://bailian.console.aliyun.com',
+                defaultModels: [
+                    'deepseek-r1-0528'
+                ]
+            }
+        };
+
+        // 当前选中的供应商
+        let currentProvider = localStorage.getItem('current_provider') || 'openrouter';
+
+        // 从 localStorage 获取当前供应商的 API Key
+        function getApiKey(provider = currentProvider) {
+            const providerConfig = PROVIDERS[provider];
+            if (!providerConfig) return '';
+            return localStorage.getItem(providerConfig.keyStorageKey) || '';
         }
 
-        // 可用模型列表
-        const AVAILABLE_MODELS = [
-            'anthropic/claude-sonnet-4',
-            'qwen/qwen3-max',
-            'qwen/qwen3-coder-plus',
-            'openai/gpt-5-codex',
-            'deepseek/deepseek-v3.1-terminus',
-            'moonshotai/kimi-k2-0905',
-            'deepseek/deepseek-chat-v3.1'
-        ];
-
+        // 获取当前供应商的 base URL
+        function getBaseUrl(provider = currentProvider) {
+            const providerConfig = PROVIDERS[provider];
+            return providerConfig ? providerConfig.baseUrl : PROVIDERS.openrouter.baseUrl;
+        }
 
         // 全局状态
         let selectedModel = localStorage.getItem('last_selected_model') || 'anthropic/claude-sonnet-4';
@@ -1552,28 +1636,51 @@
         let requestQueue = [];
         let isRunning = false;
 
-        // 自定义模型列表
+        // 自定义模型列表（存储格式：{provider: 'xxx', model: 'xxx'}）
         let customModels = [];
+
+        // 切换供应商
+        function switchProvider(provider) {
+            currentProvider = provider;
+            localStorage.setItem('current_provider', provider);
+            updateProviderUI();
+            updateApiKeyStatus();
+            initializeModelSelect();
+        }
+
+        // 更新供应商 UI
+        function updateProviderUI() {
+            const buttons = document.querySelectorAll('.provider-btn');
+            buttons.forEach(btn => {
+                if (btn.dataset.provider === currentProvider) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
 
         // 保存 API Key
         function saveApiKey() {
             const input = document.getElementById('apiKeyInput');
             const key = input.value.trim();
-            
+
             if (!key) {
                 alert('请输入有效的 API Key');
                 return;
             }
-            
-            if (!key.startsWith('sk-or-v1-')) {
-                if (!confirm('API Key 格式似乎不正确（应以 sk-or-v1- 开头），是否仍要保存？')) {
+
+            const providerConfig = PROVIDERS[currentProvider];
+            // 检查 API Key 格式（如果有前缀要求）
+            if (providerConfig.keyPrefix && !key.startsWith(providerConfig.keyPrefix)) {
+                if (!confirm(`API Key 格式似乎不正确（${providerConfig.name} 的 Key 应以 ${providerConfig.keyPrefix} 开头），是否仍要保存？`)) {
                     return;
                 }
             }
-            
-            localStorage.setItem('openrouter_api_key', key);
+
+            localStorage.setItem(providerConfig.keyStorageKey, key);
             updateApiKeyStatus();
-            showToast('API Key 已保存');
+            showToast(`${providerConfig.name} API Key 已保存`);
         }
 
         // 清除 API Key
@@ -1581,11 +1688,12 @@
             if (!confirm('确定要清除已保存的 API Key 吗？')) {
                 return;
             }
-            
-            localStorage.removeItem('openrouter_api_key');
+
+            const providerConfig = PROVIDERS[currentProvider];
+            localStorage.removeItem(providerConfig.keyStorageKey);
             document.getElementById('apiKeyInput').value = '';
             updateApiKeyStatus();
-            showToast('API Key 已清除');
+            showToast(`${providerConfig.name} API Key 已清除`);
         }
 
         // 编辑 API Key
@@ -1593,7 +1701,7 @@
             const section = document.getElementById('apiKeySection');
             section.classList.remove('hidden');
             document.getElementById('apiKeyInput').focus();
-            
+
             // 滚动到顶部
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -1606,12 +1714,13 @@
             const badgeText = document.getElementById('apiKeyBadgeText');
             const status = document.getElementById('apiKeyStatus');
             const input = document.getElementById('apiKeyInput');
-            
+            const providerConfig = PROVIDERS[currentProvider];
+
             if (key) {
                 // 隐藏配置区域，显示徽章
                 section.classList.add('hidden');
                 badge.style.display = 'inline-flex';
-                badgeText.textContent = `${key.substring(0, 12)}...${key.substring(key.length - 4)}`;
+                badgeText.textContent = `${providerConfig.name}: ${key.substring(0, 8)}...${key.substring(key.length - 4)}`;
                 input.value = key;
             } else {
                 // 显示配置区域，隐藏徽章
@@ -1619,7 +1728,7 @@
                 badge.style.display = 'none';
                 status.innerHTML = `
                     <span class="status-icon warning"></span>
-                    <span>请输入您的 OpenRouter API Key（<a href="https://openrouter.ai/keys" target="_blank" style="color: #4facfe;">获取 API Key</a>）</span>
+                    <span>请输入您的 ${providerConfig.name} API Key（<a href="${providerConfig.getKeyUrl}" target="_blank" style="color: #4facfe;">获取 API Key</a>）</span>
                 `;
                 input.value = '';
             }
@@ -1628,6 +1737,7 @@
         // 初始化页面
         document.addEventListener('DOMContentLoaded', function() {
             loadCustomModels();
+            updateProviderUI();  // 初始化供应商UI
             initializeModelSelect();
             syncUserModels(); // 同步模型列表到 localStorage
             updateApiKeyStatus();
@@ -1666,10 +1776,13 @@
             const select = document.getElementById('modelSelect');
             select.innerHTML = '';
 
-            // 添加默认模型
-            AVAILABLE_MODELS.forEach(model => {
+            const providerConfig = PROVIDERS[currentProvider];
+
+            // 添加当前供应商的默认模型
+            providerConfig.defaultModels.forEach(model => {
                 const option = document.createElement('option');
                 option.value = model;
+                option.dataset.provider = currentProvider;
                 option.textContent = formatModelName(model);
                 if (model === selectedModel) {
                     option.selected = true;
@@ -1677,18 +1790,20 @@
                 select.appendChild(option);
             });
 
-            // 添加自定义模型
-            if (customModels.length > 0) {
+            // 添加当前供应商的自定义模型
+            const providerCustomModels = customModels.filter(m => m.provider === currentProvider);
+            if (providerCustomModels.length > 0) {
                 const separator = document.createElement('option');
                 separator.disabled = true;
                 separator.textContent = '──── 自定义模型 ────';
                 select.appendChild(separator);
 
-                customModels.forEach(model => {
+                providerCustomModels.forEach(modelObj => {
                     const option = document.createElement('option');
-                    option.value = model;
-                    option.textContent = formatModelName(model) + ' (自定义)';
-                    if (model === selectedModel) {
+                    option.value = modelObj.model;
+                    option.dataset.provider = modelObj.provider;
+                    option.textContent = formatModelName(modelObj.model) + ' (自定义)';
+                    if (modelObj.model === selectedModel) {
                         option.selected = true;
                     }
                     select.appendChild(option);
@@ -1698,22 +1813,26 @@
 
         // 格式化模型名称显示
         function formatModelName(model) {
-            const parts = model.split('/');
-            if (parts.length === 2) {
-                const provider = parts[0];
-                const modelName = parts[1];
-                const providerNames = {
-                    'anthropic': 'Anthropic',
-                    'openai': 'OpenAI',
-                    'google': 'Google',
-                    'deepseek': 'DeepSeek',
-                    'qwen': 'Qwen',
-                    'moonshotai': 'Moonshot',
-                    'mistralai': 'Mistral'
-                };
-                const displayProvider = providerNames[provider] || provider;
-                return `${displayProvider} - ${modelName}`;
+            // 对于OpenRouter，保持原来的格式（provider/model）
+            if (currentProvider === 'openrouter') {
+                const parts = model.split('/');
+                if (parts.length === 2) {
+                    const provider = parts[0];
+                    const modelName = parts[1];
+                    const providerNames = {
+                        'anthropic': 'Anthropic',
+                        'openai': 'OpenAI',
+                        'google': 'Google',
+                        'deepseek': 'DeepSeek',
+                        'qwen': 'Qwen',
+                        'moonshotai': 'Moonshot',
+                        'mistralai': 'Mistral'
+                    };
+                    const displayProvider = providerNames[provider] || provider;
+                    return `${displayProvider} - ${modelName}`;
+                }
             }
+            // 对于其他供应商，直接显示模型名
             return model;
         }
 
@@ -1749,18 +1868,27 @@
                 return;
             }
 
-            if (AVAILABLE_MODELS.includes(modelId) || customModels.includes(modelId)) {
-                alert('该模型已存在');
+            const providerConfig = PROVIDERS[currentProvider];
+
+            // 检查是否已存在于默认模型中
+            if (providerConfig.defaultModels.includes(modelId)) {
+                alert('该模型已存在于默认模型列表中');
                 return;
             }
 
-            // 验证模型ID格式
-            if (!modelId.includes('/')) {
-                alert('模型ID格式应为: provider/model-name');
+            // 检查是否已存在于自定义模型中
+            if (customModels.some(m => m.provider === currentProvider && m.model === modelId)) {
+                alert('该模型已存在于自定义模型列表中');
                 return;
             }
 
-            customModels.push(modelId);
+            // 验证模型ID格式（OpenRouter需要 provider/model 格式）
+            if (currentProvider === 'openrouter' && !modelId.includes('/')) {
+                alert('OpenRouter 模型ID格式应为: provider/model-name');
+                return;
+            }
+
+            customModels.push({ provider: currentProvider, model: modelId });
             saveCustomModels();
             selectedModel = modelId;
             initializeModelSelect();
@@ -1776,7 +1904,19 @@
 
         // 同步用户模型列表到 localStorage
         function syncUserModels() {
-            const allModels = [...AVAILABLE_MODELS, ...customModels];
+            // 收集所有供应商的所有模型
+            const allModels = [];
+            Object.keys(PROVIDERS).forEach(provider => {
+                const config = PROVIDERS[provider];
+                // 添加默认模型
+                config.defaultModels.forEach(model => {
+                    allModels.push({ provider, model });
+                });
+            });
+            // 添加自定义模型
+            customModels.forEach(m => {
+                allModels.push(m);
+            });
             localStorage.setItem('user_models', JSON.stringify(allModels));
         }
 
@@ -1916,8 +2056,10 @@
                 // 调试: 检查 API Key
                 const apiKey = getApiKey();
                 console.log('🔑 使用的 API Key:', apiKey ? `${apiKey.substring(0, 20)}...` : '(空)');
+                console.log('🌐 使用的供应商:', PROVIDERS[currentProvider].name);
+                console.log('🔗 API Base URL:', getBaseUrl());
 
-                const response = await fetch(`${API_BASE_URL}/chat/completions`, {
+                const response = await fetch(`${getBaseUrl()}/chat/completions`, {
                     signal: controller.signal,
                     method: 'POST',
                     headers: {
@@ -1932,13 +2074,12 @@
                         stream: request.streamMode !== false,  // 默认为true
                         temperature: request.temperature || 1.0,
                         top_p: request.topP || 1,
-                        // 不设置 max_tokens，让 OpenRouter 预设自动处理
-                        // 如果预设中未配置，OpenRouter 会使用 (模型上下文长度 - 输入tokens) 作为可用空间
-                        // 注意：不同 provider 对 max_tokens 有不同限制，应在预设中根据具体 provider 配置合适的值
-                        // 根据 OpenRouter 文档，必须显式启用 usage accounting
-                        usage: {
-                            include: true
-                        }
+                        // OpenRouter 需要显式启用 usage accounting
+                        ...(currentProvider === 'openrouter' && {
+                            usage: {
+                                include: true
+                            }
+                        })
                     })
                 });
 
@@ -1993,7 +2134,8 @@
                 });
 
                 let content = '';
-                let provider = 'Routing...';
+                // 根据供应商设置初始 provider 显示
+                let provider = currentProvider === 'openrouter' ? 'Routing...' : PROVIDERS[currentProvider].name;
                 let usage = null;
                 let modelId = request.model;
                 let actualProvider = null;
@@ -2187,53 +2329,60 @@
                 // 更新provider信息
                 const providerDiv = card.querySelector('.provider-info');
                 if (providerDiv) {
-                    // 显示实际的provider
-                    if (actualProvider) {
-                        // 美化provider名称
-                        const providerNames = {
-                            'azure': 'Azure',
-                            'aws': 'AWS Bedrock',
-                            'bedrock': 'AWS Bedrock',
-                            'google': 'Google',
-                            'openai': 'OpenAI',
-                            'anthropic': 'Anthropic',
-                            'groq': 'Groq',
-                            'together': 'Together AI',
-                            'deepinfra': 'DeepInfra',
-                            'replicate': 'Replicate',
-                            'perplexity': 'Perplexity',
-                            'mistral': 'Mistral AI',
-                            'cohere': 'Cohere'
-                        };
-                        provider = providerNames[actualProvider.toLowerCase()] || actualProvider;
-                    } else {
-                        // 如果没有获取到实际provider，显示模型提供商
-                        const modelProvider = request.model.split('/')[0];
-                        const providerNames = {
-                            'openai': 'OpenAI (via OR)',
-                            'anthropic': 'Anthropic (via OR)',
-                            'google': 'Google (via OR)',
-                            'meta-llama': 'Meta (via OR)',
-                            'mistralai': 'Mistral (via OR)',
-                            'deepseek': 'DeepSeek (via OR)',
-                            'qwen': 'Qwen (via OR)',
-                            'moonshotai': 'Moonshot (via OR)'
-                        };
-                        provider = providerNames[modelProvider] || `${modelProvider} (via OR)`;
-                    }
-                    providerDiv.textContent = `Provider: ${provider}`;
+                    // 如果是 OpenRouter，尝试显示实际的 provider
+                    if (currentProvider === 'openrouter') {
+                        if (actualProvider) {
+                            // 美化provider名称
+                            const providerNames = {
+                                'azure': 'Azure',
+                                'aws': 'AWS Bedrock',
+                                'bedrock': 'AWS Bedrock',
+                                'google': 'Google',
+                                'openai': 'OpenAI',
+                                'anthropic': 'Anthropic',
+                                'groq': 'Groq',
+                                'together': 'Together AI',
+                                'deepinfra': 'DeepInfra',
+                                'replicate': 'Replicate',
+                                'perplexity': 'Perplexity',
+                                'mistral': 'Mistral AI',
+                                'cohere': 'Cohere'
+                            };
+                            provider = providerNames[actualProvider.toLowerCase()] || actualProvider;
+                        } else {
+                            // 如果没有获取到实际provider，显示模型提供商
+                            const modelProvider = request.model.split('/')[0];
+                            const providerNames = {
+                                'openai': 'OpenAI (via OR)',
+                                'anthropic': 'Anthropic (via OR)',
+                                'google': 'Google (via OR)',
+                                'meta-llama': 'Meta (via OR)',
+                                'mistralai': 'Mistral (via OR)',
+                                'deepseek': 'DeepSeek (via OR)',
+                                'qwen': 'Qwen (via OR)',
+                                'moonshotai': 'Moonshot (via OR)'
+                            };
+                            provider = providerNames[modelProvider] || `${modelProvider} (via OR)`;
+                        }
 
-                    // 如果有响应headers中的provider信息，也显示出来
-                    if (responseHeaders['x-provider']) {
-                        providerDiv.textContent = `Provider: ${responseHeaders['x-provider']}`;
+                        // 如果有响应headers中的provider信息，也显示出来
+                        if (responseHeaders['x-provider']) {
+                            provider = responseHeaders['x-provider'];
+                        }
                     }
+                    // 对于其他供应商，直接显示供应商名称
+                    else {
+                        provider = PROVIDERS[currentProvider].name;
+                    }
+
+                    providerDiv.textContent = `Provider: ${provider}`;
                 }
 
                 const endTime = Date.now();
                 const duration = (endTime - startTime) / 1000;
 
-                // 如果有 generation ID，尝试获取准确的 native_tokens
-                if (generationId && !usage?.native_tokens_prompt) {
+                // 仅对 OpenRouter 尝试获取 generation 详情
+                if (currentProvider === 'openrouter' && generationId && !usage?.native_tokens_prompt) {
                     console.log('等待 500ms 后查询 native_tokens...');
                     await new Promise(resolve => setTimeout(resolve, 500));
 
