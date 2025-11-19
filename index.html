@@ -1393,20 +1393,19 @@
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
-                    <span>v2.4.4</span>
+                    <span>v2.4.5</span>
                     <div class="version-tooltip">
                         <h4>
                             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            v2.4.4 更新内容
+                            v2.4.5 更新内容
                         </h4>
                         <ul>
-                            <li>✨ 优化控件布局，均匀分布占满整个区域</li>
-                            <li>📐 短控件支持弹性增长（120-180px），充分利用空间</li>
-                            <li>📏 增加间距到 20px，视觉更舒适</li>
-                            <li>🎨 模型选择器获得更多空间（2倍增长速度）</li>
-                            <li>💫 类似 statsSection 的均匀分布效果</li>
+                            <li>🐛 <strong>修复严重Bug</strong>：切换供应商时模型未正确更新</li>
+                            <li>✅ 切换到火山引擎/阿里百炼时，自动选择 deepseek-r1-0528</li>
+                            <li>🔧 解决请求错误模型（deepseek-chat-v3.1）的问题</li>
+                            <li>💾 切换供应商时自动更新并保存模型选择</li>
                         </ul>
                     </div>
                 </div>
@@ -1675,6 +1674,14 @@
         function switchProvider(provider) {
             currentProvider = provider;
             localStorage.setItem('current_provider', provider);
+
+            // 重要：切换供应商时，重置为新供应商的第一个默认模型
+            const providerConfig = PROVIDERS[provider];
+            if (providerConfig && providerConfig.defaultModels.length > 0) {
+                selectedModel = providerConfig.defaultModels[0];
+                localStorage.setItem('last_selected_model', selectedModel);
+            }
+
             updateProviderUI();
             updateApiKeyStatus();
             initializeModelSelect();
