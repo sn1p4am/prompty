@@ -1393,19 +1393,20 @@
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
-                    <span>v2.4.7</span>
+                    <span>v2.4.8</span>
                     <div class="version-tooltip">
                         <h4>
                             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            v2.4.7 更新内容
+                            v2.4.8 更新内容
                         </h4>
                         <ul>
-                            <li>🔍 添加 finish_reason 详细日志输出（流式/非流式）</li>
-                            <li>⚠️ 截断检测：当 finish_reason=length 时输出警告</li>
-                            <li>💡 提供截断问题的解决建议</li>
-                            <li>📊 支持检测：stop（正常）、length（截断）、content_filter（过滤）</li>
+                            <li>✨ 新增"最大输出Token"控件，解决截断问题</li>
+                            <li>🎚️ 支持选择：不限制、512、1024、2048、4096、8192、16384</li>
+                            <li>💾 设置自动保存到 localStorage</li>
+                            <li>🔧 选择"不限制"时不传 max_tokens 参数，使用 API 默认值</li>
+                            <li>📊 日志显示当前 max_tokens 设置</li>
                         </ul>
                     </div>
                 </div>
@@ -1489,6 +1490,19 @@
                 <div class="setting-group compact">
                     <label class="setting-label">Top-p</label>
                     <input type="number" id="topP" class="number-input" value="1" min="0" max="1" step="0.05">
+                </div>
+
+                <div class="setting-group compact">
+                    <label class="setting-label">最大输出Token</label>
+                    <select id="maxTokens" class="select-input" onchange="saveMaxTokens()">
+                        <option value="" selected>不限制</option>
+                        <option value="512">512</option>
+                        <option value="1024">1024</option>
+                        <option value="2048">2048</option>
+                        <option value="4096">4096</option>
+                        <option value="8192">8192</option>
+                        <option value="16384">16384</option>
+                    </select>
                 </div>
 
                 <div class="setting-group compact">
@@ -1771,6 +1785,24 @@
             }
         }
 
+        // 保存 max_tokens 设置
+        function saveMaxTokens() {
+            const maxTokensSelect = document.getElementById('maxTokens');
+            const value = maxTokensSelect.value;
+            localStorage.setItem('max_tokens', value);
+            console.log('已保存 max_tokens 设置:', value || '不限制');
+        }
+
+        // 加载 max_tokens 设置
+        function loadMaxTokens() {
+            const savedValue = localStorage.getItem('max_tokens');
+            const maxTokensSelect = document.getElementById('maxTokens');
+            if (savedValue !== null && maxTokensSelect) {
+                maxTokensSelect.value = savedValue;
+                console.log('已加载 max_tokens 设置:', savedValue || '不限制');
+            }
+        }
+
         // 初始化页面
         document.addEventListener('DOMContentLoaded', function() {
             loadCustomModels();
@@ -1778,7 +1810,8 @@
             initializeModelSelect();
             syncUserModels(); // 同步模型列表到 localStorage
             updateApiKeyStatus();
-            
+            loadMaxTokens(); // 加载 max_tokens 设置
+
             // 初始化 Mermaid
             mermaid.initialize({ 
                 startOnLoad: false,
@@ -1999,8 +2032,9 @@
                 const temperature = parseFloat(document.getElementById('temperature').value);
                 const topP = parseFloat(document.getElementById('topP').value);
                 const streamMode = document.getElementById('streamMode').value === 'true';
+                const maxTokens = document.getElementById('maxTokens').value; // 获取 max_tokens 设置
 
-                console.log('批量参数:', { batchSize, interval, maxConcurrent, temperature, topP });
+                console.log('批量参数:', { batchSize, interval, maxConcurrent, temperature, topP, maxTokens: maxTokens || '不限制' });
 
             isRunning = true;
             document.getElementById('startBtn').disabled = true;
@@ -2020,7 +2054,8 @@
                     index: i,
                     temperature,
                     topP,
-                    streamMode
+                    streamMode,
+                    maxTokens // 添加到 request 对象
                 });
             }
 
@@ -2111,6 +2146,10 @@
                         stream: request.streamMode !== false,  // 默认为true
                         temperature: request.temperature || 1.0,
                         top_p: request.topP || 1,
+                        // 如果设置了 max_tokens，则传递该参数
+                        ...(request.maxTokens && {
+                            max_tokens: parseInt(request.maxTokens)
+                        }),
                         // OpenRouter 需要显式启用 usage accounting
                         ...(currentProvider === 'openrouter' && {
                             usage: {
