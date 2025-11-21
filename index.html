@@ -1393,21 +1393,20 @@
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
-                    <span>v2.5.0</span>
+                    <span>v2.5.1</span>
                     <div class="version-tooltip">
                         <h4>
                             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            v2.5.0 更新内容
+                            v2.5.1 更新内容
                         </h4>
                         <ul>
-                            <li>🎯 <strong>重大更新</strong>：拆分 System Prompt 和 User Prompt 输入区域</li>
-                            <li>✨ 支持独立配置系统提示词（角色、行为规范）和用户提示词（具体任务）</li>
-                            <li>🎨 优化 UI 设计，增加图标和说明文字，提升用户体验</li>
-                            <li>🔧 自动构建符合标准的 messages 数组（支持 system + user 角色）</li>
-                            <li>💡 灵活组合：可单独使用或组合使用两种提示词</li>
-                            <li>📊 控制台输出详细的 messages 信息，便于调试</li>
+                            <li>🐛 <strong>修复</strong>：更新 OpenRouter 过期的模型 ID，解决 HTTP 404 错误</li>
+                            <li>✨ 新增正确的模型：Claude Sonnet 4、GPT-4o、DeepSeek Chat 等</li>
+                            <li>🎨 优化错误提示信息，提供更友好的用户指导</li>
+                            <li>💡 针对不同错误码（404/401/402/429/500）提供具体解决建议</li>
+                            <li>📚 404 错误提示包含 OpenRouter 模型列表链接</li>
                         </ul>
                     </div>
                 </div>
@@ -1637,13 +1636,13 @@
                 keyStorageKey: 'openrouter_api_key',
                 getKeyUrl: 'https://openrouter.ai/keys',
                 defaultModels: [
-                    'anthropic/claude-sonnet-4',
-                    'qwen/qwen3-max',
-                    'qwen/qwen3-coder-plus',
-                    'openai/gpt-5-codex',
-                    'deepseek/deepseek-v3.1-terminus',
-                    'moonshotai/kimi-k2-0905',
-                    'deepseek/deepseek-chat-v3.1'
+                    'anthropic/claude-sonnet-4-20250514',  // 修正：使用正确的 Claude Sonnet 4 模型 ID
+                    'qwen/qwq-32b-preview',                 // 修正：Qwen 最新模型
+                    'deepseek/deepseek-chat',               // 修正：DeepSeek Chat 稳定版
+                    'openai/gpt-4o',                        // 修正：使用 GPT-4o 替代不存在的 gpt-5
+                    'google/gemini-2.0-flash-exp:free',    // 新增：Google Gemini 2.0 免费版
+                    'meta-llama/llama-3.3-70b-instruct',   // 新增：Llama 3.3 最新版
+                    'mistralai/mistral-large'               // 新增：Mistral Large
                 ]
             },
             volcengine: {
@@ -2202,6 +2201,8 @@
                 if (!response.ok) {
                     // 尝试获取详细的错误信息
                     let errorDetail = response.statusText;
+                    let userFriendlyMessage = '';
+
                     try {
                         const errorData = await response.json();
                         console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -2234,10 +2235,25 @@
                             } catch (e) {}
                         }
                         errorDetail = detailedError;
+
+                        // 生成用户友好的错误提示
+                        if (response.status === 404) {
+                            userFriendlyMessage = `模型 "${request.model}" 不存在或不可用。\n\n💡 建议：\n1. 检查模型 ID 是否正确\n2. 访问 https://openrouter.ai/models 查看可用模型\n3. 或使用"添加自定义模型"功能手动添加正确的模型 ID`;
+                        } else if (response.status === 401) {
+                            userFriendlyMessage = 'API Key 无效或已过期。\n\n💡 请检查您的 API Key 是否正确。';
+                        } else if (response.status === 402) {
+                            userFriendlyMessage = '账户余额不足。\n\n💡 请充值后重试。';
+                        } else if (response.status === 429) {
+                            userFriendlyMessage = '请求频率过高。\n\n💡 请降低并发数或增加请求间隔。';
+                        } else if (response.status === 500 || response.status === 502 || response.status === 503) {
+                            userFriendlyMessage = 'API 服务暂时不可用。\n\n💡 请稍后重试。';
+                        }
                     } catch (e) {
                         console.warn('无法解析错误响应体');
                     }
-                    throw new Error(`HTTP ${response.status}: ${errorDetail}`);
+
+                    const finalError = userFriendlyMessage || `HTTP ${response.status}: ${errorDetail}`;
+                    throw new Error(finalError);
                 }
 
                 // 获取响应headers中的provider信息
