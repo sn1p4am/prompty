@@ -1393,20 +1393,21 @@
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
-                    <span>v2.4.8</span>
+                    <span>v2.5.0</span>
                     <div class="version-tooltip">
                         <h4>
                             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            v2.4.8 更新内容
+                            v2.5.0 更新内容
                         </h4>
                         <ul>
-                            <li>✨ 新增"最大输出Token"控件，解决截断问题</li>
-                            <li>🎚️ 支持选择：不限制、512、1024、2048、4096、8192、16384</li>
-                            <li>💾 设置自动保存到 localStorage</li>
-                            <li>🔧 选择"不限制"时不传 max_tokens 参数，使用 API 默认值</li>
-                            <li>📊 日志显示当前 max_tokens 设置</li>
+                            <li>🎯 <strong>重大更新</strong>：拆分 System Prompt 和 User Prompt 输入区域</li>
+                            <li>✨ 支持独立配置系统提示词（角色、行为规范）和用户提示词（具体任务）</li>
+                            <li>🎨 优化 UI 设计，增加图标和说明文字，提升用户体验</li>
+                            <li>🔧 自动构建符合标准的 messages 数组（支持 system + user 角色）</li>
+                            <li>💡 灵活组合：可单独使用或组合使用两种提示词</li>
+                            <li>📊 控制台输出详细的 messages 信息，便于调试</li>
                         </ul>
                     </div>
                 </div>
@@ -1455,8 +1456,25 @@
             </div>
 
             <div class="prompt-section">
-                <label class="prompt-label" for="promptInput">提示词内容</label>
-                <textarea id="promptInput" class="prompt-input" placeholder="请输入您要测试的提示词...&#10;支持多行输入，可以包含复杂的指令和上下文信息。"></textarea>
+                <label class="prompt-label">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; margin-right: 5px;">
+                        <path d="M21 11.01L3 11v2h18zM3 16h12v2H3zM21 6H3v2.01L21 8z"/>
+                    </svg>
+                    System Prompt (系统提示词)
+                    <span style="font-size: 11px; font-weight: 400; margin-left: 8px; opacity: 0.7;">定义 AI 的角色、行为规范和输出格式</span>
+                </label>
+                <textarea id="systemPromptInput" class="prompt-input" style="min-height: 100px;" placeholder="例如：你是一位专业的文案撰写专家，擅长创作吸引人的营销文案...&#10;&#10;System prompt 用于设定 AI 的角色、风格、输出要求等基础规则。"></textarea>
+            </div>
+
+            <div class="prompt-section" style="margin-top: 15px;">
+                <label class="prompt-label">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; margin-right: 5px;">
+                        <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/>
+                    </svg>
+                    User Prompt (用户提示词)
+                    <span style="font-size: 11px; font-weight: 400; margin-left: 8px; opacity: 0.7;">具体的任务需求或问题</span>
+                </label>
+                <textarea id="userPromptInput" class="prompt-input" style="min-height: 120px;" placeholder="请输入您要测试的具体任务或问题...&#10;支持多行输入，可以包含复杂的指令和上下文信息。&#10;&#10;例如：请为一款新推出的智能手表撰写一篇产品介绍文案。"></textarea>
             </div>
 
             <div class="settings-grid">
@@ -2011,9 +2029,14 @@
                 }
 
                 console.log('开始批量测试...');
-                const prompt = document.getElementById('promptInput').value.trim();
-                if (!prompt) {
-                    alert('请输入提示词内容');
+
+                // 获取 system prompt 和 user prompt
+                const systemPrompt = document.getElementById('systemPromptInput').value.trim();
+                const userPrompt = document.getElementById('userPromptInput').value.trim();
+
+                // 至少需要一个提示词
+                if (!systemPrompt && !userPrompt) {
+                    alert('请至少输入 System Prompt 或 User Prompt');
                     return;
                 }
 
@@ -2022,7 +2045,7 @@
                     alert('请选择一个模型');
                     return;
                 }
-                
+
                 // 保存最后选择的模型
                 localStorage.setItem('last_selected_model', selectedModel);
 
@@ -2035,6 +2058,8 @@
                 const maxTokens = document.getElementById('maxTokens').value; // 获取 max_tokens 设置
 
                 console.log('批量参数:', { batchSize, interval, maxConcurrent, temperature, topP, maxTokens: maxTokens || '不限制' });
+                console.log('System Prompt:', systemPrompt ? `${systemPrompt.substring(0, 50)}...` : '(空)');
+                console.log('User Prompt:', userPrompt ? `${userPrompt.substring(0, 50)}...` : '(空)');
 
             isRunning = true;
             document.getElementById('startBtn').disabled = true;
@@ -2050,7 +2075,8 @@
                 requestQueue.push({
                     id: generateId(),
                     model: selectedModel,
-                    prompt,
+                    systemPrompt,  // 系统提示词
+                    userPrompt,    // 用户提示词
                     index: i,
                     temperature,
                     topP,
@@ -2131,6 +2157,17 @@
                 console.log('🌐 使用的供应商:', PROVIDERS[currentProvider].name);
                 console.log('🔗 API Base URL:', getBaseUrl());
 
+                // 构建 messages 数组
+                const messages = [];
+                if (request.systemPrompt) {
+                    messages.push({ role: 'system', content: request.systemPrompt });
+                }
+                if (request.userPrompt) {
+                    messages.push({ role: 'user', content: request.userPrompt });
+                }
+
+                console.log('📨 Messages:', messages.map(m => `${m.role}: ${m.content.substring(0, 30)}...`));
+
                 const response = await fetch(`${getBaseUrl()}/chat/completions`, {
                     signal: controller.signal,
                     method: 'POST',
@@ -2142,7 +2179,7 @@
                     },
                     body: JSON.stringify({
                         model: request.model,
-                        messages: [{ role: 'user', content: request.prompt }],
+                        messages: messages,
                         stream: request.streamMode !== false,  // 默认为true
                         temperature: request.temperature || 1.0,
                         top_p: request.topP || 1,
