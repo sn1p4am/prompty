@@ -1181,24 +1181,6 @@
             background: white;
         }
 
-        /* HTML 预览警告信息 */
-        .html-preview-warning {
-            background: rgba(255, 193, 7, 0.1);
-            border: 1px solid rgba(255, 193, 7, 0.3);
-            border-radius: 8px;
-            padding: 12px 16px;
-            margin-bottom: 16px;
-            color: #ffc107;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .html-preview-warning svg {
-            flex-shrink: 0;
-        }
-
         /* HTML 截断警告 */
         .html-truncated-warning {
             background: rgba(244, 67, 54, 0.1);
@@ -1257,6 +1239,29 @@
         .view-toggle-btn:hover:not(.active) {
             background: rgba(255, 255, 255, 0.1);
             color: var(--text-primary);
+        }
+
+        .fullscreen-btn {
+            margin-left: 8px;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .fullscreen-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+        }
+
+        .fullscreen-btn svg {
+            display: block;
         }
 
         .close {
@@ -1393,16 +1398,18 @@
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
-                    <span>v2.7.1</span>
+                    <span>v2.8.0</span>
                     <div class="version-tooltip">
                         <h4>
                             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            v2.7.1 更新内容
+                            v2.8.0 更新内容
                         </h4>
                         <ul>
-                            <li>🎨 <strong>UI 优化</strong>：思考时间字体颜色改为白色，提升可读性</li>
+                            <li>✨ <strong>新功能</strong>：HTML 预览支持全屏显示，提供沉浸式预览体验</li>
+                            <li>🎨 <strong>UI 优化</strong>：移除 HTML 预览警告信息，界面更简洁</li>
+                            <li>⚡ <strong>交互增强</strong>：支持按 ESC 键快速退出全屏</li>
                         </ul>
                     </div>
                 </div>
@@ -1614,6 +1621,11 @@
                         <button class="view-toggle-btn active" onclick="toggleModalView('raw')">原始内容</button>
                         <button class="view-toggle-btn" onclick="toggleModalView('markdown')">Markdown 预览</button>
                         <button class="view-toggle-btn" onclick="toggleModalView('html')">HTML 预览</button>
+                        <button class="fullscreen-btn" id="htmlFullscreenBtn" onclick="toggleHtmlFullscreen()" style="display: none;" title="全屏预览">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                            </svg>
+                        </button>
                     </div>
                 </div>
                 <span class="close" onclick="closeModal()">&times;</span>
@@ -3091,6 +3103,7 @@
         async function toggleModalView(mode) {
             const modalContent = document.getElementById('modalContent');
             const rawContent = modalContent.getAttribute('data-raw-content') || '';
+            const fullscreenBtn = document.getElementById('htmlFullscreenBtn');
 
             // 更新按钮状态
             document.querySelectorAll('.view-toggle-btn').forEach(btn => {
@@ -3102,14 +3115,49 @@
                 // 显示原始内容
                 modalContent.textContent = rawContent;
                 modalContent.className = 'raw-view';
+                fullscreenBtn.style.display = 'none';
             } else if (mode === 'markdown') {
                 // 渲染 Markdown
                 modalContent.className = '';
                 await renderMarkdown(modalContent, rawContent);
+                fullscreenBtn.style.display = 'none';
             } else if (mode === 'html') {
                 // 渲染 HTML 预览
                 modalContent.className = 'html-preview';
                 renderHtmlPreview(modalContent, rawContent);
+                fullscreenBtn.style.display = 'flex';
+            }
+        }
+
+        // 切换 HTML 全屏预览
+        function toggleHtmlFullscreen() {
+            const modalContent = document.getElementById('modalContent');
+            const iframe = modalContent.querySelector('iframe');
+
+            if (!iframe) {
+                console.warn('未找到 HTML 预览 iframe');
+                return;
+            }
+
+            // 使用浏览器原生全屏 API
+            if (!document.fullscreenElement) {
+                // 进入全屏
+                if (iframe.requestFullscreen) {
+                    iframe.requestFullscreen();
+                } else if (iframe.webkitRequestFullscreen) { // Safari
+                    iframe.webkitRequestFullscreen();
+                } else if (iframe.msRequestFullscreen) { // IE11
+                    iframe.msRequestFullscreen();
+                }
+            } else {
+                // 退出全屏
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) { // Safari
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) { // IE11
+                    document.msExitFullscreen();
+                }
             }
         }
 
@@ -3235,17 +3283,6 @@
                 `;
                 return;
             }
-
-            // 显示提示信息
-            const infoWarning = document.createElement('div');
-            infoWarning.className = 'html-preview-warning';
-            infoWarning.innerHTML = `
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-                </svg>
-                <span>内部测试环境：完整 HTML 预览，支持 JavaScript、外部资源和跨域请求。</span>
-            `;
-            container.appendChild(infoWarning);
 
             // 创建 iframe 预览（完全无限制）
             const iframe = document.createElement('iframe');
