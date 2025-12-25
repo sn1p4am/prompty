@@ -822,7 +822,7 @@
             width: 100%;
             height: 100%;
             border: none;
-            background: white;
+            background: transparent;
             border-radius: 8px;
         }
 
@@ -1587,19 +1587,19 @@
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
-                    <span>v2.9.3</span>
+                    <span>v2.9.4</span>
                     <div class="version-tooltip">
                         <h4>
                             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            v2.9.3 更新内容
+                            v2.9.4 更新内容
                         </h4>
                         <ul>
-                            <li>🐛 <strong>重大修复</strong>：HTML 预览模式内容截断问题已彻底解决</li>
-                            <li>⚡ <strong>性能优化</strong>：HTML 模式立即保存内容，移除节流延迟</li>
-                            <li>🎯 <strong>数据完整性</strong>：使用最终累积内容直接渲染，确保内容完整</li>
-                            <li>✨ <strong>兼容性</strong>：修复流式/非流式模式下的数据保存逻辑</li>
+                            <li>🐛 <strong>重要修复</strong>：切换显示模式时内容错乱问题已解决</li>
+                            <li>🎨 <strong>视觉优化</strong>：消除 HTML 预览白色背景闪烁效果</li>
+                            <li>🔧 <strong>架构改进</strong>：实现动态 DOM 重建机制，确保模式切换流畅</li>
+                            <li>✨ <strong>用户体验</strong>：深色主题一致性，iframe 透明背景</li>
                         </ul>
                     </div>
                 </div>
@@ -3717,7 +3717,7 @@
             iframe.style.width = '100%';
             iframe.style.minHeight = '500px';
             iframe.style.border = 'none';
-            iframe.style.background = 'white';
+            iframe.style.background = 'transparent';
 
             container.appendChild(iframe);
 
@@ -3773,7 +3773,7 @@
             iframe.style.width = '100%';
             iframe.style.height = '100%';
             iframe.style.border = 'none';
-            iframe.style.background = 'white';
+            iframe.style.background = 'transparent';
             iframe.style.borderRadius = '8px';
 
             container.appendChild(iframe);
@@ -3819,15 +3819,126 @@
             const card = document.getElementById(cardId);
             if (!card) return;
 
-            if (currentDisplayMode === 'html') {
-                // HTML 预览模式
-                renderHtmlInCard(cardId, content);
+            // 检查当前卡片结构是否与目标模式匹配
+            const hasCardContent = card.querySelector('.card-content') !== null;
+            const hasHtmlPreview = card.querySelector('.html-preview-container') !== null;
+            const needsCardMode = currentDisplayMode === 'card';
+            const needsHtmlMode = currentDisplayMode === 'html';
+
+            // 如果结构不匹配，需要重建卡片
+            const needsRebuild = (needsCardMode && !hasCardContent) || (needsHtmlMode && !hasHtmlPreview);
+
+            if (needsRebuild) {
+                // 保存当前状态
+                const modelName = card.querySelector('.model-name')?.textContent;
+                const providerInfo = card.querySelector('.provider-info')?.textContent;
+                const statusBadge = card.querySelector('.status-badge');
+                const statusClass = statusBadge?.className;
+                const statusText = statusBadge?.textContent;
+                const statsHtml = card.querySelector('.card-stats')?.innerHTML;
+
+                // 根据新模式重建卡片主体结构
+                if (needsCardMode) {
+                    // 重建为卡片模式
+                    const header = card.querySelector('.card-header');
+                    const stats = card.querySelector('.card-stats');
+                    const actions = card.querySelector('.card-actions');
+
+                    // 移除 HTML 预览容器
+                    const htmlContainer = card.querySelector('.html-preview-container');
+                    if (htmlContainer) {
+                        htmlContainer.remove();
+                    }
+
+                    // 插入卡片内容容器
+                    const cardContent = document.createElement('div');
+                    cardContent.className = 'card-content';
+                    cardContent.textContent = content;
+                    cardContent.setAttribute('data-raw-content', content);
+
+                    // 插入到正确位置（header之后，stats之前）
+                    if (stats) {
+                        card.insertBefore(cardContent, stats);
+                    } else {
+                        card.appendChild(cardContent);
+                    }
+
+                    // 更新全屏预览按钮（卡片模式不需要）
+                    const fullscreenBtn = card.querySelector(`#fullscreen-btn-${cardId}`);
+                    if (fullscreenBtn) {
+                        fullscreenBtn.remove();
+                    }
+                } else {
+                    // 重建为 HTML 预览模式
+                    const header = card.querySelector('.card-header');
+                    const stats = card.querySelector('.card-stats');
+                    const actions = card.querySelector('.card-actions');
+
+                    // 移除卡片内容容器
+                    const cardContent = card.querySelector('.card-content');
+                    if (cardContent) {
+                        cardContent.remove();
+                    }
+
+                    // 插入 HTML 预览容器
+                    const htmlContainer = document.createElement('div');
+                    htmlContainer.className = 'html-preview-container';
+                    htmlContainer.innerHTML = `
+                        <div class="html-preview-loading">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;">
+                                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                            </svg>
+                            <span style="margin-left: 8px;">正在渲染...</span>
+                        </div>
+                    `;
+
+                    // 插入到正确位置（header之后，stats之前）
+                    if (stats) {
+                        card.insertBefore(htmlContainer, stats);
+                    } else {
+                        card.appendChild(htmlContainer);
+                    }
+
+                    // 添加全屏预览按钮（如果不存在）
+                    const existingFullscreenBtn = card.querySelector(`#fullscreen-btn-${cardId}`);
+                    if (!existingFullscreenBtn && actions) {
+                        const fullscreenBtn = document.createElement('button');
+                        fullscreenBtn.className = 'card-btn card-btn-accent';
+                        fullscreenBtn.id = `fullscreen-btn-${cardId}`;
+                        fullscreenBtn.title = '全屏预览';
+                        fullscreenBtn.onclick = () => fullscreenHtmlPreview(cardId);
+                        fullscreenBtn.innerHTML = `
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                            </svg>
+                        `;
+                        actions.appendChild(fullscreenBtn);
+                    }
+
+                    // 渲染 HTML 内容
+                    renderHtmlInCard(cardId, content);
+                }
+
+                // 恢复状态信息（如果有）
+                if (statsHtml) {
+                    const newStats = card.querySelector('.card-stats');
+                    if (newStats) {
+                        newStats.innerHTML = statsHtml;
+                        newStats.classList.add('visible');
+                    }
+                }
             } else {
-                // 卡片模式
-                const contentDiv = card.querySelector('.card-content');
-                if (contentDiv) {
-                    contentDiv.textContent = content;
-                    contentDiv.setAttribute('data-raw-content', content);
+                // 结构匹配，只需更新内容
+                if (currentDisplayMode === 'html') {
+                    // HTML 预览模式
+                    renderHtmlInCard(cardId, content);
+                } else {
+                    // 卡片模式
+                    const contentDiv = card.querySelector('.card-content');
+                    if (contentDiv) {
+                        contentDiv.textContent = content;
+                        contentDiv.setAttribute('data-raw-content', content);
+                    }
                 }
             }
         }
