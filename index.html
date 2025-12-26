@@ -1587,19 +1587,19 @@
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
-                    <span>v2.9.6</span>
+                    <span>v2.9.7</span>
                     <div class="version-tooltip">
                         <h4>
                             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            v2.9.6 更新内容
+                            v2.9.7 更新内容
                         </h4>
                         <ul>
-                            <li>🐛 <strong>核心修复</strong>：HTML 预览模式生成完成后的错误提示问题</li>
-                            <li>🎯 <strong>行为优化</strong>：生成过程中切换到 HTML 模式显示"正在生成..."而非流式文本</li>
-                            <li>✨ <strong>体验优化</strong>：生成完成后自动渲染提取的 HTML</li>
-                            <li>🛡️ <strong>错误处理</strong>：HTML 预览模式下的错误信息正确显示</li>
+                            <li>🐛 <strong>严重修复</strong>：修复 contentDiv 未定义导致的生成失败问题</li>
+                            <li>🔧 <strong>架构优化</strong>：使用 request 对象存储状态而非 DOM 属性</li>
+                            <li>⚡ <strong>性能提升</strong>：动态查询 DOM 元素，支持实时模式切换</li>
+                            <li>✨ <strong>体验完善</strong>：卡片模式显示流式输出，HTML 模式显示加载状态</li>
                         </ul>
                     </div>
                 </div>
@@ -2661,14 +2661,17 @@
                     // 获取内容
                     content = data.choices?.[0]?.message?.content || '';
 
-                    // 根据显示模式保存内容
-                    if (currentDisplayMode === 'html') {
-                        // HTML 预览模式：保存到 request 对象
-                        request.rawContent = content;
-                    } else {
-                        // 卡片模式：保存到 DOM
-                        contentDiv.textContent = content;
-                        contentDiv.setAttribute('data-raw-content', content);
+                    // 保存到 request.rawContent（供切换模式使用）
+                    request.rawContent = content;
+
+                    // 如果当前是卡片模式，更新 DOM
+                    const currentCard = document.getElementById(request.id);
+                    if (currentCard) {
+                        const contentDiv = currentCard.querySelector('.card-content');
+                        if (contentDiv) {
+                            contentDiv.textContent = content;
+                            contentDiv.setAttribute('data-raw-content', content);
+                        }
                     }
 
                     // 获取 finish_reason
@@ -2729,7 +2732,7 @@
                         // 如果是超时或网络错误，保存已有内容并抛出错误
                         if (content) {
                             console.warn('已接收部分内容，保存并标记为不完整');
-                            contentDiv.setAttribute('data-incomplete', 'true');
+                            request.incomplete = true; // 标记到 request 对象
                         }
                         throw readError;
                     }
@@ -2821,7 +2824,7 @@
                                     if (finishReason === 'length') {
                                         console.warn('⚠️ 响应被截断！原因: 达到最大token限制 (finish_reason: length)');
                                         console.warn('💡 建议: 1) 减少输入长度 2) 使用支持更长上下文的模型');
-                                        contentDiv.setAttribute('data-truncated', 'true');
+                                        request.truncated = true; // 标记到 request 对象
                                     } else if (finishReason === 'content_filter') {
                                         console.warn('⚠️ 内容被过滤 (finish_reason: content_filter)');
                                     } else if (finishReason === 'stop') {
@@ -3196,7 +3199,7 @@
                 requestStats.times.push(duration);
 
                 // 检查是否为不完整响应
-                if (contentDiv.getAttribute && contentDiv.getAttribute('data-incomplete') === 'true') {
+                if (request.incomplete) {
                     updateCardStatus(card, 'completed');
                     // 统计不完整响应
                     requestStats.incomplete++;
@@ -3207,11 +3210,15 @@
                     statusBadge.style.background = 'rgba(255, 193, 7, 0.2)';
                     statusBadge.style.color = '#ffc107';
 
-                    if (currentDisplayMode !== 'html') {
-                        // 在内容前添加提示（仅卡片模式）
-                        contentDiv.innerHTML = `<div style="background: rgba(255, 193, 7, 0.1); padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 11px; border: 1px solid rgba(255, 193, 7, 0.3);">
-                            ⚠️ 此响应不完整（连接中断）
-                        </div>` + contentDiv.innerHTML;
+                    // 如果当前是卡片模式，添加警告提示
+                    const currentCard = document.getElementById(request.id);
+                    if (currentCard) {
+                        const contentDiv = currentCard.querySelector('.card-content');
+                        if (contentDiv) {
+                            contentDiv.innerHTML = `<div style="background: rgba(255, 193, 7, 0.1); padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 11px; border: 1px solid rgba(255, 193, 7, 0.3);">
+                                ⚠️ 此响应不完整（连接中断）
+                            </div>` + contentDiv.innerHTML;
+                        }
                     }
                 } else {
                     updateCardStatus(card, 'completed');
@@ -3310,9 +3317,15 @@
                                 <p style="font-size: 11px; margin-top: 4px;">${error.message}</p>
                             </div>
                         `;
-                    } else if (contentDiv) {
+                    } else {
                         // 卡片模式
-                        contentDiv.innerHTML = errorHtml;
+                        const currentCard = document.getElementById(request.id);
+                        if (currentCard) {
+                            const contentDiv = currentCard.querySelector('.card-content');
+                            if (contentDiv) {
+                                contentDiv.innerHTML = errorHtml;
+                            }
+                        }
                     }
                 }
             } finally {
