@@ -1587,19 +1587,19 @@
                     <svg viewBox="0 0 24 24" fill="currentColor">
                         <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
                     </svg>
-                    <span>v2.9.5</span>
+                    <span>v2.9.6</span>
                     <div class="version-tooltip">
                         <h4>
                             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                             </svg>
-                            v2.9.5 更新内容
+                            v2.9.6 更新内容
                         </h4>
                         <ul>
-                            <li>🐛 <strong>核心修复</strong>：生成过程中切换显示模式的流式输出问题</li>
-                            <li>⚡ <strong>性能优化</strong>：动态 DOM 查询机制，支持实时模式切换</li>
-                            <li>🎯 <strong>行为优化</strong>：HTML 模式生成时显示加载动画，不显示流式文本</li>
-                            <li>💾 <strong>数据管理</strong>：流式数据始终保存到后台，确保模式切换不丢失内容</li>
+                            <li>🐛 <strong>核心修复</strong>：HTML 预览模式生成完成后的错误提示问题</li>
+                            <li>🎯 <strong>行为优化</strong>：生成过程中切换到 HTML 模式显示"正在生成..."而非流式文本</li>
+                            <li>✨ <strong>体验优化</strong>：生成完成后自动渲染提取的 HTML</li>
+                            <li>🛡️ <strong>错误处理</strong>：HTML 预览模式下的错误信息正确显示</li>
                         </ul>
                     </div>
                 </div>
@@ -3217,13 +3217,25 @@
                     updateCardStatus(card, 'completed');
                 }
 
-                // HTML 预览模式：渲染 HTML
-                if (currentDisplayMode === 'html') {
-                    // 使用局部变量 content 而不是 request.rawContent
-                    // 确保使用完整累积的最终内容
+                // 生成完成后，检查卡片当前是否是 HTML 预览模式，如果是则渲染
+                const htmlPreviewContainer = card.querySelector('.html-preview-container');
+                if (htmlPreviewContainer) {
+                    // 卡片当前是 HTML 预览模式，需要渲染
                     const finalContent = content || request.rawContent || '';
                     if (finalContent) {
                         renderHtmlInCard(request.id, finalContent);
+                    } else {
+                        // 显示无内容错误
+                        htmlPreviewContainer.innerHTML = `
+                            <div class="html-preview-error">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                                </svg>
+                                <p>生成失败</p>
+                                <p style="font-size: 11px; margin-top: 4px;">未收到任何内容</p>
+                            </div>
+                        `;
                     }
                 }
 
@@ -3285,7 +3297,23 @@
                     }
                     errorHtml += `</div>`;
 
-                    contentDiv.innerHTML = errorHtml;
+                    // 根据当前卡片模式显示错误
+                    const htmlPreviewContainer = card.querySelector('.html-preview-container');
+                    if (htmlPreviewContainer) {
+                        // HTML 预览模式
+                        htmlPreviewContainer.innerHTML = `
+                            <div class="html-preview-error">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                                </svg>
+                                <p>生成失败</p>
+                                <p style="font-size: 11px; margin-top: 4px;">${error.message}</p>
+                            </div>
+                        `;
+                    } else if (contentDiv) {
+                        // 卡片模式
+                        contentDiv.innerHTML = errorHtml;
+                    }
                 }
             } finally {
                 activeRequests.delete(request.id);
@@ -3914,8 +3942,12 @@
                         actions.appendChild(fullscreenBtn);
                     }
 
-                    // 渲染 HTML 内容
-                    renderHtmlInCard(cardId, content);
+                    // 只在已完成时渲染 HTML 内容
+                    const statusBadge = card.querySelector('.status-badge');
+                    const isGenerating = statusBadge && statusBadge.classList.contains('status-generating');
+                    if (!isGenerating && content) {
+                        renderHtmlInCard(cardId, content);
+                    }
                 }
 
                 // 恢复状态信息（如果有）
@@ -3929,8 +3961,12 @@
             } else {
                 // 结构匹配，只需更新内容
                 if (currentDisplayMode === 'html') {
-                    // HTML 预览模式
-                    renderHtmlInCard(cardId, content);
+                    // HTML 预览模式：只在已完成时渲染
+                    const statusBadge = card.querySelector('.status-badge');
+                    const isGenerating = statusBadge && statusBadge.classList.contains('status-generating');
+                    if (!isGenerating && content) {
+                        renderHtmlInCard(cardId, content);
+                    }
                 } else {
                     // 卡片模式
                     const contentDiv = card.querySelector('.card-content');
