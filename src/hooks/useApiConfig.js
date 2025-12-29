@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useLocalStorage } from './useLocalStorage'
-import { PROVIDERS, PROVIDER_INFO, STORAGE_KEYS } from '../constants/providers'
+import { PROVIDERS, PROVIDER_INFO, STORAGE_KEYS, DEFAULT_CONFIG } from '../constants/providers'
 
 /**
  * 自定义 Hook：管理 API 配置（API Keys、供应商切换、自定义模型）
@@ -12,7 +12,7 @@ export function useApiConfig() {
     // 当前选中的供应商
     const [currentProvider, setCurrentProvider] = useLocalStorage(
         STORAGE_KEYS.CURRENT_PROVIDER,
-        PROVIDERS.OPENAI
+        DEFAULT_CONFIG.provider // 从配置读取默认值
     )
 
     // 自定义模型
