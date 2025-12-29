@@ -1,22 +1,24 @@
-# iFlow CLI 配置
-.iflow/
-._.iflow
-
-# Claude 配置
-.claude/*
-!.claude/CLAUDE.md
-
-# 系统文件
-.DS_Store
-Thumbs.db
-
-# 编辑器
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# 临时文件
+# Logs
+logs
 *.log
-*.tmp
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
