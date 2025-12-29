@@ -72,7 +72,7 @@ export const PROVIDER_INFO = {
 
 // 默认配置
 export const DEFAULT_CONFIG = {
-    provider: PROVIDERS.OPENAI,
+    provider: PROVIDERS.OPENROUTER, // 默认使用 OpenRouter
     temperature: 0.7,
     topP: 1,
     maxTokens: '', // 默认不限制

@@ -21,8 +21,8 @@ export function ConfigPanel({
                 />
             </div>
 
-            {/* 参数设置 */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+            {/* 参数设置 - 优化布局 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
                 <div>
                     <label className="block mb-2 text-sm font-semibold">Temperature</label>
                     <input
@@ -47,7 +47,7 @@ export function ConfigPanel({
                         className="w-full px-3 py-2 bg-white/5 border border-card rounded-lg text-text-primary focus:outline-none focus:border-primary"
                     />
                 </div>
-                <div>
+                <div className="sm:col-span-2 lg:col-span-2">
                     <label className="block mb-2 text-sm font-semibold">最大输出Token</label>
                     <select
                         value={maxTokens}

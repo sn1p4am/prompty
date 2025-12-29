@@ -125,7 +125,7 @@ ${result.error ? `错误信息: ${result.error}` : ''}
 
   return (
     <div className="min-h-screen">
-      <div className="container mx-auto max-w-[1400px] w-[90%] px-5 py-5">
+      <div className="container mx-auto px-5 py-5">
         {/* Header */}
         <header className="text-center mb-8 relative">
           <h1 className="text-4xl font-bold mb-3">

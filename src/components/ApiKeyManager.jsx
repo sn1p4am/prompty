@@ -33,49 +33,55 @@ export function ApiKeyManager({ apiConfig, onToast }) {
                 )}
             </div>
 
-            {/* 供应商选择（下拉框） */}
-            <div className="mb-3">
-                <label className="block mb-2 text-sm font-semibold">选择供应商</label>
-                <select
-                    value={currentProvider}
-                    onChange={(e) => switchProvider(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/5 border border-card rounded-lg text-text-primary focus:outline-none focus:border-primary"
-                >
-                    {Object.entries(PROVIDER_INFO).map(([key, info]) => (
-                        <option key={key} value={key}>
-                            {info.name}
-                        </option>
-                    ))}
-                </select>
-            </div>
+            {/* 供应商选择和API Key输入 - 优化布局 */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* 供应商选择 */}
+                <div>
+                    <label className="block mb-2 text-sm font-semibold">选择供应商</label>
+                    <select
+                        value={currentProvider}
+                        onChange={(e) => switchProvider(e.target.value)}
+                        className="w-full px-3 py-2 bg-white/5 border border-card rounded-lg text-text-primary focus:outline-none focus:border-primary"
+                    >
+                        {Object.entries(PROVIDER_INFO).map(([key, info]) => (
+                            <option key={key} value={key}>
+                                {info.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
 
-            {/* API Key 输入 */}
-            {!hasKey ? (
-                <div className="flex gap-2">
-                    <input
-                        id="api-key-input"
-                        type="password"
-                        placeholder={`输入 ${PROVIDER_INFO[currentProvider].name} API Key`}
-                        className="flex-1 px-3 py-2 bg-white/5 border border-card rounded-lg text-text-primary focus:outline-none focus:border-primary"
-                    />
-                    <button
-                        onClick={handleSaveKey}
-                        className="px-6 py-2 bg-primary-gradient text-white font-semibold rounded-lg hover:opacity-90 transition-all"
-                    >
-                        保存
-                    </button>
+                {/* API Key 输入 */}
+                <div className="lg:col-span-2">
+                    <label className="block mb-2 text-sm font-semibold">API Key</label>
+                    {!hasKey ? (
+                        <div className="flex gap-2">
+                            <input
+                                id="api-key-input"
+                                type="password"
+                                placeholder={`输入 ${PROVIDER_INFO[currentProvider].name} API Key`}
+                                className="flex-1 px-3 py-2 bg-white/5 border border-card rounded-lg text-text-primary focus:outline-none focus:border-primary"
+                            />
+                            <button
+                                onClick={handleSaveKey}
+                                className="px-6 py-2 bg-primary-gradient text-white font-semibold rounded-lg hover:opacity-90 transition-all whitespace-nowrap"
+                            >
+                                保存
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex gap-2 items-center h-[42px]">
+                            <span className="text-sm text-text-secondary">API Key: ••••••••</span>
+                            <button
+                                onClick={handleClearKey}
+                                className="px-4 py-1 text-sm bg-red-500/20 border border-red-500/30 text-red-400 rounded hover:bg-red-500/30 transition-all"
+                            >
+                                清除
+                            </button>
+                        </div>
+                    )}
                 </div>
-            ) : (
-                <div className="flex gap-2 items-center">
-                    <span className="text-sm text-text-secondary">API Key: ••••••••</span>
-                    <button
-                        onClick={handleClearKey}
-                        className="px-4 py-1 text-sm bg-red-500/20 border border-red-500/30 text-red-400 rounded hover:bg-red-500/30 transition-all"
-                    >
-                        清除
-                    </button>
-                </div>
-            )}
+            </div>
         </div>
     )
 }
