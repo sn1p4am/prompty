@@ -75,7 +75,7 @@ export const DEFAULT_CONFIG = {
     provider: PROVIDERS.OPENAI,
     temperature: 0.7,
     topP: 1,
-    maxTokens: 2048,
+    maxTokens: '', // 默认不限制
     concurrency: 3,
     interval: 500,
 }

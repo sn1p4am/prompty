@@ -33,20 +33,20 @@ export function ApiKeyManager({ apiConfig, onToast }) {
                 )}
             </div>
 
-            {/* 供应商选择 */}
-            <div className="flex gap-2 mb-3 flex-wrap">
-                {Object.entries(PROVIDER_INFO).map(([key, info]) => (
-                    <button
-                        key={key}
-                        onClick={() => switchProvider(key)}
-                        className={`px-4 py-2 rounded-lg text-sm transition-all ${currentProvider === key
-                                ? 'bg-primary text-white font-semibold'
-                                : 'bg-white/5 border border-card hover:bg-white/10'
-                            }`}
-                    >
-                        {info.name}
-                    </button>
-                ))}
+            {/* 供应商选择（下拉框） */}
+            <div className="mb-3">
+                <label className="block mb-2 text-sm font-semibold">选择供应商</label>
+                <select
+                    value={currentProvider}
+                    onChange={(e) => switchProvider(e.target.value)}
+                    className="w-full px-3 py-2 bg-white/5 border border-card rounded-lg text-text-primary focus:outline-none focus:border-primary"
+                >
+                    {Object.entries(PROVIDER_INFO).map(([key, info]) => (
+                        <option key={key} value={key}>
+                            {info.name}
+                        </option>
+                    ))}
+                </select>
             </div>
 
             {/* API Key 输入 */}

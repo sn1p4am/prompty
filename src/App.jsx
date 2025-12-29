@@ -37,7 +37,7 @@ function App() {
 
   // 表单状态
   const [prompt, setPrompt] = useState('')
-  const [selectedModels, setSelectedModels] = useState([])
+  const [selectedModel, setSelectedModel] = useState('') // 单选模型
   const [temperature, setTemperature] = useState(DEFAULT_CONFIG.temperature)
   const [topP, setTopP] = useState(DEFAULT_CONFIG.topP)
   const [maxTokens, setMaxTokens] = useLocalStorage(
@@ -55,12 +55,17 @@ function App() {
 
   // 开始测试
   const handleStartTest = () => {
+    if (!selectedModel) {
+      showToast('请先选择模型')
+      return
+    }
+
     batchTest.startBatchTest({
       prompt,
-      models: selectedModels,
+      models: [selectedModel], // 转为数组，保持接口一致
       temperature,
       topP,
-      maxTokens,
+      maxTokens: maxTokens || undefined, // 空字符串转为 undefined
       concurrency,
       interval,
     })
@@ -104,7 +109,7 @@ ${result.error ? `错误信息: ${result.error}` : ''}
     const handleKeyDown = (e) => {
       // Ctrl + Enter 开始测试
       if (e.ctrlKey && e.key === 'Enter') {
-        if (!batchTest.isRunning && selectedModels.length > 0 && prompt) {
+        if (!batchTest.isRunning && selectedModel && prompt) {
           handleStartTest()
         }
       }
@@ -116,7 +121,7 @@ ${result.error ? `错误信息: ${result.error}` : ''}
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [batchTest.isRunning, selectedModels, prompt])
+  }, [batchTest.isRunning, selectedModel, prompt])
 
   return (
     <div className="min-h-screen">
@@ -179,8 +184,8 @@ ${result.error ? `错误信息: ${result.error}` : ''}
 
               <ModelSelector
                 apiConfig={apiConfig}
-                selectedModels={selectedModels}
-                onModelsChange={setSelectedModels}
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
               />
 
               {/* 操作按钮 */}

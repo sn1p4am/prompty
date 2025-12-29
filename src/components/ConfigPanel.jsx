@@ -48,16 +48,20 @@ export function ConfigPanel({
                     />
                 </div>
                 <div>
-                    <label className="block mb-2 text-sm font-semibold">Max Tokens</label>
-                    <input
-                        type="number"
-                        min="1"
-                        max="32000"
-                        step="1"
+                    <label className="block mb-2 text-sm font-semibold">最大输出Token</label>
+                    <select
                         value={maxTokens}
-                        onChange={(e) => onMaxTokensChange(parseInt(e.target.value))}
+                        onChange={(e) => onMaxTokensChange(e.target.value)}
                         className="w-full px-3 py-2 bg-white/5 border border-card rounded-lg text-text-primary focus:outline-none focus:border-primary"
-                    />
+                    >
+                        <option value="">不限制</option>
+                        <option value="512">512</option>
+                        <option value="1024">1024</option>
+                        <option value="2048">2048</option>
+                        <option value="4096">4096</option>
+                        <option value="8192">8192</option>
+                        <option value="16384">16384</option>
+                    </select>
                 </div>
             </div>
         </div>
