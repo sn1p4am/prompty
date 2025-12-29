@@ -31,7 +31,6 @@ export async function streamRequest({
             case PROVIDERS.OPENAI:
             case PROVIDERS.GROQ:
             case PROVIDERS.DEEPSEEK:
-            case PROVIDERS.OPENROUTER:
                 url = `${baseUrl}/chat/completions`
                 headers = {
                     'Content-Type': 'application/json',
@@ -42,7 +41,25 @@ export async function streamRequest({
                     messages: [{ role: 'user', content: prompt }],
                     temperature,
                     top_p: topP,
-                    max_tokens: maxTokens,
+                    ...(maxTokens && { max_tokens: maxTokens }),
+                    stream: true,
+                }
+                break
+
+            case PROVIDERS.OPENROUTER:
+                url = `${baseUrl}/chat/completions`
+                headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                    'HTTP-Referer': window.location.origin, // OpenRouter 要求
+                    'X-Title': 'AI提示词批量测试工具', // OpenRouter 要求
+                }
+                body = {
+                    model,
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature,
+                    top_p: topP,
+                    ...(maxTokens && { max_tokens: maxTokens }),
                     stream: true,
                 }
                 break
@@ -59,7 +76,7 @@ export async function streamRequest({
                     messages: [{ role: 'user', content: prompt }],
                     temperature,
                     top_p: topP,
-                    max_tokens: maxTokens,
+                    max_tokens: maxTokens || 4096, // Anthropic 必须提供 max_tokens
                     stream: true,
                 }
                 break
@@ -74,7 +91,7 @@ export async function streamRequest({
                     generationConfig: {
                         temperature,
                         topP,
-                        maxOutputTokens: maxTokens,
+                        ...(maxTokens && { maxOutputTokens: maxTokens }),
                     },
                 }
                 break
