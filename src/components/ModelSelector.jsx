@@ -8,15 +8,17 @@ export function ModelSelector({ apiConfig, selectedModel, onModelChange }) {
 
     const handleAddModel = () => {
         if (newModelName.trim()) {
-            apiConfig.addCustomModel(apiConfig.currentProvider, newModelName.trim())
-            onModelChange(newModelName.trim())
-            setNewModelName('')
-            setShowAddDialog(false)
+            const success = apiConfig.addCustomModel(apiConfig.currentProvider, newModelName.trim())
+            if (success) {
+                onModelChange(newModelName.trim())
+                setNewModelName('')
+                setShowAddDialog(false)
+            }
         }
     }
 
     return (
-        <div className="mb-5">
+        <div>
             <label className="block mb-2 font-semibold">模型</label>
             <div className="flex gap-2">
                 <select
@@ -30,16 +32,6 @@ export function ModelSelector({ apiConfig, selectedModel, onModelChange }) {
                             {model}
                         </option>
                     ))}
-                    {apiConfig.customModels[apiConfig.currentProvider]?.length > 0 && (
-                        <>
-                            <option disabled>──── 自定义模型 ────</option>
-                            {apiConfig.customModels[apiConfig.currentProvider].map(model => (
-                                <option key={model} value={model}>
-                                    {model} (自定义)
-                                </option>
-                            ))}
-                        </>
-                    )}
                 </select>
 
                 <button
@@ -60,7 +52,7 @@ export function ModelSelector({ apiConfig, selectedModel, onModelChange }) {
                         type="text"
                         value={newModelName}
                         onChange={(e) => setNewModelName(e.target.value)}
-                        placeholder="输入模型名称，例如：gpt-4o-2024-08-06"
+                        placeholder="输入模型 ID（如 openai/gpt-4o）"
                         className="w-full px-3 py-2 bg-white/5 border border-card rounded-lg text-text-primary mb-2 focus:outline-none focus:border-primary"
                         onKeyPress={(e) => e.key === 'Enter' && handleAddModel()}
                     />

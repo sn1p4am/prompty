@@ -1,96 +1,70 @@
-// API 供应商配置
+// API 供应商配置 - 匹配原版 old-index.html
 export const PROVIDERS = {
-    OPENAI: 'openai',
-    ANTHROPIC: 'anthropic',
-    GOOGLE: 'google',
-    GROQ: 'groq',
-    DEEPSEEK: 'deepseek',
     OPENROUTER: 'openrouter',
+    VOLCENGINE: 'volcengine',
+    ALIBAILIAN: 'alibailian',
 }
 
 // API 供应商信息
 export const PROVIDER_INFO = {
-    [PROVIDERS.OPENAI]: {
-        name: 'OpenAI',
-        baseUrl: 'https://api.openai.com/v1',
-        models: [
-            'gpt-4o',
-            'gpt-4o-mini',
-            'gpt-4-turbo',
-            'gpt-3.5-turbo',
-            'o1-preview',
-            'o1-mini',
-        ],
-    },
-    [PROVIDERS.ANTHROPIC]: {
-        name: 'Anthropic',
-        baseUrl: 'https://api.anthropic.com/v1',
-        models: [
-            'claude-3-5-sonnet-20241022',
-            'claude-3-5-haiku-20241022',
-            'claude-3-opus-20240229',
-        ],
-    },
-    [PROVIDERS.GOOGLE]: {
-        name: 'Google',
-        baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
-        models: [
-            'gemini-2.0-flash-exp',
-            'gemini-exp-1206',
-            'gemini-2.0-flash-thinking-exp-1219',
-            'gemini-1.5-pro',
-            'gemini-1.5-flash',
-        ],
-    },
-    [PROVIDERS.GROQ]: {
-        name: 'Groq',
-        baseUrl: 'https://api.groq.com/openai/v1',
-        models: [
-            'llama-3.3-70b-versatile',
-            'llama-3.1-70b-versatile',
-            'mixtral-8x7b-32768',
-        ],
-    },
-    [PROVIDERS.DEEPSEEK]: {
-        name: 'DeepSeek',
-        baseUrl: 'https://api.deepseek.com',
-        models: [
-            'deepseek-chat',
-            'deepseek-reasoner',
-        ],
-    },
     [PROVIDERS.OPENROUTER]: {
         name: 'OpenRouter',
         baseUrl: 'https://openrouter.ai/api/v1',
+        keyStorageKey: 'openrouter_api_key',
+        getKeyUrl: 'https://openrouter.ai/keys',
         models: [
+            'anthropic/claude-sonnet-4-20250514',
+            'qwen/qwq-32b-preview',
+            'deepseek/deepseek-chat',
             'openai/gpt-4o',
-            'anthropic/claude-3.5-sonnet',
             'google/gemini-2.0-flash-exp:free',
+            'meta-llama/llama-3.3-70b-instruct',
+            'mistralai/mistral-large'
+        ],
+    },
+    [PROVIDERS.VOLCENGINE]: {
+        name: '火山引擎',
+        baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+        keyStorageKey: 'volcengine_api_key',
+        getKeyUrl: 'https://console.volcengine.com/ark',
+        models: [
+            'deepseek-r1-250528'
+        ],
+    },
+    [PROVIDERS.ALIBAILIAN]: {
+        name: '阿里百炼',
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        keyStorageKey: 'alibailian_api_key',
+        getKeyUrl: 'https://bailian.console.aliyun.com',
+        models: [
+            'deepseek-r1-0528'
         ],
     },
 }
 
 // 默认配置
 export const DEFAULT_CONFIG = {
-    provider: PROVIDERS.OPENROUTER, // 默认使用 OpenRouter
-    temperature: 0.7,
+    provider: PROVIDERS.OPENROUTER,
+    temperature: 1, // 原版默认值
     topP: 1,
-    maxTokens: '', // 默认不限制
+    maxTokens: '',
+    batchSize: 5,
     concurrency: 3,
     interval: 500,
+    streamMode: true,
 }
 
 // LocalStorage 键名
 export const STORAGE_KEYS = {
-    API_KEYS: 'api_keys',
-    CUSTOM_MODELS: 'custom_models',
+    CUSTOM_MODELS: 'customModels',
     MAX_TOKENS: 'max_tokens',
     DISPLAY_MODE: 'display_mode',
     CURRENT_PROVIDER: 'current_provider',
+    LAST_SELECTED_MODEL: 'last_selected_model',
 }
 
 // 显示模式
 export const DISPLAY_MODES = {
     CARD: 'card',
-    HTML_PREVIEW: 'html-preview',
+    HTML: 'html',
 }

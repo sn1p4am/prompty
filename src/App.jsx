@@ -7,13 +7,11 @@ import { ApiKeyManager } from './components/ApiKeyManager'
 import { ModelSelector } from './components/ModelSelector'
 import { ConfigPanel } from './components/ConfigPanel'
 import { AdvancedSettings } from './components/AdvancedSettings'
-import { TabNavigation } from './components/TabNavigation'
 import { DisplayModeSwitcher } from './components/DisplayModeSwitcher'
 import { StatsPanel } from './components/StatsPanel'
 import { ResultsGrid } from './components/ResultsGrid'
 import { Modal } from './components/Modal'
-import { DEFAULT_CONFIG, STORAGE_KEYS } from './constants/providers'
-import { renderMarkdown } from './services/markdownRenderer'
+import { STORAGE_KEYS, DEFAULT_CONFIG, DISPLAY_MODES } from './constants/providers'
 
 function App() {
   // API 配置
@@ -29,15 +27,20 @@ function App() {
   })
 
   // UI 状态
-  const [activeTab, setActiveTab] = useState('config')
+  const [activeTab, setActiveTab] = useState('basic')
   const [displayMode, setDisplayMode] = useLocalStorage(
     STORAGE_KEYS.DISPLAY_MODE,
-    'card'
+    DISPLAY_MODES.CARD
   )
 
   // 表单状态
-  const [prompt, setPrompt] = useState('')
-  const [selectedModel, setSelectedModel] = useState('') // 单选模型
+  const [systemPrompt, setSystemPrompt] = useState('')
+  const [userPrompt, setUserPrompt] = useState('')
+  const [selectedModel, setSelectedModel] = useLocalStorage(
+    STORAGE_KEYS.LAST_SELECTED_MODEL,
+    ''
+  )
+  const [batchSize, setBatchSize] = useState(DEFAULT_CONFIG.batchSize)
   const [temperature, setTemperature] = useState(DEFAULT_CONFIG.temperature)
   const [topP, setTopP] = useState(DEFAULT_CONFIG.topP)
   const [maxTokens, setMaxTokens] = useLocalStorage(
@@ -46,194 +49,198 @@ function App() {
   )
   const [concurrency, setConcurrency] = useState(DEFAULT_CONFIG.concurrency)
   const [interval, setInterval] = useState(DEFAULT_CONFIG.interval)
+  const [streamMode, setStreamMode] = useState(DEFAULT_CONFIG.streamMode)
 
-  // 模态框
+  // Modal 状态
   const [modalOpen, setModalOpen] = useState(false)
   const [modalTitle, setModalTitle] = useState('')
   const [modalContent, setModalContent] = useState(null)
-  const [modalIsMarkdown, setModalIsMarkdown] = useState(false)
 
   // 开始测试
   const handleStartTest = () => {
-    if (!selectedModel) {
-      showToast('请先选择模型')
-      return
-    }
-
     batchTest.startBatchTest({
-      prompt,
-      models: [selectedModel], // 转为数组，保持接口一致
+      systemPrompt,
+      userPrompt,
+      model: selectedModel,
+      batchSize,
       temperature,
       topP,
-      maxTokens: maxTokens || undefined, // 空字符串转为 undefined
+      maxTokens: maxTokens || undefined,
       concurrency,
       interval,
+      streamMode,
     })
-  }
-
-  // 停止测试
-  const handleStopTest = () => {
-    batchTest.stopAllRequests()
   }
 
   // 查看完整内容
   const handleViewFull = (result) => {
-    setModalTitle(`完整内容 - ${result.model}`)
-    setModalContent(result.content)
-    setModalIsMarkdown(true)
+    setModalTitle(`响应详情 - ${result.model}`)
+    setModalContent(
+      <div className="whitespace-pre-wrap text-sm">{result.content || result.error || '(空)'}</div>
+    )
     setModalOpen(true)
-  }
-
-  // HTML 全屏预览
-  const handleViewHtmlFullscreen = (result) => {
-    setModalTitle(`HTML 预览 - ${result.model}`)
-    setModalContent(result.content)
-    setModalIsMarkdown(false)
-    setModalOpen(true)
-  }
-
-  // 调试信息
-  const handleDebug = (result) => {
-    const debugInfo = `
-模型: ${result.model}
-状态: ${result.status}
-${result.error ? `错误信息: ${result.error}` : ''}
-内容长度: ${result.content?.length || 0} 字符
-    `.trim()
-
-    alert(debugInfo)
   }
 
   // 键盘快捷键
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ctrl + Enter 开始测试
       if (e.ctrlKey && e.key === 'Enter') {
-        if (!batchTest.isRunning && selectedModel && prompt) {
+        if (!batchTest.isRunning && (systemPrompt || userPrompt) && selectedModel) {
           handleStartTest()
         }
       }
-      // Esc 关闭模态框
       if (e.key === 'Escape') {
         setModalOpen(false)
       }
     }
-
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [batchTest.isRunning, selectedModel, prompt])
+  }, [batchTest.isRunning, systemPrompt, userPrompt, selectedModel])
 
   return (
     <div className="min-h-screen">
       <div className="container mx-auto px-5 py-5">
         {/* Header */}
-        <header className="text-center mb-8 relative">
+        <header className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-3">
-            <span className="inline-block mr-2">🧪</span>
-            <span className="bg-primary-gradient bg-clip-text text-transparent">
-              AI提示词批量测试工具
+            <span className="bg-clip-text text-transparent bg-primary-gradient">
+              AI 提示词批量测试工具
             </span>
           </h1>
-          <p className="text-text-secondary text-sm">支持快捷键：Ctrl + Enter 开始测试 | Esc 关闭弹窗</p>
-
-          {/* 版本徽章（带 Tooltip） */}
-          <div className="absolute top-0 left-0 group">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/15 border border-primary/30 rounded-full text-sm cursor-help hover:bg-primary/25 transition-all">
-              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-              v3.0.0
-            </div>
-
-            {/* Tooltip */}
-            <div className="absolute top-full left-0 mt-2 min-w-[320px] max-w-[400px] bg-secondary-bg border border-card rounded-card p-4 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[9999]">
-              <h4 className="font-semibold mb-2 pb-2 border-b border-card flex items-center gap-2">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                </svg>
-                版本 3.0.0 - React 重构版
-              </h4>
-              <ul className="text-sm text-text-secondary space-y-1.5 list-none">
-                <li>✨ 全新 React + Vite + Tailwind 架构</li>
-                <li>📦 模块化组件设计</li>
-                <li>⚡ 性能优化和代码分割</li>
-                <li>🎨 完整保留所有功能</li>
-                <li>🚀 GitHub Actions 自动部署</li>
-              </ul>
-            </div>
-          </div>
+          <p className="text-text-secondary">
+            支持多种 AI 供应商，批量测试提示词效果
+          </p>
         </header>
 
-        {/* API Key Manager */}
-        <ApiKeyManager apiConfig={apiConfig} onToast={showToast} />
+        {/* 控制面板 */}
+        <div className="bg-card-bg border border-card rounded-card p-6 mb-8">
+          {/* 标签导航 */}
+          <div className="flex gap-2 mb-6 border-b border-card pb-4">
+            <button
+              onClick={() => setActiveTab('basic')}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all ${activeTab === 'basic'
+                  ? 'bg-primary-gradient text-white'
+                  : 'bg-white/5 hover:bg-white/10'
+                }`}
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" />
+              </svg>
+              基础配置
+            </button>
+            <button
+              onClick={() => setActiveTab('advanced')}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all ${activeTab === 'advanced'
+                  ? 'bg-primary-gradient text-white'
+                  : 'bg-white/5 hover:bg-white/10'
+                }`}
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58z" />
+              </svg>
+              高级参数
+            </button>
+            <button
+              onClick={() => setActiveTab('display')}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all ${activeTab === 'display'
+                  ? 'bg-primary-gradient text-white'
+                  : 'bg-white/5 hover:bg-white/10'
+                }`}
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z" />
+              </svg>
+              显示选项
+            </button>
+          </div>
 
-        {/* 标签页控制面板 */}
-        <TabNavigation activeTab={activeTab} onTabChange={setActiveTab}>
-          {activeTab === 'config' ? (
-            <>
+          {/* 标签内容 */}
+          {activeTab === 'basic' && (
+            <div>
+              {/* API Key 配置 */}
+              <ApiKeyManager apiConfig={apiConfig} onToast={showToast} />
+
+              {/* 提示词配置 */}
               <ConfigPanel
-                prompt={prompt}
-                onPromptChange={setPrompt}
-                temperature={temperature}
-                onTemperatureChange={setTemperature}
-                topP={topP}
-                onTopPChange={setTopP}
-                maxTokens={maxTokens}
-                onMaxTokensChange={setMaxTokens}
+                systemPrompt={systemPrompt}
+                onSystemPromptChange={setSystemPrompt}
+                userPrompt={userPrompt}
+                onUserPromptChange={setUserPrompt}
               />
 
-              <ModelSelector
-                apiConfig={apiConfig}
-                selectedModel={selectedModel}
-                onModelChange={setSelectedModel}
-              />
+              {/* 供应商和模型选择 */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+                <ModelSelector
+                  apiConfig={apiConfig}
+                  selectedModel={selectedModel}
+                  onModelChange={setSelectedModel}
+                />
+              </div>
 
               {/* 操作按钮 */}
-              <div className="flex gap-3 justify-center mt-6">
+              <div className="flex gap-4">
                 <button
                   onClick={handleStartTest}
-                  disabled={batchTest.isRunning}
-                  className="px-8 py-3 bg-primary-gradient text-white font-semibold rounded-card hover:opacity-90 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2"
+                  disabled={batchTest.isRunning || (!systemPrompt && !userPrompt) || !selectedModel}
+                  className="flex-1 px-6 py-3 bg-primary-gradient text-white font-semibold rounded-lg hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  开始批量测试
+                  🚀 开始生成
                 </button>
                 <button
-                  onClick={handleStopTest}
+                  onClick={batchTest.stopAllRequests}
                   disabled={!batchTest.isRunning}
-                  className="px-8 py-3 bg-secondary-gradient text-white font-semibold rounded-card hover:opacity-90 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2"
+                  className="px-6 py-3 bg-red-500/20 border border-red-500/30 text-red-400 font-semibold rounded-lg hover:bg-red-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-                  </svg>
-                  停止所有请求
+                  ⏹ 停止所有
                 </button>
               </div>
-            </>
-          ) : (
+
+              {/* 进度条 */}
+              {batchTest.isRunning && (
+                <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary-gradient transition-all duration-300"
+                    style={{ width: `${batchTest.progress}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'advanced' && (
             <AdvancedSettings
-              concurrency={concurrency}
-              onConcurrencyChange={setConcurrency}
+              batchSize={batchSize}
+              onBatchSizeChange={setBatchSize}
               interval={interval}
               onIntervalChange={setInterval}
+              concurrency={concurrency}
+              onConcurrencyChange={setConcurrency}
+              temperature={temperature}
+              onTemperatureChange={setTemperature}
+              topP={topP}
+              onTopPChange={setTopP}
+              maxTokens={maxTokens}
+              onMaxTokensChange={setMaxTokens}
+              streamMode={streamMode}
+              onStreamModeChange={setStreamMode}
             />
           )}
-        </TabNavigation>
+
+          {activeTab === 'display' && (
+            <DisplayModeSwitcher
+              displayMode={displayMode}
+              onDisplayModeChange={setDisplayMode}
+            />
+          )}
+        </div>
 
         {/* 统计面板 */}
-        {batchTest.results.length > 0 && (
-          <StatsPanel stats={batchTest.stats} />
-        )}
-
-        {/* 显示模式切换 */}
-        {batchTest.results.length > 0 && (
-          <DisplayModeSwitcher
-            displayMode={displayMode}
-            onModeChange={setDisplayMode}
+        {batchTest.stats.total > 0 && (
+          <StatsPanel
+            total={batchTest.stats.total}
+            success={batchTest.stats.success}
+            failed={batchTest.stats.failed}
+            running={batchTest.stats.running}
           />
         )}
 
@@ -242,42 +249,24 @@ ${result.error ? `错误信息: ${result.error}` : ''}
           results={batchTest.results}
           displayMode={displayMode}
           onViewFull={handleViewFull}
-          onViewHtmlFullscreen={handleViewHtmlFullscreen}
-          onDebug={handleDebug}
+          onCopy={(text) => {
+            navigator.clipboard.writeText(text)
+            showToast('已复制到剪贴板')
+          }}
         />
-
-        {/* Toast 通知 */}
-        {toast && <Toast message={toast} />}
-
-        {/* 模态框 */}
-        <Modal
-          isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
-          title={modalTitle}
-        >
-          <div className="p-6">
-            {modalIsMarkdown ? (
-              <div
-                className="markdown-body prose prose-invert max-w-none"
-                ref={(el) => {
-                  if (el && modalContent) {
-                    renderMarkdown(el, modalContent)
-                  }
-                }}
-              />
-            ) : (
-              <div className="bg-white rounded overflow-hidden" style={{ height: '70vh' }}>
-                <iframe
-                  srcDoc={modalContent}
-                  className="w-full h-full border-0"
-                  sandbox="allow-scripts"
-                  title="html-preview-fullscreen"
-                />
-              </div>
-            )}
-          </div>
-        </Modal>
       </div>
+
+      {/* Modal */}
+      <Modal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={modalTitle}
+      >
+        {modalContent}
+      </Modal>
+
+      {/* Toast */}
+      <Toast message={toast} />
     </div>
   )
 }

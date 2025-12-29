@@ -1,9 +1,4 @@
-import { PROVIDERS } from '../constants/providers'
-
-/**
- * API 请求客户端
- * 支持多种 LLM 供应商的流式请求
- */
+import { PROVIDERS, PROVIDER_INFO, DEFAULT_CONFIG } from '../constants/providers'
 
 /**
  * 处理单个 API 请求（流式输出）
@@ -17,102 +12,101 @@ export async function streamRequest({
     apiKey,
     baseUrl,
     model,
-    prompt,
-    temperature = 0.7,
+    systemPrompt,
+    userPrompt,
+    temperature = 1,
     topP = 1,
-    maxTokens = 2048,
+    maxTokens,
+    streamMode = true,
 }, onChunk, onComplete, onError) {
 
     try {
-        let url, headers, body
+        // 构建 messages 数组
+        const messages = []
+        if (systemPrompt) {
+            messages.push({ role: 'system', content: systemPrompt })
+        }
+        if (userPrompt) {
+            messages.push({ role: 'user', content: userPrompt })
+        }
 
-        // 根据不同供应商构造请求
-        switch (provider) {
-            case PROVIDERS.OPENAI:
-            case PROVIDERS.GROQ:
-            case PROVIDERS.DEEPSEEK:
-                url = `${baseUrl}/chat/completions`
-                headers = {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`,
-                }
-                body = {
-                    model,
-                    messages: [{ role: 'user', content: prompt }],
-                    temperature,
-                    top_p: topP,
-                    ...(maxTokens && { max_tokens: maxTokens }),
-                    stream: true,
-                }
-                break
+        if (messages.length === 0) {
+            throw new Error('请至少输入 System Prompt 或 User Prompt')
+        }
 
-            case PROVIDERS.OPENROUTER:
-                url = `${baseUrl}/chat/completions`
-                headers = {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`,
-                    'HTTP-Referer': window.location.origin, // OpenRouter 要求
-                    'X-Title': 'AI提示词批量测试工具', // OpenRouter 要求
+        // 构建请求体
+        const requestBody = {
+            model,
+            messages,
+            stream: streamMode,
+            temperature,
+            top_p: topP,
+            // 可选的 max_tokens
+            ...(maxTokens && { max_tokens: parseInt(maxTokens) }),
+            // OpenRouter 需要 usage accounting
+            ...(provider === PROVIDERS.OPENROUTER && {
+                usage: { include: true }
+            }),
+            // 火山引擎和阿里百炼需要 stream_options
+            ...((provider === PROVIDERS.VOLCENGINE || provider === PROVIDERS.ALIBAILIAN) && streamMode && {
+                stream_options: {
+                    include_usage: true,
+                    chunk_include_usage: false
                 }
-                body = {
-                    model,
-                    messages: [{ role: 'user', content: prompt }],
-                    temperature,
-                    top_p: topP,
-                    ...(maxTokens && { max_tokens: maxTokens }),
-                    stream: true,
-                }
-                break
+            })
+        }
 
-            case PROVIDERS.ANTHROPIC:
-                url = `${baseUrl}/messages`
-                headers = {
-                    'Content-Type': 'application/json',
-                    'x-api-key': apiKey,
-                    'anthropic-version': '2023-06-01',
-                }
-                body = {
-                    model,
-                    messages: [{ role: 'user', content: prompt }],
-                    temperature,
-                    top_p: topP,
-                    max_tokens: maxTokens || 4096, // Anthropic 必须提供 max_tokens
-                    stream: true,
-                }
-                break
-
-            case PROVIDERS.GOOGLE:
-                url = `${baseUrl}/models/${model}:streamGenerateContent?key=${apiKey}`
-                headers = {
-                    'Content-Type': 'application/json',
-                }
-                body = {
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: {
-                        temperature,
-                        topP,
-                        ...(maxTokens && { maxOutputTokens: maxTokens }),
-                    },
-                }
-                break
-
-            default:
-                throw new Error(`不支持的供应商: ${provider}`)
+        // 构建请求头（使用 ASCII 字符避免编码错误）
+        const headers = {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://prompt-tester.app',
+            'X-Title': 'Prompt Tester'
         }
 
         // 发起请求
-        const response = await fetch(url, {
+        const response = await fetch(`${baseUrl}/chat/completions`, {
             method: 'POST',
             headers,
-            body: JSON.stringify(body),
+            body: JSON.stringify(requestBody),
         })
 
         if (!response.ok) {
             const errorText = await response.text()
-            throw new Error(`API 请求失败 (${response.status}): ${errorText}`)
+            let errorMessage = `HTTP ${response.status}`
+
+            try {
+                const errorData = JSON.parse(errorText)
+                if (errorData.error?.message) {
+                    errorMessage = errorData.error.message
+                }
+                // 提供用户友好的错误提示
+                if (response.status === 404) {
+                    errorMessage = `模型 "${model}" 不存在或不可用`
+                } else if (response.status === 401) {
+                    errorMessage = 'API Key 无效或已过期'
+                } else if (response.status === 402) {
+                    errorMessage = '账户余额不足'
+                } else if (response.status === 429) {
+                    errorMessage = '请求频率过高，请降低并发数'
+                }
+            } catch (e) {
+                errorMessage = errorText || response.statusText
+            }
+
+            throw new Error(errorMessage)
         }
 
-        // 处理流式响应
+        // 非流式模式
+        if (!streamMode) {
+            const data = await response.json()
+            const content = data.choices?.[0]?.message?.content || ''
+            onChunk(content)
+            onComplete()
+            return
+        }
+
+        // 流式模式处理
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
         let buffer = ''
@@ -134,12 +128,12 @@ export async function streamRequest({
 
                     try {
                         const json = JSON.parse(data)
-                        const content = extractContent(provider, json)
+                        const content = json.choices?.[0]?.delta?.content
                         if (content) {
                             onChunk(content)
                         }
                     } catch (err) {
-                        console.error('解析流数据失败:', err, line)
+                        // 忽略解析错误
                     }
                 }
             }
@@ -149,35 +143,5 @@ export async function streamRequest({
 
     } catch (error) {
         onError(error)
-    }
-}
-
-/**
- * 从响应中提取内容
- */
-function extractContent(provider, data) {
-    try {
-        switch (provider) {
-            case PROVIDERS.OPENAI:
-            case PROVIDERS.GROQ:
-            case PROVIDERS.DEEPSEEK:
-            case PROVIDERS.OPENROUTER:
-                return data.choices?.[0]?.delta?.content || ''
-
-            case PROVIDERS.ANTHROPIC:
-                if (data.type === 'content_block_delta') {
-                    return data.delta?.text || ''
-                }
-                return ''
-
-            case PROVIDERS.GOOGLE:
-                return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-
-            default:
-                return ''
-        }
-    } catch (err) {
-        console.error('提取内容失败:', err)
-        return ''
     }
 }
