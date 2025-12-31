@@ -10,6 +10,7 @@ import { AdvancedSettings } from './components/AdvancedSettings'
 import { ResultsGrid } from './components/ResultsGrid'
 import { Modal } from './components/Modal'
 import { MarkdownRenderer } from './components/MarkdownRenderer'
+import { VersionBadge } from './components/VersionBadge'
 import { STORAGE_KEYS, DEFAULT_CONFIG, DISPLAY_MODES } from './constants/providers'
 import { Button } from "./components/ui/button"
 import { Badge } from "./components/ui/badge"
@@ -129,8 +130,9 @@ function App() {
                                 // 高级提示词测试环境
               </p>
             </div>
-            <div className="mt-auto pt-2">
+            <div className="mt-auto pt-2 flex items-center gap-2">
               <Badge variant="outline" className="text-[10px]">系统状态: 在线</Badge>
+              <VersionBadge />
             </div>
           </div>
 
