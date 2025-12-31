@@ -8,7 +8,17 @@ export function useLocalStorage(key, initialValue) {
     const [storedValue, setStoredValue] = useState(() => {
         try {
             const item = window.localStorage.getItem(key)
-            return item ? JSON.parse(item) : initialValue
+            if (item === null) return initialValue
+
+            // 尝试 JSON 解析
+            try {
+                return JSON.parse(item)
+            } catch {
+                // JSON 解析失败，说明是旧版本存储的纯字符串值
+                // 直接返回原始字符串，同时更新为 JSON 格式
+                window.localStorage.setItem(key, JSON.stringify(item))
+                return item
+            }
         } catch (error) {
             console.error(`读取 LocalStorage 失败 (${key}):`, error)
             return initialValue
