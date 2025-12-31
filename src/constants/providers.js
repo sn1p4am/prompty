@@ -13,13 +13,9 @@ export const PROVIDER_INFO = {
         keyStorageKey: 'openrouter_api_key',
         getKeyUrl: 'https://openrouter.ai/keys',
         models: [
-            'anthropic/claude-sonnet-4-20250514',
-            'qwen/qwq-32b-preview',
-            'deepseek/deepseek-chat',
-            'openai/gpt-4o',
-            'google/gemini-2.0-flash-exp:free',
-            'meta-llama/llama-3.3-70b-instruct',
-            'mistralai/mistral-large'
+            'google/gemini-3-flash-preview',
+            'google/gemini-3-pro-preview',
+            'anthropic/claude-sonnet-4.5'
         ],
     },
     [PROVIDERS.VOLCENGINE]: {

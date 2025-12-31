@@ -1,101 +1,100 @@
+import React from 'react'
 import { PROVIDER_INFO } from '../constants/providers'
+import { Button } from "./ui/button"
+import { Input } from "./ui/input"
+import { Select } from "./ui/select"
+import { Label } from "./ui/label"
+import { Key, Unlock } from "lucide-react"
 
 export function ApiKeyManager({ apiConfig, onToast }) {
     const { currentProvider, getApiKey, saveApiKey, clearApiKey, switchProvider } = apiConfig
-    const apiKey = getApiKey()
-    const hasKey = !!apiKey
+    const [localKey, setLocalKey] = React.useState(getApiKey())
+    const [saveButtonText, setSaveButtonText] = React.useState('保存')
+
+    // Update local key when provider changes
+    React.useEffect(() => {
+        setLocalKey(getApiKey())
+    }, [currentProvider, getApiKey])
+
+    const hasKey = !!localKey
     const providerInfo = PROVIDER_INFO[currentProvider]
 
     const handleSaveKey = () => {
         const input = document.getElementById('api-key-input')
         if (input && input.value) {
             saveApiKey(currentProvider, input.value)
+            setLocalKey(input.value) // Update state immediately
             input.value = ''
-            onToast('API Key 已保存')
-            // 强制重新渲染
-            window.location.reload()
+
+            // Visual feedback
+            onToast('密钥已保存')
+            setSaveButtonText('已保存!')
+            setTimeout(() => setSaveButtonText('保存'), 2000)
         }
     }
 
     const handleClearKey = () => {
-        if (confirm('确定要清除当前供应商的 API Key 吗？')) {
+        if (confirm('确认撤销访问密钥?')) {
             clearApiKey(currentProvider)
-            onToast('API Key 已清除')
-            window.location.reload()
+            setLocalKey('') // Update state immediately
+            onToast('密钥已撤销')
         }
     }
 
     return (
-        <div className="mb-5 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-card">
-            <div className="flex items-center gap-2 mb-3">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12.65 10A5.99 5.99 0 0 0 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6a5.99 5.99 0 0 0 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" />
-                </svg>
-                <span className="font-semibold">API Key 配置</span>
-                {hasKey && (
-                    <span className="ml-auto inline-flex items-center gap-2 px-3 py-1 bg-green-500/15 border border-green-500/30 rounded-full text-sm">
-                        <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                        已配置
-                    </span>
-                )}
-            </div>
-
+        <div className="flex items-end gap-6 border-b border-border pb-4 w-full">
             {/* 供应商选择 */}
-            <div className="mb-3">
-                <label className="block mb-2 text-sm font-semibold">选择供应商</label>
-                <select
+            <div className="w-[200px]">
+                <Label>供应商网络</Label>
+                <Select
                     value={currentProvider}
                     onChange={(e) => {
                         switchProvider(e.target.value)
-                        window.location.reload()
+                        // window.location.reload() // Removed reload
                     }}
-                    className="w-full max-w-xs px-3 py-2 bg-white/5 border border-card rounded-lg text-text-primary focus:outline-none focus:border-primary"
                 >
                     {Object.entries(PROVIDER_INFO).map(([key, info]) => (
                         <option key={key} value={key}>
                             {info.name}
                         </option>
                     ))}
-                </select>
+                </Select>
             </div>
 
             {/* API Key 输入 */}
-            <div className="flex gap-2 items-center flex-wrap">
-                <input
-                    id="api-key-input"
-                    type="password"
-                    placeholder={hasKey ? '••••••••' : `请输入 ${providerInfo?.name} API Key...`}
-                    className="flex-1 min-w-[200px] px-3 py-2 bg-white/5 border border-card rounded-lg text-text-primary focus:outline-none focus:border-primary"
-                    onKeyPress={(e) => e.key === 'Enter' && handleSaveKey()}
-                />
-                <button
-                    onClick={handleSaveKey}
-                    className="px-4 py-2 bg-primary-gradient text-white font-semibold rounded-lg hover:opacity-90 transition-all"
-                >
-                    保存
-                </button>
-                <button
-                    onClick={handleClearKey}
-                    className="px-4 py-2 bg-white/10 border border-card rounded-lg hover:bg-white/15 transition-all"
-                >
-                    清除
-                </button>
-            </div>
+            <div className="flex-1 flex flex-col justify-end">
+                <Label className="flex justify-between w-full">
+                    <span>访问令牌 (ACCESS_TOKEN)</span>
+                    {hasKey ? (
+                        <span className="text-xs text-primary font-bold flex items-center gap-2 animate-pulse">
+                            <Key className="w-3 h-3" /> 已认证
+                        </span>
+                    ) : (
+                        <span className="text-xs text-destructive flex items-center gap-2">
+                            <Unlock className="w-3 h-3" /> 未加密
+                        </span>
+                    )}
+                </Label>
 
-            {/* 获取 Key 链接 */}
-            {providerInfo?.getKeyUrl && (
-                <div className="mt-2 text-sm text-text-secondary">
-                    没有 API Key？
-                    <a
-                        href={providerInfo.getKeyUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline ml-1"
-                    >
-                        点击获取
-                    </a>
+                <div className="flex gap-4">
+                    <Input
+                        id="api-key-input"
+                        type="password"
+                        placeholder={hasKey ? '****************' : `输入 ${providerInfo?.name.toUpperCase()} 密钥`}
+                        className="flex-1"
+                        onKeyDown={(e) => e.key === 'Enter' && handleSaveKey()}
+                        disabled={hasKey}
+                    />
+                    <Button onClick={handleSaveKey} size="sm" disabled={saveButtonText !== '保存'}>
+                        {saveButtonText}
+                    </Button>
+                    {hasKey && (
+                        <Button variant="destructive" onClick={handleClearKey} size="sm">
+                            撤销
+                        </Button>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     )
 }

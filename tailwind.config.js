@@ -1,49 +1,73 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  darkMode: ["class"],
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
+    container: {
+      center: true,
+      padding: "0",
+      screens: {
+        "2xl": "100%",
+      },
+    },
     extend: {
+      fontFamily: {
+        mono: ["JetBrains Mono", "Fira Code", "VT323", "monospace"],
+        sans: ["JetBrains Mono", "Fira Code", "VT323", "monospace"], // Override sans to mono
+      },
       colors: {
+        border: "#1f521f", // Dim green
+        input: "#1f521f",
+        ring: "#33ff00",
+        background: "#0a0a0a", // Deep black
+        foreground: "#33ff00", // Terminal Green
         primary: {
-          DEFAULT: '#667eea',
-          dark: '#764ba2',
+          DEFAULT: "#33ff00",
+          foreground: "#000000",
         },
         secondary: {
-          light: '#f093fb',
-          dark: '#f5576c',
+          DEFAULT: "#ffb000", // Amber
+          foreground: "#000000",
         },
-        success: {
-          light: '#4facfe',
-          dark: '#00f2fe',
+        destructive: {
+          DEFAULT: "#ff3333", // Bright Red
+          foreground: "#000000",
         },
-        error: {
-          light: '#fa709a',
-          dark: '#fee140',
+        muted: {
+          DEFAULT: "#1f521f",
+          foreground: "#33ff00", // Keep it readable
         },
-      },
-      backgroundImage: {
-        'primary-gradient': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        'secondary-gradient': 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-        'success-gradient': 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-        'error-gradient': 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-      },
-      backgroundColor: {
-        'card': 'rgba(255, 255, 255, 0.1)',
-        'primary-bg': '#0a0a0a',
-        'secondary-bg': '#1a1a1a',
-      },
-      borderColor: {
-        'card': 'rgba(255, 255, 255, 0.2)',
+        accent: {
+          DEFAULT: "#33ff00",
+          foreground: "#000000",
+        },
+        card: {
+          DEFAULT: "#000000",
+          foreground: "#33ff00",
+        },
       },
       borderRadius: {
-        'card': '12px',
+        lg: "0px",
+        md: "0px",
+        sm: "0px",
       },
       boxShadow: {
-        'card': '0 8px 32px rgba(0, 0, 0, 0.3)',
+        'glow': '0 0 10px rgba(51, 255, 0, 0.3)',
       },
+      animation: {
+        'blink': 'blink 1s step-end infinite',
+        'scan': 'scan 8s linear infinite',
+      },
+      keyframes: {
+        blink: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0' },
+        },
+        scan: {
+          '0%': { backgroundPosition: '0 0' },
+          '100%': { backgroundPosition: '0 100%' },
+        }
+      }
     },
   },
   plugins: [],

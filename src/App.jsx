@@ -7,265 +7,295 @@ import { ApiKeyManager } from './components/ApiKeyManager'
 import { ModelSelector } from './components/ModelSelector'
 import { ConfigPanel } from './components/ConfigPanel'
 import { AdvancedSettings } from './components/AdvancedSettings'
-import { DisplayModeSwitcher } from './components/DisplayModeSwitcher'
-import { StatsPanel } from './components/StatsPanel'
 import { ResultsGrid } from './components/ResultsGrid'
 import { Modal } from './components/Modal'
+import { MarkdownRenderer } from './components/MarkdownRenderer'
 import { STORAGE_KEYS, DEFAULT_CONFIG, DISPLAY_MODES } from './constants/providers'
+import { Button } from "./components/ui/button"
+import { Badge } from "./components/ui/badge"
+import { Card } from "./components/ui/card"
+import { cn } from "./lib/utils"
+// Icons
+import { Play, Square, Monitor, FileCode, Terminal, FileText, Code, Eye } from "lucide-react"
 
 function App() {
-  // API 配置
   const apiConfig = useApiConfig()
-
-  // Toast 通知
   const { toast, showToast } = useToast()
+  const batchTest = useBatchTest({ apiConfig, onToast: showToast })
 
-  // 批量测试
-  const batchTest = useBatchTest({
-    apiConfig,
-    onToast: showToast,
-  })
+  // UI States
+  const [displayMode, setDisplayMode] = useLocalStorage(STORAGE_KEYS.DISPLAY_MODE, DISPLAY_MODES.CARD)
 
-  // UI 状态
-  const [activeTab, setActiveTab] = useState('basic')
-  const [displayMode, setDisplayMode] = useLocalStorage(
-    STORAGE_KEYS.DISPLAY_MODE,
-    DISPLAY_MODES.CARD
-  )
-
-  // 表单状态
+  // Inputs
   const [systemPrompt, setSystemPrompt] = useState('')
   const [userPrompt, setUserPrompt] = useState('')
-  const [selectedModel, setSelectedModel] = useLocalStorage(
-    STORAGE_KEYS.LAST_SELECTED_MODEL,
-    ''
-  )
+  const [selectedModel, setSelectedModel] = useLocalStorage(STORAGE_KEYS.LAST_SELECTED_MODEL, '')
+
+  // Settings
   const [batchSize, setBatchSize] = useState(DEFAULT_CONFIG.batchSize)
   const [temperature, setTemperature] = useState(DEFAULT_CONFIG.temperature)
   const [topP, setTopP] = useState(DEFAULT_CONFIG.topP)
-  const [maxTokens, setMaxTokens] = useLocalStorage(
-    STORAGE_KEYS.MAX_TOKENS,
-    DEFAULT_CONFIG.maxTokens
-  )
+  const [maxTokens, setMaxTokens] = useLocalStorage(STORAGE_KEYS.MAX_TOKENS, DEFAULT_CONFIG.maxTokens)
   const [concurrency, setConcurrency] = useState(DEFAULT_CONFIG.concurrency)
   const [interval, setInterval] = useState(DEFAULT_CONFIG.interval)
   const [streamMode, setStreamMode] = useState(DEFAULT_CONFIG.streamMode)
 
-  // Modal 状态
+  // Modal
   const [modalOpen, setModalOpen] = useState(false)
   const [modalTitle, setModalTitle] = useState('')
-  const [modalContent, setModalContent] = useState(null)
+  const [modalViewMode, setModalViewMode] = useState('raw') // 'raw' | 'markdown' | 'html'
+  const [modalRawContent, setModalRawContent] = useState('')
 
-  // 开始测试
   const handleStartTest = () => {
     batchTest.startBatchTest({
-      systemPrompt,
-      userPrompt,
-      model: selectedModel,
-      batchSize,
-      temperature,
-      topP,
-      maxTokens: maxTokens || undefined,
-      concurrency,
-      interval,
-      streamMode,
+      systemPrompt, userPrompt, model: selectedModel,
+      batchSize, temperature, topP, maxTokens: maxTokens || undefined,
+      concurrency, interval, streamMode,
     })
   }
 
-  // 查看完整内容
+  /* Full Screen Preview Handler */
   const handleViewFull = (result) => {
-    setModalTitle(`响应详情 - ${result.model}`)
-    setModalContent(
-      <div className="whitespace-pre-wrap text-sm">{result.content || result.error || '(空)'}</div>
-    )
+    setModalTitle(result.model.toUpperCase())
+    setModalRawContent(result.content || result.error || '<NULL_OUTPUT>')
+    setModalViewMode('raw') // 默认显示原始内容
     setModalOpen(true)
   }
 
-  // 键盘快捷键
+  /* 提取 HTML 内容 */
+  const getHtmlContent = (content) => {
+    if (!content) return null
+    const match = content.match(/<!DOCTYPE html>[\s\S]*<\/html>/i) || content.match(/<html[\s\S]*<\/html>/i)
+    return match ? match[0] : null
+  }
+
+  /* 渲染 Modal 内容 */
+  const renderModalContent = () => {
+    if (modalViewMode === 'raw') {
+      return (
+        <div className="whitespace-pre-wrap text-sm font-mono leading-relaxed text-primary">
+          {modalRawContent}
+        </div>
+      )
+    } else if (modalViewMode === 'markdown') {
+      return <MarkdownRenderer content={modalRawContent} />
+    } else if (modalViewMode === 'html') {
+      const htmlContent = getHtmlContent(modalRawContent)
+      return htmlContent ? (
+        <iframe
+          srcDoc={htmlContent}
+          className="w-full h-full border-none bg-white"
+          title="HTML Preview"
+          sandbox="allow-scripts"
+        />
+      ) : (
+        <div className="flex flex-col items-center justify-center h-full text-destructive">
+          <span className="text-xl">无法预览</span>
+          <span className="text-sm opacity-50 mt-2">未检测到有效的 HTML 内容</span>
+        </div>
+      )
+    }
+    return null
+  }
+
+
+  // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.ctrlKey && e.key === 'Enter') {
-        if (!batchTest.isRunning && (systemPrompt || userPrompt) && selectedModel) {
-          handleStartTest()
-        }
+        if (!batchTest.isRunning && (systemPrompt || userPrompt) && selectedModel) handleStartTest()
       }
-      if (e.key === 'Escape') {
-        setModalOpen(false)
-      }
+      if (e.key === 'Escape') setModalOpen(false)
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [batchTest.isRunning, systemPrompt, userPrompt, selectedModel])
 
   return (
-    <div className="min-h-screen">
-      <div className="container mx-auto px-5 py-5">
-        {/* Header */}
-        <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-3">
-            <span className="bg-clip-text text-transparent bg-primary-gradient">
-              AI 提示词批量测试工具
-            </span>
-          </h1>
-          <p className="text-text-secondary">
-            支持多种 AI 供应商，批量测试提示词效果
-          </p>
-        </header>
+    <div className="min-h-screen font-mono p-4 pb-20 selection:bg-primary selection:text-black">
+      {/* CRT Overlay */}
+      <div className="scanlines"></div>
 
-        {/* 控制面板 */}
-        <div className="bg-card-bg border border-card rounded-card p-6 mb-8">
-          {/* 标签导航 */}
-          <div className="flex gap-2 mb-6 border-b border-card pb-4">
-            <button
-              onClick={() => setActiveTab('basic')}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all ${activeTab === 'basic'
-                  ? 'bg-primary-gradient text-white'
-                  : 'bg-white/5 hover:bg-white/10'
-                }`}
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" />
-              </svg>
-              基础配置
-            </button>
-            <button
-              onClick={() => setActiveTab('advanced')}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all ${activeTab === 'advanced'
-                  ? 'bg-primary-gradient text-white'
-                  : 'bg-white/5 hover:bg-white/10'
-                }`}
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58z" />
-              </svg>
-              高级参数
-            </button>
-            <button
-              onClick={() => setActiveTab('display')}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-all ${activeTab === 'display'
-                  ? 'bg-primary-gradient text-white'
-                  : 'bg-white/5 hover:bg-white/10'
-                }`}
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z" />
-              </svg>
-              显示选项
-            </button>
+      <div className="max-w-[1920px] mx-auto space-y-6 relative z-10">
+
+        {/* Header Section */}
+        <header className="flex flex-col lg:flex-row gap-6 border-b-2 border-double border-border pb-6">
+          <div className="flex flex-col justify-between">
+            <div>
+              <h1 className="text-4xl font-black tracking-tighter text-primary animate-pulse flex items-end gap-3 leading-none">
+                PROMPTY_CLI<span className="text-xl opacity-70 mb-1">v3.1</span>
+              </h1>
+              <p className="text-secondary text-xs uppercase tracking-[0.2em] mt-1">
+                                // 高级提示词测试环境
+              </p>
+            </div>
+            <div className="mt-auto pt-2">
+              <Badge variant="outline" className="text-[10px]">系统状态: 在线</Badge>
+            </div>
           </div>
 
-          {/* 标签内容 */}
-          {activeTab === 'basic' && (
-            <div>
-              {/* API Key 配置 */}
-              <ApiKeyManager apiConfig={apiConfig} onToast={showToast} />
+          <div className="flex-1 border-l border-dashed border-border pl-6">
+            <ApiKeyManager apiConfig={apiConfig} onToast={showToast} />
+          </div>
+        </header>
 
-              {/* 提示词配置 */}
-              <ConfigPanel
-                systemPrompt={systemPrompt}
-                onSystemPromptChange={setSystemPrompt}
-                userPrompt={userPrompt}
-                onUserPromptChange={setUserPrompt}
-              />
+        {/* Main Control Grid */}
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+          {/* Left Column: Configuration */}
+          <div className="xl:col-span-1 space-y-6">
+            <ModelSelector
+              apiConfig={apiConfig}
+              selectedModel={selectedModel}
+              onModelChange={setSelectedModel}
+            />
 
-              {/* 供应商和模型选择 */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
-                <ModelSelector
-                  apiConfig={apiConfig}
-                  selectedModel={selectedModel}
-                  onModelChange={setSelectedModel}
-                />
-              </div>
+            <AdvancedSettings
+              batchSize={batchSize} onBatchSizeChange={setBatchSize}
+              interval={interval} onIntervalChange={setInterval}
+              concurrency={concurrency} onConcurrencyChange={setConcurrency}
+              temperature={temperature} onTemperatureChange={setTemperature}
+              topP={topP} onTopPChange={setTopP}
+              maxTokens={maxTokens} onMaxTokensChange={setMaxTokens}
+              streamMode={streamMode} onStreamModeChange={setStreamMode}
+            />
 
-              {/* 操作按钮 */}
-              <div className="flex gap-4">
-                <button
-                  onClick={handleStartTest}
-                  disabled={batchTest.isRunning || (!systemPrompt && !userPrompt) || !selectedModel}
-                  className="flex-1 px-6 py-3 bg-primary-gradient text-white font-semibold rounded-lg hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  🚀 开始生成
-                </button>
-                <button
-                  onClick={batchTest.stopAllRequests}
-                  disabled={!batchTest.isRunning}
-                  className="px-6 py-3 bg-red-500/20 border border-red-500/30 text-red-400 font-semibold rounded-lg hover:bg-red-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  ⏹ 停止所有
-                </button>
-              </div>
+            {/* Action Buttons */}
+            <div className="pt-4 space-y-4">
+              <Button
+                size="lg"
+                className="w-full text-base h-16 border-2 border-primary hover:bg-primary hover:text-black transition-none"
+                onClick={handleStartTest}
+                disabled={batchTest.isRunning || (!systemPrompt && !userPrompt) || !selectedModel}
+              >
+                {batchTest.isRunning ? (
+                  <span className="animate-pulse">{`>> 执行中...`}</span>
+                ) : (
+                  <span>启动序列</span>
+                )}
+              </Button>
 
-              {/* 进度条 */}
               {batchTest.isRunning && (
-                <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
+                <Button
+                  variant="destructive" size="lg"
+                  onClick={batchTest.stopAllRequests}
+                  className="w-full border-2 border-destructive"
+                >
+                  终止任务
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column: Prompt Input */}
+          <div className="xl:col-span-3 h-full">
+            <ConfigPanel
+              systemPrompt={systemPrompt} onSystemPromptChange={setSystemPrompt}
+              userPrompt={userPrompt} onUserPromptChange={setUserPrompt}
+            />
+
+            {/* Progress Bar (ASCII Style) */}
+            {batchTest.isRunning && (
+              <div className="mt-4 font-mono text-xs text-primary">
+                <div className="flex justify-between mb-1">
+                  <span>进度_线程_1</span>
+                  <span>{Math.round(batchTest.progress)}%</span>
+                </div>
+                <div className="h-4 w-full border border-primary p-0.5">
                   <div
-                    className="h-full bg-primary-gradient transition-all duration-300"
+                    className="h-full bg-primary"
                     style={{ width: `${batchTest.progress}%` }}
                   />
                 </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'advanced' && (
-            <AdvancedSettings
-              batchSize={batchSize}
-              onBatchSizeChange={setBatchSize}
-              interval={interval}
-              onIntervalChange={setInterval}
-              concurrency={concurrency}
-              onConcurrencyChange={setConcurrency}
-              temperature={temperature}
-              onTemperatureChange={setTemperature}
-              topP={topP}
-              onTopPChange={setTopP}
-              maxTokens={maxTokens}
-              onMaxTokensChange={setMaxTokens}
-              streamMode={streamMode}
-              onStreamModeChange={setStreamMode}
-            />
-          )}
-
-          {activeTab === 'display' && (
-            <DisplayModeSwitcher
-              displayMode={displayMode}
-              onDisplayModeChange={setDisplayMode}
-            />
-          )}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* 统计面板 */}
-        {batchTest.stats.total > 0 && (
-          <StatsPanel
-            total={batchTest.stats.total}
-            success={batchTest.stats.success}
-            failed={batchTest.stats.failed}
-            running={batchTest.stats.running}
-          />
-        )}
+        {/* Separator */}
+        <div className="text-border select-none overflow-hidden whitespace-nowrap text-xs opacity-50 my-8">
+          ====================================================================================================================================================================================
+        </div>
 
-        {/* 结果展示 */}
-        <ResultsGrid
-          results={batchTest.results}
-          displayMode={displayMode}
-          onViewFull={handleViewFull}
-          onCopy={(text) => {
-            navigator.clipboard.writeText(text)
-            showToast('已复制到剪贴板')
-          }}
-        />
+        {/* Results Section */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest text-secondary">
+              <Terminal className="w-5 h-5" />
+              {`>> 输出流缓冲区`}
+            </h2>
+
+            {/* Display Mode Switcher */}
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant={displayMode === DISPLAY_MODES.CARD ? 'default' : 'outline'}
+                onClick={() => setDisplayMode(DISPLAY_MODES.CARD)}
+                className="h-8 text-xs"
+              >
+                <Monitor className="w-3 h-3 mr-2" /> 网格视图
+              </Button>
+              <Button
+                size="sm"
+                variant={displayMode === DISPLAY_MODES.HTML ? 'default' : 'outline'}
+                onClick={() => setDisplayMode(DISPLAY_MODES.HTML)}
+                className="h-8 text-xs"
+              >
+                <FileCode className="w-3 h-3 mr-2" /> HTML预览
+              </Button>
+            </div>
+          </div>
+
+          <ResultsGrid
+            results={batchTest.results}
+            displayMode={displayMode}
+            onViewFull={handleViewFull}
+            onCopy={(text) => {
+              navigator.clipboard.writeText(text)
+              showToast('缓冲区已复制到剪贴板')
+            }}
+          />
+        </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal & Toast */}
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         title={modalTitle}
+        className={modalViewMode === 'html' ? "max-w-[95vw] h-[95vh]" : ""}
       >
-        {modalContent}
+        {/* 视图切换按钮栏 */}
+        <div className="flex gap-2 mb-4 pb-4 border-b border-primary/30">
+          <Button
+            size="sm"
+            variant={modalViewMode === 'raw' ? 'default' : 'outline'}
+            onClick={() => setModalViewMode('raw')}
+            className="h-7 text-xs"
+          >
+            <Code className="w-3 h-3 mr-1" /> 原始内容
+          </Button>
+          <Button
+            size="sm"
+            variant={modalViewMode === 'markdown' ? 'default' : 'outline'}
+            onClick={() => setModalViewMode('markdown')}
+            className="h-7 text-xs"
+          >
+            <FileText className="w-3 h-3 mr-1" /> Markdown
+          </Button>
+          <Button
+            size="sm"
+            variant={modalViewMode === 'html' ? 'default' : 'outline'}
+            onClick={() => setModalViewMode('html')}
+            className="h-7 text-xs"
+          >
+            <Eye className="w-3 h-3 mr-1" /> HTML预览
+          </Button>
+        </div>
+        {/* 内容区域 */}
+        <div className={modalViewMode === 'html' ? 'flex-1 h-full' : ''}>
+          {renderModalContent()}
+        </div>
       </Modal>
-
-      {/* Toast */}
       <Toast message={toast} />
     </div>
   )

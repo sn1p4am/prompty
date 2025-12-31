@@ -75,6 +75,9 @@ export function useBatchTest({ apiConfig, onToast }) {
                 status: 'pending',
                 error: null,
                 index: i,
+                // OpenRouter specific metadata
+                metadata: null,
+                provider: apiConfig.currentProvider,
             })
         }
 
@@ -176,6 +179,15 @@ export function useBatchTest({ apiConfig, onToast }) {
                         if (completed >= batchSize) {
                             setIsRunning(false)
                         }
+                    },
+                    // onMetadata (for OpenRouter)
+                    (metadata) => {
+                        if (abortRef.current) return
+                        setResults(prev => prev.map(r =>
+                            r.id === request.id
+                                ? { ...r, metadata }
+                                : r
+                        ))
                     }
                 )
 
