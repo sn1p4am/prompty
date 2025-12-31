@@ -191,8 +191,9 @@ export async function streamRequest({
             if (generationId) {
                 setTimeout(async () => {
                     try {
-                        // Retry up to 3 times with 1s delay between each
-                        for (let attempt = 0; attempt < 3; attempt++) {
+                        // Retry up to 5 times with 2s delay between each
+                        // Generation records may take a few seconds to be available
+                        for (let attempt = 0; attempt < 5; attempt++) {
                             const genResponse = await fetch(`${baseUrl}/generation?id=${generationId}`, {
                                 headers: { 'Authorization': `Bearer ${apiKey}` }
                             })
@@ -210,16 +211,16 @@ export async function streamRequest({
                                         totalCost: genData.data.total_cost,
                                         ...openRouterMeta,
                                     })
-                                    break
+                                    return // Success, exit the function
                                 }
                             }
-                            // Wait 1s before retry
-                            await new Promise(r => setTimeout(r, 1000))
+                            // Wait 2s before retry (for 404 or missing data)
+                            await new Promise(r => setTimeout(r, 2000))
                         }
                     } catch (e) {
-                        // Silently fail
+                        // Silently fail - generation API is optional enhancement
                     }
-                }, 100) // Initial 100ms delay before first attempt
+                }, 2000) // Initial 2s delay before first attempt (wait for OpenRouter to process)
             }
         }
 
