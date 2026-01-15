@@ -99,9 +99,9 @@ function ResultCard({ result, onViewFull, onCopy }) {
                     <span className="text-muted text-xs animate-pulse">_ 等待流式输出...</span>
                 )}
             </CardContent>
-            {/* Footer with actions and OpenRouter metadata */}
+            {/* Footer with actions and metadata */}
             <CardFooter className="p-2 border-t border-border bg-primary/5 flex flex-col gap-1">
-                {/* OpenRouter Metadata - 2 rows × 3 columns */}
+                {/* Metadata - 2 rows × 3 columns */}
                 {showMeta && (
                     <div className="w-full text-[10px] text-primary/60 font-mono px-1 mb-1 space-y-0.5">
                         {/* Row 1: Provider | 首字延迟 | 耗时 */}
@@ -118,20 +118,27 @@ function ResultCard({ result, onViewFull, onCopy }) {
                                 耗时:{result.metadata.totalDuration ? (result.metadata.totalDuration / 1000).toFixed(2) : 0}s
                             </span>
                         </div>
-                        {/* Row 2: Tokens | 速度 | 费用 */}
+                        {/* Row 2: Tokens | 速度 | 费用（仅OpenRouter） */}
                         {result.metadata.usage && (
                             <div className="flex items-center justify-between">
-                                <span title="入/出/总 Tokens" className="flex-1">
-                                    {result.metadata.usage.prompt_tokens || 0}/{result.metadata.usage.completion_tokens || 0}({result.metadata.usage.total_tokens || 0})
+                                <span title={result.metadata.usage.reasoning_tokens ? "入/出(思考)/总 Tokens" : "入/出/总 Tokens"} className="flex-1">
+                                    {result.metadata.usage.prompt_tokens || 0}/{result.metadata.usage.completion_tokens || 0}
+                                    {result.metadata.usage.reasoning_tokens && `(${result.metadata.usage.reasoning_tokens})`}
+                                    ({result.metadata.usage.total_tokens || 0})
                                 </span>
                                 <span title="生成速度" className="flex-1 text-center">
                                     {result.metadata.usage.completion_tokens && result.metadata.totalDuration
                                         ? (result.metadata.usage.completion_tokens / (result.metadata.totalDuration / 1000)).toFixed(1)
                                         : 0}tok/s
                                 </span>
-                                <span title="费用 (USD)" className="flex-1 text-right text-yellow-400/80">
-                                    ${result.metadata.usage.cost !== undefined ? result.metadata.usage.cost.toFixed(6) : '0.000000'}
-                                </span>
+                                {/* 费用仅 OpenRouter 显示 */}
+                                {result.metadata.usage.cost !== undefined ? (
+                                    <span title="费用 (USD)" className="flex-1 text-right text-yellow-400/80">
+                                        ${result.metadata.usage.cost.toFixed(6)}
+                                    </span>
+                                ) : (
+                                    <span className="flex-1 text-right opacity-30">-</span>
+                                )}
                             </div>
                         )}
                     </div>

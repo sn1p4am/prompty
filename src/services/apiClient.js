@@ -49,9 +49,13 @@ export async function streamRequest({
             ...(provider === PROVIDERS.OPENROUTER && {
                 usage: { include: true }
             }),
-            // 阿里百炼的 thinking 参数
-            ...(provider === PROVIDERS.ALIBAILIAN && enableThinking && {
-                enable_thinking: true
+            // 火山方舟的 thinking 参数
+            ...(provider === PROVIDERS.VOLCENGINE && {
+                thinking: { type: enableThinking ? 'enabled' : 'disabled' }
+            }),
+            // 阿里百炼的 enable_thinking 参数
+            ...(provider === PROVIDERS.ALIBAILIAN && {
+                enable_thinking: enableThinking
             }),
             // 火山引擎和阿里百炼需要 stream_options（流式模式下）
             ...((provider === PROVIDERS.VOLCENGINE || provider === PROVIDERS.ALIBAILIAN) && streamMode && {
@@ -116,10 +120,20 @@ export async function streamRequest({
         if (!streamMode) {
             const data = await response.json()
 
-            // 所有 provider 统一使用标准 OpenAI 格式
+            // 提取内容和思维链
             const content = data.choices?.[0]?.message?.content || ''
+            const reasoningContent = data.choices?.[0]?.message?.reasoning_content || ''
 
-            onChunk(content)
+            // 合并内容：如果有思维链，包装在 <think> 标签中
+            let mergedContent = ''
+            if (reasoningContent) {
+                mergedContent += `<think>${reasoningContent}</think>`
+            }
+            if (content) {
+                mergedContent += content
+            }
+
+            onChunk(mergedContent)
             onComplete()
             return
         }
@@ -151,17 +165,27 @@ export async function streamRequest({
                     try {
                         const json = JSON.parse(data)
 
-                        // 所有 provider 统一使用标准 OpenAI 格式
+                        // 提取内容和思维链
                         const content = json.choices?.[0]?.delta?.content
+                        const reasoningContent = json.choices?.[0]?.delta?.reasoning_content
+
+                        // 合并内容：如果有思维链，包装在 <think> 标签中
+                        let mergedContent = ''
+                        if (reasoningContent) {
+                            mergedContent += `<think>${reasoningContent}</think>`
+                        }
+                        if (content) {
+                            mergedContent += content
+                        }
 
                         // Track first token latency (from request start, not response start)
-                        if (content && !firstTokenReceived) {
+                        if (mergedContent && !firstTokenReceived) {
                             firstTokenReceived = true
                             firstTokenLatency = Date.now() - requestStartTime
                         }
 
-                        if (content) {
-                            onChunk(content)
+                        if (mergedContent) {
+                            onChunk(mergedContent)
                         }
 
                         // Capture generation ID from first chunk (for later /generation call)
@@ -169,13 +193,15 @@ export async function streamRequest({
                             generationId = json.id
                         }
 
-                        // Extract OpenRouter specific metadata (usually in the last chunk with usage)
-                        if (provider === PROVIDERS.OPENROUTER) {
-                            if (json.usage) {
-                                openRouterMeta = {
-                                    ...openRouterMeta,
-                                    usage: json.usage,
-                                }
+                        // Extract metadata (usage info) for all providers
+                        if (json.usage) {
+                            openRouterMeta = {
+                                ...openRouterMeta,
+                                usage: {
+                                    ...json.usage,
+                                    // 提取 reasoning_tokens（如果有）
+                                    reasoning_tokens: json.usage.completion_tokens_details?.reasoning_tokens
+                                },
                             }
                         }
                     } catch (err) {
@@ -185,52 +211,63 @@ export async function streamRequest({
             }
         }
 
-        // Pass initial metadata, then try to fetch real provider info asynchronously
-        if (onMetadata && provider === PROVIDERS.OPENROUTER) {
+        // Pass metadata for all providers
+        if (onMetadata) {
             const totalDuration = Date.now() - requestStartTime
 
-            // First, pass what we have immediately
-            onMetadata({
-                firstTokenLatency,
-                totalDuration,
-                provider: null, // Will be updated later
-                ...openRouterMeta,
-            })
+            // For OpenRouter, fetch additional provider info asynchronously
+            if (provider === PROVIDERS.OPENROUTER) {
+                // First, pass what we have immediately
+                onMetadata({
+                    firstTokenLatency,
+                    totalDuration,
+                    provider: null, // Will be updated later
+                    ...openRouterMeta,
+                })
 
-            // Then, try to fetch real provider info with a delay (async, non-blocking)
-            if (generationId) {
-                setTimeout(async () => {
-                    try {
-                        // Retry up to 5 times with 2s delay between each
-                        // Generation records may take a few seconds to be available
-                        for (let attempt = 0; attempt < 5; attempt++) {
-                            const genResponse = await fetch(`${baseUrl}/generation?id=${generationId}`, {
-                                headers: { 'Authorization': `Bearer ${apiKey}` }
-                            })
-                            if (genResponse.ok) {
-                                const genData = await genResponse.json()
-                                if (genData.data?.provider_name) {
-                                    onMetadata({
-                                        firstTokenLatency,
-                                        totalDuration,
-                                        provider: genData.data.provider_name,
-                                        nativeTokens: {
-                                            prompt: genData.data.native_tokens_prompt,
-                                            completion: genData.data.native_tokens_completion,
-                                        },
-                                        totalCost: genData.data.total_cost,
-                                        ...openRouterMeta,
-                                    })
-                                    return // Success, exit the function
+                // Then, try to fetch real provider info with a delay (async, non-blocking)
+                if (generationId) {
+                    setTimeout(async () => {
+                        try {
+                            // Retry up to 5 times with 2s delay between each
+                            // Generation records may take a few seconds to be available
+                            for (let attempt = 0; attempt < 5; attempt++) {
+                                const genResponse = await fetch(`${baseUrl}/generation?id=${generationId}`, {
+                                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                                })
+                                if (genResponse.ok) {
+                                    const genData = await genResponse.json()
+                                    if (genData.data?.provider_name) {
+                                        onMetadata({
+                                            firstTokenLatency,
+                                            totalDuration,
+                                            provider: genData.data.provider_name,
+                                            nativeTokens: {
+                                                prompt: genData.data.native_tokens_prompt,
+                                                completion: genData.data.native_tokens_completion,
+                                            },
+                                            totalCost: genData.data.total_cost,
+                                            ...openRouterMeta,
+                                        })
+                                        return // Success, exit the function
+                                    }
                                 }
+                                // Wait 2s before retry (for 404 or missing data)
+                                await new Promise(r => setTimeout(r, 2000))
                             }
-                            // Wait 2s before retry (for 404 or missing data)
-                            await new Promise(r => setTimeout(r, 2000))
+                        } catch (e) {
+                            // Silently fail - generation API is optional enhancement
                         }
-                    } catch (e) {
-                        // Silently fail - generation API is optional enhancement
-                    }
-                }, 2000) // Initial 2s delay before first attempt (wait for OpenRouter to process)
+                    }, 2000) // Initial 2s delay before first attempt (wait for OpenRouter to process)
+                }
+            } else {
+                // For other providers (Volcengine, Alibailian), pass basic metadata
+                onMetadata({
+                    firstTokenLatency,
+                    totalDuration,
+                    provider: provider, // Use the provider name directly
+                    ...openRouterMeta,
+                })
             }
         }
 
