@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.1.0',
+    version: 'v3.1.1',
     date: '2026-01-15',
     changes: [
-        { emoji: '🧠', label: 'Thinking 支持', desc: '添加深度思考模式，支持阿里百炼和火山方舟' },
-        { emoji: '🔧', label: '火山方舟修复', desc: '修复 API 调用格式，使用专有 /responses 端点' },
-        { emoji: '🎨', label: '卡片优化', desc: '输出卡片自动解析和显示 Thinking 内容' },
-        { emoji: '⚙️', label: '参数增强', desc: '高级设置新增深度思考开关，支持持久化' },
+        { emoji: '🔧', label: 'API 格式修复', desc: '统一使用 OpenAI 兼容格式，修复火山方舟和阿里百炼调用问题' },
+        { emoji: '✨', label: '火山方舟更新', desc: '适配火山方舟最新 API，使用 /chat/completions 端点' },
+        { emoji: '🐛', label: 'Bug 修复', desc: '修复响应解析逻辑，确保所有 provider 正常输出' },
+        { emoji: '⚡', label: '性能优化', desc: '添加 stream_options 配置，优化流式响应处理' },
     ]
 }
 
