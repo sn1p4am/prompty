@@ -128,12 +128,16 @@ export async function streamRequest({
             }
         }
 
-        // 构建请求头（使用 ASCII 字符避免编码错误）
+        // 构建请求头
         const headers = {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://prompt-tester.app',
-            'X-Title': 'Prompt Tester'
+        }
+
+        // 只为 OpenRouter 添加自定义请求头
+        if (provider === PROVIDERS.OPENROUTER) {
+            headers['HTTP-Referer'] = 'https://prompt-tester.app'
+            headers['X-Title'] = 'Prompt Tester'
         }
 
         // 记录请求开始时间（用于计算首字延迟）
@@ -181,7 +185,18 @@ export async function streamRequest({
         // 非流式模式
         if (!streamMode) {
             const data = await response.json()
-            const content = data.choices?.[0]?.message?.content || ''
+
+            // 根据不同 provider 解析内容
+            let content = ''
+            if (provider === PROVIDERS.VOLCENGINE) {
+                // 火山方舟的响应格式
+                content = data.output?.choices?.[0]?.message?.content ||
+                         data.choices?.[0]?.message?.content || ''
+            } else {
+                // OpenRouter 和阿里百炼使用标准 OpenAI 格式
+                content = data.choices?.[0]?.message?.content || ''
+            }
+
             onChunk(content)
             onComplete()
             return
@@ -213,7 +228,19 @@ export async function streamRequest({
 
                     try {
                         const json = JSON.parse(data)
-                        const content = json.choices?.[0]?.delta?.content
+
+                        // 根据不同 provider 解析内容
+                        let content = null
+
+                        if (provider === PROVIDERS.VOLCENGINE) {
+                            // 火山方舟的响应格式：output.choices[0].message.content
+                            content = json.output?.choices?.[0]?.message?.content ||
+                                     json.choices?.[0]?.message?.content ||
+                                     json.choices?.[0]?.delta?.content
+                        } else {
+                            // OpenRouter 和阿里百炼使用标准 OpenAI 格式
+                            content = json.choices?.[0]?.delta?.content
+                        }
 
                         // Track first token latency (from request start, not response start)
                         if (content && !firstTokenReceived) {
