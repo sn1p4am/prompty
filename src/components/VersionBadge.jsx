@@ -3,14 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.0.0',
-    date: '2025-12-31',
+    version: 'v3.1.0',
+    date: '2026-01-15',
     changes: [
-        { emoji: '🚀', label: '全面重构', desc: '迁移到 React 18 + Vite 7 架构' },
-        { emoji: '🎨', label: 'UI 升级', desc: '使用 shadcn/ui 组件库，Terminal CLI 主题' },
-        { emoji: '📝', label: 'Markdown 预览', desc: '支持 Markdown/Mermaid/代码高亮渲染' },
-        { emoji: '📊', label: '元数据增强', desc: '显示首字延迟、生成速度、费用估算' },
-        { emoji: '🔧', label: '兼容性修复', desc: 'LocalStorage 向后兼容旧版本数据' },
+        { emoji: '🧠', label: 'Thinking 支持', desc: '添加深度思考模式，支持阿里百炼和火山方舟' },
+        { emoji: '🔧', label: '火山方舟修复', desc: '修复 API 调用格式，使用专有 /responses 端点' },
+        { emoji: '🎨', label: '卡片优化', desc: '输出卡片自动解析和显示 Thinking 内容' },
+        { emoji: '⚙️', label: '参数增强', desc: '高级设置新增深度思考开关，支持持久化' },
     ]
 }
 

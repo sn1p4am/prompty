@@ -21,6 +21,8 @@ export function AdvancedSettings({
     onMaxTokensChange,
     streamMode,
     onStreamModeChange,
+    enableThinking,
+    onEnableThinkingChange,
 }) {
     const [isOpen, setIsOpen] = useState(false)
 
@@ -65,6 +67,19 @@ export function AdvancedSettings({
                     >
                         <option value="true">流式 (Stream)</option>
                         <option value="false">缓冲 (Buffer)</option>
+                    </Select>
+                </div>
+
+                {/* 深度思考 */}
+                <div className="flex flex-col gap-2">
+                    <Label title="启用深度思考模式（仅阿里百炼和火山方舟支持）" className="text-xs text-muted-foreground uppercase tracking-wider">深度思考 (Thinking)</Label>
+                    <Select
+                        value={enableThinking ? 'true' : 'false'}
+                        onChange={(e) => onEnableThinkingChange(e.target.value === 'true')}
+                        className="h-9 text-sm"
+                    >
+                        <option value="false">禁用 (Disabled)</option>
+                        <option value="true">启用 (Enabled)</option>
                     </Select>
                 </div>
 

@@ -40,6 +40,7 @@ function App() {
   const [concurrency, setConcurrency] = useState(DEFAULT_CONFIG.concurrency)
   const [interval, setInterval] = useState(DEFAULT_CONFIG.interval)
   const [streamMode, setStreamMode] = useState(DEFAULT_CONFIG.streamMode)
+  const [enableThinking, setEnableThinking] = useLocalStorage(STORAGE_KEYS.ENABLE_THINKING, DEFAULT_CONFIG.enableThinking)
 
   // Modal
   const [modalOpen, setModalOpen] = useState(false)
@@ -51,7 +52,7 @@ function App() {
     batchTest.startBatchTest({
       systemPrompt, userPrompt, model: selectedModel,
       batchSize, temperature, topP, maxTokens: maxTokens || undefined,
-      concurrency, interval, streamMode,
+      concurrency, interval, streamMode, enableThinking,
     })
   }
 
@@ -124,7 +125,7 @@ function App() {
           <div className="flex flex-col justify-between">
             <div>
               <h1 className="text-4xl font-black tracking-tighter text-primary animate-pulse flex items-end gap-3 leading-none">
-                PROMPTY<span className="text-xl opacity-70 mb-1">v3.0</span>
+                PROMPTY<span className="text-xl opacity-70 mb-1">v3.1</span>
               </h1>
               <p className="text-secondary text-xs uppercase tracking-[0.2em] mt-1">
                                 // 高级提示词测试环境
@@ -159,6 +160,7 @@ function App() {
               topP={topP} onTopPChange={setTopP}
               maxTokens={maxTokens} onMaxTokensChange={setMaxTokens}
               streamMode={streamMode} onStreamModeChange={setStreamMode}
+              enableThinking={enableThinking} onEnableThinkingChange={setEnableThinking}
             />
 
             {/* Action Buttons */}

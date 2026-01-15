@@ -4,7 +4,35 @@ import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import { cn } from "../lib/utils"
 import { useEffect, useRef } from "react"
-import { Copy, Maximize2, Loader2, CheckCircle2, XCircle, Clock, SquareTerminal, AlertTriangle } from "lucide-react"
+import { Copy, Maximize2, Loader2, CheckCircle2, XCircle, Clock, SquareTerminal, AlertTriangle, Brain } from "lucide-react"
+
+/**
+ * 解析内容，提取 thinking 部分和实际回答部分
+ * 支持多种 thinking 标签格式：<think>、<thinking>、<thought>
+ */
+function parseThinkingContent(content) {
+    if (!content) return { thinking: '', answer: '' }
+
+    // 匹配各种可能的 thinking 标签
+    const thinkRegex = /<think>([\s\S]*?)<\/think>|<thinking>([\s\S]*?)<\/thinking>|<thought>([\s\S]*?)<\/thought>/gi
+
+    let thinking = ''
+    let answer = content
+
+    // 提取所有 thinking 内容
+    const matches = content.matchAll(thinkRegex)
+    for (const match of matches) {
+        thinking += (match[1] || match[2] || match[3] || '') + '\n\n'
+    }
+
+    // 移除 thinking 标签，得到实际回答
+    answer = content.replace(thinkRegex, '').trim()
+
+    return {
+        thinking: thinking.trim(),
+        answer: answer
+    }
+}
 
 function StatusBadge({ status }) {
     if (status === 'running') return <Badge variant="secondary" className="animate-pulse">运行中</Badge>
@@ -42,7 +70,31 @@ function ResultCard({ result, onViewFull, onCopy }) {
                 {result.error ? (
                     <span className="text-destructive whitespace-pre-wrap">{`[ERROR]: ${result.error}`}</span>
                 ) : result.content ? (
-                    <span className="whitespace-pre-wrap text-foreground/90">{result.content}</span>
+                    (() => {
+                        const { thinking, answer } = parseThinkingContent(result.content)
+                        return (
+                            <div className="space-y-3">
+                                {/* Thinking 内容区域 */}
+                                {thinking && (
+                                    <div className="border-l-2 border-blue-500/50 bg-blue-500/5 pl-3 pr-2 py-2 rounded-r">
+                                        <div className="flex items-center gap-1 text-blue-400 mb-2 text-[10px] font-bold uppercase tracking-wider">
+                                            <Brain className="w-3 h-3" />
+                                            <span>深度思考过程</span>
+                                        </div>
+                                        <div className="text-blue-300/80 whitespace-pre-wrap text-[11px] leading-relaxed">
+                                            {thinking}
+                                        </div>
+                                    </div>
+                                )}
+                                {/* 实际回答区域 */}
+                                {answer && (
+                                    <div className="whitespace-pre-wrap text-foreground/90">
+                                        {answer}
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })()
                 ) : (
                     <span className="text-muted text-xs animate-pulse">_ 等待流式输出...</span>
                 )}

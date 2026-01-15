@@ -1,6 +1,59 @@
 import { PROVIDERS, PROVIDER_INFO, DEFAULT_CONFIG } from '../constants/providers'
 
 /**
+ * 构建火山方舟专用的请求体格式
+ * 火山方舟使用 input 而不是 messages，格式完全不同
+ */
+function buildVolcengineRequestBody({ model, systemPrompt, userPrompt, streamMode, temperature, topP, maxTokens, enableThinking }) {
+    // 火山方舟的 input 格式
+    const input = []
+
+    // 合并 system 和 user prompt（火山方舟不支持 system role）
+    let combinedText = ''
+    if (systemPrompt) {
+        combinedText += systemPrompt + '\n\n'
+    }
+    if (userPrompt) {
+        combinedText += userPrompt
+    }
+
+    if (combinedText) {
+        input.push({
+            role: 'user',
+            content: [
+                {
+                    type: 'input_text',
+                    text: combinedText
+                }
+            ]
+        })
+    }
+
+    const requestBody = {
+        model,
+        stream: streamMode,
+        input,
+        // 火山方舟的 thinking 参数格式
+        thinking: {
+            type: enableThinking ? 'enabled' : 'disabled'
+        }
+    }
+
+    // 可选参数
+    if (maxTokens) {
+        requestBody.max_tokens = parseInt(maxTokens)
+    }
+    if (temperature !== undefined) {
+        requestBody.temperature = temperature
+    }
+    if (topP !== undefined) {
+        requestBody.top_p = topP
+    }
+
+    return requestBody
+}
+
+/**
  * 处理单个 API 请求（流式输出）
  * @param {Object} params - 请求参数
  * @param {Function} onChunk - 接收数据块的回调
@@ -19,42 +72,60 @@ export async function streamRequest({
     topP = 1,
     maxTokens,
     streamMode = true,
+    enableThinking = false,
 }, onChunk, onComplete, onError, onMetadata) {
 
     try {
-        // 构建 messages 数组
-        const messages = []
-        if (systemPrompt) {
-            messages.push({ role: 'system', content: systemPrompt })
-        }
-        if (userPrompt) {
-            messages.push({ role: 'user', content: userPrompt })
-        }
-
-        if (messages.length === 0) {
+        // 验证输入
+        if (!systemPrompt && !userPrompt) {
             throw new Error('请至少输入 System Prompt 或 User Prompt')
         }
 
-        // 构建请求体
-        const requestBody = {
-            model,
-            messages,
-            stream: streamMode,
-            temperature,
-            top_p: topP,
-            // 可选的 max_tokens
-            ...(maxTokens && { max_tokens: parseInt(maxTokens) }),
-            // OpenRouter 需要 usage accounting
-            ...(provider === PROVIDERS.OPENROUTER && {
-                usage: { include: true }
-            }),
-            // 火山引擎和阿里百炼需要 stream_options
-            ...((provider === PROVIDERS.VOLCENGINE || provider === PROVIDERS.ALIBAILIAN) && streamMode && {
-                stream_options: {
-                    include_usage: true,
-                    chunk_include_usage: false
-                }
+        // 根据不同 provider 构建请求体
+        let requestBody
+        let endpoint = '/chat/completions' // 默认端点
+
+        if (provider === PROVIDERS.VOLCENGINE) {
+            // 火山方舟使用特殊格式
+            requestBody = buildVolcengineRequestBody({
+                model, systemPrompt, userPrompt, streamMode,
+                temperature, topP, maxTokens, enableThinking
             })
+            endpoint = '/responses' // 火山方舟专用端点
+        } else {
+            // OpenRouter 和阿里百炼使用标准 OpenAI 格式
+            const messages = []
+            if (systemPrompt) {
+                messages.push({ role: 'system', content: systemPrompt })
+            }
+            if (userPrompt) {
+                messages.push({ role: 'user', content: userPrompt })
+            }
+
+            requestBody = {
+                model,
+                messages,
+                stream: streamMode,
+                temperature,
+                top_p: topP,
+                // 可选的 max_tokens
+                ...(maxTokens && { max_tokens: parseInt(maxTokens) }),
+                // OpenRouter 需要 usage accounting
+                ...(provider === PROVIDERS.OPENROUTER && {
+                    usage: { include: true }
+                }),
+                // 阿里百炼的 thinking 参数
+                ...(provider === PROVIDERS.ALIBAILIAN && {
+                    enable_thinking: enableThinking
+                }),
+                // 阿里百炼需要 stream_options
+                ...(provider === PROVIDERS.ALIBAILIAN && streamMode && {
+                    stream_options: {
+                        include_usage: true,
+                        chunk_include_usage: false
+                    }
+                })
+            }
         }
 
         // 构建请求头（使用 ASCII 字符避免编码错误）
@@ -68,8 +139,8 @@ export async function streamRequest({
         // 记录请求开始时间（用于计算首字延迟）
         const requestStartTime = Date.now()
 
-        // 发起请求
-        const response = await fetch(`${baseUrl}/chat/completions`, {
+        // 发起请求（使用动态端点）
+        const response = await fetch(`${baseUrl}${endpoint}`, {
             method: 'POST',
             headers,
             body: JSON.stringify(requestBody),

@@ -35,6 +35,7 @@ export function useBatchTest({ apiConfig, onToast }) {
         concurrency = 3,
         interval = 500,
         streamMode = true,
+        enableThinking = false,
     }) => {
         // 验证
         if (!systemPrompt && !userPrompt) {
@@ -71,6 +72,7 @@ export function useBatchTest({ apiConfig, onToast }) {
                 topP,
                 maxTokens,
                 streamMode,
+                enableThinking,
                 content: '',
                 status: 'pending',
                 error: null,
@@ -114,6 +116,7 @@ export function useBatchTest({ apiConfig, onToast }) {
                         topP: request.topP,
                         maxTokens: request.maxTokens,
                         streamMode: request.streamMode,
+                        enableThinking: request.enableThinking,
                     },
                     // onChunk
                     (chunk) => {
