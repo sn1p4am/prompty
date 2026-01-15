@@ -146,6 +146,9 @@ export async function streamRequest({
         let firstTokenLatency = null
         let openRouterMeta = null
         let generationId = null
+        // 累积 reasoning 内容，避免分词
+        let accumulatedReasoning = ''
+        let reasoningComplete = false
 
         while (true) {
             const { done, value } = await reader.read()
@@ -169,11 +172,20 @@ export async function streamRequest({
                         const content = json.choices?.[0]?.delta?.content
                         const reasoningContent = json.choices?.[0]?.delta?.reasoning_content
 
-                        // 合并内容：如果有思维链，包装在 <think> 标签中
                         let mergedContent = ''
+
+                        // 累积 reasoning 内容
                         if (reasoningContent) {
-                            mergedContent += `<think>${reasoningContent}</think>`
+                            accumulatedReasoning += reasoningContent
                         }
+
+                        // 当开始接收 content 时，先发送完整的 reasoning（如果有）
+                        if (content && !reasoningComplete && accumulatedReasoning) {
+                            mergedContent += `<think>${accumulatedReasoning}</think>`
+                            reasoningComplete = true
+                        }
+
+                        // 添加正常内容
                         if (content) {
                             mergedContent += content
                         }
@@ -209,6 +221,11 @@ export async function streamRequest({
                     }
                 }
             }
+        }
+
+        // 如果流结束时还有未发送的 reasoning 内容，发送它
+        if (accumulatedReasoning && !reasoningComplete) {
+            onChunk(`<think>${accumulatedReasoning}</think>`)
         }
 
         // Pass metadata for all providers
