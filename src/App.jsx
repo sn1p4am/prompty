@@ -47,6 +47,7 @@ function App() {
   const [modalTitle, setModalTitle] = useState('')
   const [modalViewMode, setModalViewMode] = useState('raw') // 'raw' | 'markdown' | 'html'
   const [modalRawContent, setModalRawContent] = useState('')
+  const [defaultViewMode, setDefaultViewMode] = useLocalStorage(STORAGE_KEYS.MODAL_DEFAULT_VIEW_MODE, 'raw') // 默认视图模式
 
   const handleStartTest = () => {
     batchTest.startBatchTest({
@@ -60,7 +61,7 @@ function App() {
   const handleViewFull = (result) => {
     setModalTitle(result.model.toUpperCase())
     setModalRawContent(result.content || result.error || '<NULL_OUTPUT>')
-    setModalViewMode('raw') // 默认显示原始内容
+    setModalViewMode(defaultViewMode) // 使用用户设置的默认视图模式
     setModalOpen(true)
   }
 
@@ -125,7 +126,7 @@ function App() {
           <div className="flex flex-col justify-between">
             <div>
               <h1 className="text-4xl font-black tracking-tighter text-primary animate-pulse flex items-end gap-3 leading-none">
-                PROMPTY<span className="text-xl opacity-70 mb-1">v3.1.3</span>
+                PROMPTY<span className="text-xl opacity-70 mb-1">v3.2.0</span>
               </h1>
               <p className="text-secondary text-xs uppercase tracking-[0.2em] mt-1">
                                 // 高级提示词测试环境
@@ -267,6 +268,8 @@ function App() {
         onClose={() => setModalOpen(false)}
         title={modalTitle}
         className={modalViewMode === 'html' ? "max-w-[95vw] h-[95vh]" : ""}
+        defaultViewMode={defaultViewMode}
+        onDefaultViewModeChange={setDefaultViewMode}
       >
         {/* 视图切换按钮栏 */}
         <div className="flex gap-2 mb-4 pb-4 border-b border-primary/30">

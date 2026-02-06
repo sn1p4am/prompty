@@ -59,6 +59,7 @@ export const STORAGE_KEYS = {
     CURRENT_PROVIDER: 'current_provider',
     LAST_SELECTED_MODEL: 'last_selected_model',
     ENABLE_THINKING: 'enable_thinking',
+    MODAL_DEFAULT_VIEW_MODE: 'modal_default_view_mode', // 弹窗默认视图模式
 }
 
 // 显示模式

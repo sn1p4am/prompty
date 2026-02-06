@@ -3,12 +3,12 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.1.3',
-    date: '2026-01-15',
+    version: 'v3.2.0',
+    date: '2026-02-06',
     changes: [
-        { emoji: '🐛', label: 'Bug 修复', desc: '修复思考过程输出被分词显示的问题' },
-        { emoji: '✨', label: '流式优化', desc: '改进 reasoning_content 流式处理逻辑，累积完整内容后再显示' },
-        { emoji: '🎯', label: '边界处理', desc: '完善只有思考内容没有回答内容的边界情况处理' },
+        { emoji: '✨', label: '新功能', desc: '弹窗标题栏添加默认视图模式选择器' },
+        { emoji: '💾', label: '用户偏好', desc: '支持保存默认展示模式（原始/Markdown/HTML）到本地' },
+        { emoji: '🎯', label: '体验优化', desc: '打开弹窗时自动应用用户设置的默认视图模式' },
     ]
 }
 
