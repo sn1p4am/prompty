@@ -3,12 +3,12 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.2.0',
-    date: '2026-02-06',
+    version: 'v3.3.0',
+    date: '2026-02-11',
     changes: [
-        { emoji: '✨', label: '新功能', desc: '弹窗标题栏添加默认视图模式选择器' },
-        { emoji: '💾', label: '用户偏好', desc: '支持保存默认展示模式（原始/Markdown/HTML）到本地' },
-        { emoji: '🎯', label: '体验优化', desc: '打开弹窗时自动应用用户设置的默认视图模式' },
+        { emoji: '✨', label: '新供应商', desc: '新增 Cloudsway 供应商支持（需配置 App ID 和 API Key）' },
+        { emoji: '🔧', label: '模型适配', desc: '支持通过 Cloudsway 渠道添加和测试自定义模型' },
+        { emoji: '🔒', label: '安全存储', desc: 'Cloudsway 凭证仅存储在浏览器本地，不会上传' },
     ]
 }
 

@@ -3,6 +3,7 @@ export const PROVIDERS = {
     OPENROUTER: 'openrouter',
     VOLCENGINE: 'volcengine',
     ALIBAILIAN: 'alibailian',
+    CLOUDSWAY: 'cloudsway',
 }
 
 // API 供应商信息
@@ -34,6 +35,16 @@ export const PROVIDER_INFO = {
         getKeyUrl: 'https://bailian.console.aliyun.com',
         models: [
             'deepseek-r1-0528'
+        ],
+    },
+    [PROVIDERS.CLOUDSWAY]: {
+        name: 'Cloudsway',
+        baseUrl: 'https://genaiapi.cloudsway.net/v1/ai',
+        keyStorageKey: 'cloudsway_api_key',
+        appIdStorageKey: 'cloudsway_app_id',
+        getKeyUrl: 'https://cloudsway.net',
+        models: [
+            'MaaS_Ge_3_flash_preview_20251217'
         ],
     },
 }

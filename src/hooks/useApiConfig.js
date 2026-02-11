@@ -38,6 +38,29 @@ export function useApiConfig() {
         }
     }, [])
 
+    // 获取 Cloudsway App ID
+    const getAppId = useCallback((provider = currentProvider) => {
+        const keyName = PROVIDER_INFO[provider]?.appIdStorageKey
+        if (!keyName) return ''
+        return localStorage.getItem(keyName) || ''
+    }, [currentProvider])
+
+    // 保存 Cloudsway App ID
+    const saveAppId = useCallback((provider, appId) => {
+        const keyName = PROVIDER_INFO[provider]?.appIdStorageKey
+        if (keyName) {
+            localStorage.setItem(keyName, appId)
+        }
+    }, [])
+
+    // 清除 Cloudsway App ID
+    const clearAppId = useCallback((provider) => {
+        const keyName = PROVIDER_INFO[provider]?.appIdStorageKey
+        if (keyName) {
+            localStorage.removeItem(keyName)
+        }
+    }, [])
+
     // 切换供应商
     const switchProvider = useCallback((provider) => {
         setCurrentProvider(provider)
@@ -62,9 +85,14 @@ export function useApiConfig() {
         return true
     }, [customModels, setCustomModels])
 
-    // 获取 Base URL
+    // 获取 Base URL（Cloudsway 需要拼接 App ID）
     const getBaseUrl = useCallback((provider = currentProvider) => {
-        return PROVIDER_INFO[provider]?.baseUrl || ''
+        const baseUrl = PROVIDER_INFO[provider]?.baseUrl || ''
+        if (provider === PROVIDERS.CLOUDSWAY) {
+            const appId = localStorage.getItem(PROVIDER_INFO[provider].appIdStorageKey) || ''
+            return appId ? `${baseUrl}/${appId}` : baseUrl
+        }
+        return baseUrl
     }, [currentProvider])
 
     // 获取供应商信息
@@ -81,6 +109,11 @@ export function useApiConfig() {
         getApiKey,
         saveApiKey,
         clearApiKey,
+
+        // App ID 相关（Cloudsway）
+        getAppId,
+        saveAppId,
+        clearAppId,
 
         // 供应商相关
         switchProvider,

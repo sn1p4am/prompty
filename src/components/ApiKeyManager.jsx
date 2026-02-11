@@ -1,5 +1,5 @@
 import React from 'react'
-import { PROVIDER_INFO } from '../constants/providers'
+import { PROVIDERS, PROVIDER_INFO } from '../constants/providers'
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Select } from "./ui/select"
@@ -7,36 +7,60 @@ import { Label } from "./ui/label"
 import { Key, Unlock } from "lucide-react"
 
 export function ApiKeyManager({ apiConfig, onToast }) {
-    const { currentProvider, getApiKey, saveApiKey, clearApiKey, switchProvider } = apiConfig
+    const { currentProvider, getApiKey, saveApiKey, clearApiKey, switchProvider, getAppId, saveAppId, clearAppId } = apiConfig
     const [localKey, setLocalKey] = React.useState(getApiKey())
+    const [localAppId, setLocalAppId] = React.useState(getAppId?.() || '')
     const [saveButtonText, setSaveButtonText] = React.useState('保存')
+
+    const isCloudsway = currentProvider === PROVIDERS.CLOUDSWAY
 
     // Update local key when provider changes
     React.useEffect(() => {
         setLocalKey(getApiKey())
-    }, [currentProvider, getApiKey])
+        setLocalAppId(getAppId?.() || '')
+    }, [currentProvider, getApiKey, getAppId])
 
     const hasKey = !!localKey
     const providerInfo = PROVIDER_INFO[currentProvider]
 
     const handleSaveKey = () => {
         const input = document.getElementById('api-key-input')
-        if (input && input.value) {
-            saveApiKey(currentProvider, input.value)
-            setLocalKey(input.value) // Update state immediately
-            input.value = ''
+        const appIdInput = document.getElementById('app-id-input')
 
-            // Visual feedback
-            onToast('密钥已保存')
-            setSaveButtonText('已保存!')
-            setTimeout(() => setSaveButtonText('保存'), 2000)
+        if (isCloudsway) {
+            // Cloudsway 需要同时保存 App ID 和 API Key
+            const appIdValue = appIdInput?.value?.trim()
+            const keyValue = input?.value?.trim()
+            if (!appIdValue || !keyValue) {
+                onToast('请同时填写 App ID 和 API Key')
+                return
+            }
+            saveAppId(currentProvider, appIdValue)
+            saveApiKey(currentProvider, keyValue)
+            setLocalAppId(appIdValue)
+            setLocalKey(keyValue)
+            appIdInput.value = ''
+            input.value = ''
+        } else {
+            if (!input || !input.value) return
+            saveApiKey(currentProvider, input.value)
+            setLocalKey(input.value)
+            input.value = ''
         }
+
+        onToast('密钥已保存')
+        setSaveButtonText('已保存!')
+        setTimeout(() => setSaveButtonText('保存'), 2000)
     }
 
     const handleClearKey = () => {
         if (confirm('确认撤销访问密钥?')) {
             clearApiKey(currentProvider)
-            setLocalKey('') // Update state immediately
+            setLocalKey('')
+            if (isCloudsway && clearAppId) {
+                clearAppId(currentProvider)
+                setLocalAppId('')
+            }
             onToast('密钥已撤销')
         }
     }
@@ -50,7 +74,6 @@ export function ApiKeyManager({ apiConfig, onToast }) {
                     value={currentProvider}
                     onChange={(e) => {
                         switchProvider(e.target.value)
-                        // window.location.reload() // Removed reload
                     }}
                 >
                     {Object.entries(PROVIDER_INFO).map(([key, info]) => (
@@ -60,6 +83,26 @@ export function ApiKeyManager({ apiConfig, onToast }) {
                     ))}
                 </Select>
             </div>
+
+            {/* Cloudsway App ID */}
+            {isCloudsway && (
+                <div className="w-[200px] flex flex-col justify-end">
+                    <Label className="flex justify-between w-full">
+                        <span>App ID</span>
+                        {localAppId ? (
+                            <span className="text-xs text-primary font-bold">已配置</span>
+                        ) : (
+                            <span className="text-xs text-destructive">未配置</span>
+                        )}
+                    </Label>
+                    <Input
+                        id="app-id-input"
+                        type="text"
+                        placeholder={localAppId ? localAppId.slice(0, 6) + '...' : '输入 App ID'}
+                        disabled={hasKey}
+                    />
+                </div>
+            )}
 
             {/* API Key 输入 */}
             <div className="flex-1 flex flex-col justify-end">
