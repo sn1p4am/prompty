@@ -4,6 +4,7 @@ export const PROVIDERS = {
     VOLCENGINE: 'volcengine',
     ALIBAILIAN: 'alibailian',
     CLOUDSWAY: 'cloudsway',
+    AIIONLY: 'aiionly',
 }
 
 // API 供应商信息
@@ -45,6 +46,15 @@ export const PROVIDER_INFO = {
         getKeyUrl: 'https://cloudsway.net',
         models: [
             'MaaS_Ge_3_flash_preview_20251217'
+        ],
+    },
+    [PROVIDERS.AIIONLY]: {
+        name: 'AiIOnly',
+        baseUrl: 'https://api.aiionly.com/v1',
+        keyStorageKey: 'aiionly_api_key',
+        getKeyUrl: 'https://api.aiionly.com',
+        models: [
+            'qwen-vl-max'
         ],
     },
 }
