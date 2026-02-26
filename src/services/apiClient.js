@@ -70,8 +70,11 @@ export async function streamRequest({
         const headers = {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://prompt-tester.app',
-            'X-Title': 'Prompt Tester'
+            // OpenRouter 专用头，其他供应商不发送（避免 CORS 预检失败）
+            ...(provider === PROVIDERS.OPENROUTER && {
+                'HTTP-Referer': 'https://prompt-tester.app',
+                'X-Title': 'Prompt Tester'
+            })
         }
 
         // 记录请求开始时间（用于计算首字延迟）
