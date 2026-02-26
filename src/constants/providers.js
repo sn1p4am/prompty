@@ -5,6 +5,7 @@ export const PROVIDERS = {
     ALIBAILIAN: 'alibailian',
     CLOUDSWAY: 'cloudsway',
     AIIONLY: 'aiionly',
+    AIONLY: 'aionly',
 }
 
 // API 供应商信息
@@ -49,10 +50,19 @@ export const PROVIDER_INFO = {
         ],
     },
     [PROVIDERS.AIIONLY]: {
-        name: 'AiIOnly',
+        name: 'AiIIOnly',
         baseUrl: 'https://api.aiionly.com/v1',
         keyStorageKey: 'aiionly_api_key',
         getKeyUrl: 'https://api.aiionly.com',
+        models: [
+            'qwen-vl-max'
+        ],
+    },
+    [PROVIDERS.AIONLY]: {
+        name: 'AiOnly',
+        baseUrl: 'https://api.aionly.com/v1',
+        keyStorageKey: 'aionly_api_key',
+        getKeyUrl: 'https://api.aionly.com',
         models: [
             'qwen-vl-max'
         ],

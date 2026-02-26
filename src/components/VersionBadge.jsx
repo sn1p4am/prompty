@@ -3,12 +3,11 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.4.0',
+    version: 'v3.5.0',
     date: '2026-02-26',
     changes: [
-        { emoji: '✨', label: '新供应商', desc: '新增 AiIOnly 供应商支持' },
-        { emoji: '🔧', label: '模型适配', desc: '支持通过 AiIOnly 渠道添加和测试自定义模型' },
-        { emoji: '🔒', label: '安全存储', desc: 'AiIOnly API Key 仅存储在浏览器本地' },
+        { emoji: '✏️', label: '名称修正', desc: 'AiIOnly 供应商显示名称更新为 AiIIOnly' },
+        { emoji: '✨', label: '新供应商', desc: '新增 AiOnly（api.aionly.com）供应商支持' },
     ]
 }
 
