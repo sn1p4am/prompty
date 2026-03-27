@@ -8,8 +8,9 @@
 
 ## ✨ 特性
 
-- 🚀 **多 Provider 支持** - OpenRouter、Google Gemini、阿里百炼、火山引擎 等
+- 🚀 **多 Provider 支持** - OpenRouter、Cloudsway、阿里百炼、火山引擎、AiOnly、AiIIOnly
 - 📊 **批量测试** - 并发控制、间隔设置、实时流式输出
+- 🧠 **Thinking 支持** - 火山 / 阿里原生支持，AiOnly / AiIIOnly 按兼容协议自动尝试
 - 🎯 **详细元数据** - Token 统计、首字延迟、费用估算、生成速度
 - 📝 **多种预览模式** - Raw 原始输出 / Markdown 渲染 / HTML 页面预览
 - 🔐 **本地存储** - API Key 安全存储在浏览器本地

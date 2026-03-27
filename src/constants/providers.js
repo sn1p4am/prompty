@@ -79,7 +79,7 @@ export const DEFAULT_CONFIG = {
     concurrency: 3,
     interval: 500,
     streamMode: true,
-    enableThinking: false, // 深度思考模式（仅阿里百炼和火山方舟支持）
+    enableThinking: false, // 深度思考模式（阿里/火山原生支持，AiOnly/AiIIOnly 按兼容协议尝试）
 }
 
 // LocalStorage 键名

@@ -72,7 +72,7 @@ export function AdvancedSettings({
 
                 {/* 深度思考 */}
                 <div className="flex flex-col gap-2">
-                    <Label title="启用深度思考模式（仅阿里百炼和火山方舟支持）" className="text-xs text-muted-foreground uppercase tracking-wider">深度思考 (Thinking)</Label>
+                    <Label title="启用深度思考模式（阿里/火山原生支持，AiOnly/AiIIOnly 会按模型兼容协议自动尝试）" className="text-xs text-muted-foreground uppercase tracking-wider">深度思考 (Thinking)</Label>
                     <Select
                         value={enableThinking ? 'true' : 'false'}
                         onChange={(e) => onEnableThinkingChange(e.target.value === 'true')}

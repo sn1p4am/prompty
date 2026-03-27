@@ -1,4 +1,127 @@
-import { PROVIDERS, PROVIDER_INFO, DEFAULT_CONFIG } from '../constants/providers'
+import { PROVIDERS } from '../constants/providers'
+
+function isAionlyCompatibleProvider(provider) {
+    return provider === PROVIDERS.AIONLY || provider === PROVIDERS.AIIONLY
+}
+
+function prefersEnableThinking(model = '') {
+    const normalizedModel = String(model).toLowerCase()
+    return /(^|[/:_-])(qwq|qvq|qwen)([/:_-]|$)/.test(normalizedModel)
+}
+
+function buildThinkingPayload(style, enableThinking) {
+    if (style === 'thinking_object') {
+        return {
+            thinking: { type: enableThinking ? 'enabled' : 'disabled' }
+        }
+    }
+
+    if (style === 'enable_thinking') {
+        return {
+            enable_thinking: enableThinking
+        }
+    }
+
+    return {}
+}
+
+function getThinkingPayloadVariants(provider, model, enableThinking) {
+    if (provider === PROVIDERS.VOLCENGINE) {
+        return [buildThinkingPayload('thinking_object', enableThinking)]
+    }
+
+    if (provider === PROVIDERS.ALIBAILIAN) {
+        return [buildThinkingPayload('enable_thinking', enableThinking)]
+    }
+
+    // AiOnly / AiIIOnly 没有公开文档说明 thinking 参数格式，
+    // 这里按常见兼容协议做有限重试，优先级由模型家族决定。
+    if (isAionlyCompatibleProvider(provider) && enableThinking) {
+        const orderedStyles = prefersEnableThinking(model)
+            ? ['enable_thinking', 'thinking_object']
+            : ['thinking_object', 'enable_thinking']
+
+        return orderedStyles.map(style => buildThinkingPayload(style, enableThinking))
+    }
+
+    return [{}]
+}
+
+function buildRequestBody({
+    provider,
+    model,
+    messages,
+    streamMode,
+    temperature,
+    topP,
+    maxTokens,
+    thinkingPayload = {},
+}) {
+    return {
+        model,
+        messages,
+        stream: streamMode,
+        temperature,
+        top_p: topP,
+        // 可选的 max_tokens
+        ...(maxTokens && { max_tokens: parseInt(maxTokens) }),
+        // OpenRouter 需要 usage accounting
+        ...(provider === PROVIDERS.OPENROUTER && {
+            usage: { include: true }
+        }),
+        // 供应商特定的 thinking 参数
+        ...thinkingPayload,
+        // 火山引擎和阿里百炼需要 stream_options（流式模式下）
+        ...((provider === PROVIDERS.VOLCENGINE || provider === PROVIDERS.ALIBAILIAN) && streamMode && {
+            stream_options: {
+                include_usage: true,
+                chunk_include_usage: false
+            }
+        })
+    }
+}
+
+function normalizeApiError(response, errorText, model) {
+    let errorMessage = `HTTP ${response.status}`
+
+    try {
+        const errorData = JSON.parse(errorText)
+        if (errorData.error?.message) {
+            errorMessage = errorData.error.message
+        } else if (errorData.msg) {
+            errorMessage = errorData.msg
+        } else if (errorData.message) {
+            errorMessage = errorData.message
+        }
+
+        // 提供用户友好的错误提示
+        if (response.status === 404) {
+            errorMessage = `模型 "${model}" 不存在或不可用`
+        } else if (response.status === 401) {
+            errorMessage = 'API Key 无效或已过期'
+        } else if (response.status === 402) {
+            errorMessage = '账户余额不足'
+        } else if (response.status === 429) {
+            errorMessage = '请求频率过高，请降低并发数'
+        }
+    } catch {
+        errorMessage = errorText || response.statusText
+    }
+
+    return errorMessage
+}
+
+function shouldRetryThinkingVariant(provider, response, variantIndex, variantCount) {
+    if (!isAionlyCompatibleProvider(provider)) {
+        return false
+    }
+
+    if (variantIndex >= variantCount - 1) {
+        return false
+    }
+
+    return response.status === 400 || response.status === 422
+}
 
 /**
  * 处理单个 API 请求（流式输出）
@@ -37,35 +160,6 @@ export async function streamRequest({
             messages.push({ role: 'user', content: userPrompt })
         }
 
-        const requestBody = {
-            model,
-            messages,
-            stream: streamMode,
-            temperature,
-            top_p: topP,
-            // 可选的 max_tokens
-            ...(maxTokens && { max_tokens: parseInt(maxTokens) }),
-            // OpenRouter 需要 usage accounting
-            ...(provider === PROVIDERS.OPENROUTER && {
-                usage: { include: true }
-            }),
-            // 火山方舟的 thinking 参数
-            ...(provider === PROVIDERS.VOLCENGINE && {
-                thinking: { type: enableThinking ? 'enabled' : 'disabled' }
-            }),
-            // 阿里百炼的 enable_thinking 参数
-            ...(provider === PROVIDERS.ALIBAILIAN && {
-                enable_thinking: enableThinking
-            }),
-            // 火山引擎和阿里百炼需要 stream_options（流式模式下）
-            ...((provider === PROVIDERS.VOLCENGINE || provider === PROVIDERS.ALIBAILIAN) && streamMode && {
-                stream_options: {
-                    include_usage: true,
-                    chunk_include_usage: false
-                }
-            })
-        }
-
         // 构建请求头
         const headers = {
             'Authorization': `Bearer ${apiKey}`,
@@ -77,46 +171,47 @@ export async function streamRequest({
             })
         }
 
-        // 记录请求开始时间（用于计算首字延迟）
-        const requestStartTime = Date.now()
+        const requestBodyVariants = getThinkingPayloadVariants(provider, model, enableThinking)
+            .map(thinkingPayload => buildRequestBody({
+                provider,
+                model,
+                messages,
+                streamMode,
+                temperature,
+                topP,
+                maxTokens,
+                thinkingPayload,
+            }))
 
-        // 所有 provider 统一使用 /chat/completions 端点
-        const response = await fetch(`${baseUrl}/chat/completions`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(requestBody),
-        })
+        let response = null
+        let lastErrorMessage = null
+        let requestStartTime = Date.now()
 
-        // 从响应头提取 OpenRouter provider 信息
-        let headerProvider = null
-        if (provider === PROVIDERS.OPENROUTER) {
-            headerProvider = response.headers.get('x-openrouter-provider')
+        for (let index = 0; index < requestBodyVariants.length; index++) {
+            const requestBody = requestBodyVariants[index]
+            requestStartTime = Date.now()
+
+            // 所有 provider 统一使用 /chat/completions 端点
+            response = await fetch(`${baseUrl}/chat/completions`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(requestBody),
+            })
+
+            if (response.ok) {
+                break
+            }
+
+            const errorText = await response.text()
+            lastErrorMessage = normalizeApiError(response, errorText, model)
+
+            if (!shouldRetryThinkingVariant(provider, response, index, requestBodyVariants.length)) {
+                throw new Error(lastErrorMessage)
+            }
         }
 
         if (!response.ok) {
-            const errorText = await response.text()
-            let errorMessage = `HTTP ${response.status}`
-
-            try {
-                const errorData = JSON.parse(errorText)
-                if (errorData.error?.message) {
-                    errorMessage = errorData.error.message
-                }
-                // 提供用户友好的错误提示
-                if (response.status === 404) {
-                    errorMessage = `模型 "${model}" 不存在或不可用`
-                } else if (response.status === 401) {
-                    errorMessage = 'API Key 无效或已过期'
-                } else if (response.status === 402) {
-                    errorMessage = '账户余额不足'
-                } else if (response.status === 429) {
-                    errorMessage = '请求频率过高，请降低并发数'
-                }
-            } catch (e) {
-                errorMessage = errorText || response.statusText
-            }
-
-            throw new Error(errorMessage)
+            throw new Error(lastErrorMessage || `HTTP ${response.status}`)
         }
 
         // 非流式模式
@@ -219,7 +314,7 @@ export async function streamRequest({
                                 },
                             }
                         }
-                    } catch (err) {
+                    } catch {
                         // 忽略解析错误
                     }
                 }
@@ -275,7 +370,7 @@ export async function streamRequest({
                                 // Wait 2s before retry (for 404 or missing data)
                                 await new Promise(r => setTimeout(r, 2000))
                             }
-                        } catch (e) {
+                        } catch {
                             // Silently fail - generation API is optional enhancement
                         }
                     }, 2000) // Initial 2s delay before first attempt (wait for OpenRouter to process)

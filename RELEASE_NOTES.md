@@ -1,4 +1,20 @@
-# Release v1.0.0 - AI 提示词批量测试工具
+# Release Notes
+
+## v3.5.1 (2026-03-27)
+
+### 本次更新
+
+- 🧠 为 `AiOnly` / `AiIIOnly` 新增 thinking 参数透传支持
+- 🔁 新增兼容回退策略，请求会按模型族优先尝试 `enable_thinking` 或 `thinking: { type: "enabled" }`
+- 📝 更新界面提示文案与版本说明，明确 `AiOnly` / `AiIIOnly` 为兼容尝试支持
+
+### 兼容策略说明
+
+- `Qwen` / `QwQ` / `QvQ` 模型优先走 `enable_thinking`
+- 其他模型优先走 `thinking` 对象
+- 若首个 thinking 协议返回 `400` 或 `422`，会自动切换另一种协议重试
+
+## v1.0.0 - AI 提示词批量测试工具
 
 ## 🎉 首次发布
 
