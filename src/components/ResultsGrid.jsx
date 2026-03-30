@@ -2,21 +2,22 @@ import { DISPLAY_MODES } from '../constants/providers'
 import { Card, CardHeader, CardContent, CardFooter } from "./ui/card"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
-import { cn } from "../lib/utils"
 import { useEffect, useRef } from "react"
-import { Copy, Maximize2, Loader2, CheckCircle2, XCircle, Clock, SquareTerminal, AlertTriangle, Brain } from "lucide-react"
+import { Maximize2, Loader2, SquareTerminal, AlertTriangle, Brain, Wrench } from "lucide-react"
 
 /**
  * 解析内容，提取 thinking 部分和实际回答部分
  * 支持多种 thinking 标签格式：<think>、<thinking>、<thought>
  */
-function parseThinkingContent(content) {
-    if (!content) return { thinking: '', answer: '' }
+function parseResponseContent(content) {
+    if (!content) return { thinking: '', toolCalls: '', answer: '' }
 
     // 匹配各种可能的 thinking 标签
     const thinkRegex = /<think>([\s\S]*?)<\/think>|<thinking>([\s\S]*?)<\/thinking>|<thought>([\s\S]*?)<\/thought>/gi
+    const toolCallRegex = /<tool_call>([\s\S]*?)<\/tool_call>/gi
 
     let thinking = ''
+    let toolCalls = ''
     let answer = content
 
     // 提取所有 thinking 内容
@@ -25,11 +26,17 @@ function parseThinkingContent(content) {
         thinking += (match[1] || match[2] || match[3] || '') + '\n\n'
     }
 
-    // 移除 thinking 标签，得到实际回答
-    answer = content.replace(thinkRegex, '').trim()
+    const toolCallMatches = content.matchAll(toolCallRegex)
+    for (const match of toolCallMatches) {
+        toolCalls += (match[1] || '') + '\n\n'
+    }
+
+    // 移除特殊标签，得到实际回答
+    answer = content.replace(thinkRegex, '').replace(toolCallRegex, '').trim()
 
     return {
         thinking: thinking.trim(),
+        toolCalls: toolCalls.trim(),
         answer: answer
     }
 }
@@ -71,7 +78,7 @@ function ResultCard({ result, onViewFull, onCopy }) {
                     <span className="text-destructive whitespace-pre-wrap">{`[ERROR]: ${result.error}`}</span>
                 ) : result.content ? (
                     (() => {
-                        const { thinking, answer } = parseThinkingContent(result.content)
+                        const { thinking, toolCalls, answer } = parseResponseContent(result.content)
                         return (
                             <div className="space-y-3">
                                 {/* Thinking 内容区域 */}
@@ -83,6 +90,17 @@ function ResultCard({ result, onViewFull, onCopy }) {
                                         </div>
                                         <div className="text-blue-300/80 whitespace-pre-wrap text-[11px] leading-relaxed">
                                             {thinking}
+                                        </div>
+                                    </div>
+                                )}
+                                {toolCalls && (
+                                    <div className="border-l-2 border-amber-500/50 bg-amber-500/5 pl-3 pr-2 py-2 rounded-r">
+                                        <div className="flex items-center gap-1 text-amber-300 mb-2 text-[10px] font-bold uppercase tracking-wider">
+                                            <Wrench className="w-3 h-3" />
+                                            <span>工具调用</span>
+                                        </div>
+                                        <div className="text-amber-100/80 whitespace-pre-wrap text-[11px] leading-relaxed">
+                                            {toolCalls}
                                         </div>
                                     </div>
                                 )}

@@ -3,12 +3,12 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.5.1',
-    date: '2026-03-27',
+    version: 'v3.7.0',
+    date: '2026-03-30',
     changes: [
-        { emoji: '🧠', label: 'Thinking 兼容', desc: '为 AiOnly / AiIIOnly 新增 thinking 参数透传与协议回退重试' },
-        { emoji: '🔁', label: '模型感知', desc: 'Qwen / QwQ / QvQ 系列优先走 enable_thinking，其它模型优先走 thinking 对象' },
-        { emoji: '📝', label: '说明更新', desc: '界面文案与版本说明同步更新，明确 AiOnly / AiIIOnly 为兼容尝试支持' },
+        { emoji: '🧩', label: 'Vertex 面板', desc: '新增 reasoning_effort、response_format、tools、tool_choice、parallel_tool_calls 与 web_search_options 配置' },
+        { emoji: '🔧', label: '工具可视化', desc: 'Tool call 在流式与非流式结果中都会被聚合展示，不再只剩空白输出' },
+        { emoji: '📘', label: '示例补齐', desc: 'README 增加 Vertex 高级参数和 API payload 示例，方便直接对照调试' },
     ]
 }
 

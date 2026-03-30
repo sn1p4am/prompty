@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useApiConfig } from './hooks/useApiConfig'
 import { useBatchTest } from './hooks/useBatchTest'
 import { useLocalStorage } from './hooks/useLocalStorage'
@@ -7,17 +7,16 @@ import { ApiKeyManager } from './components/ApiKeyManager'
 import { ModelSelector } from './components/ModelSelector'
 import { ConfigPanel } from './components/ConfigPanel'
 import { AdvancedSettings } from './components/AdvancedSettings'
+import { VertexAdvancedSettings } from './components/VertexAdvancedSettings'
 import { ResultsGrid } from './components/ResultsGrid'
 import { Modal } from './components/Modal'
 import { MarkdownRenderer } from './components/MarkdownRenderer'
 import { VersionBadge } from './components/VersionBadge'
-import { STORAGE_KEYS, DEFAULT_CONFIG, DISPLAY_MODES } from './constants/providers'
+import { STORAGE_KEYS, DEFAULT_CONFIG, DEFAULT_VERTEX_OPTIONS, DISPLAY_MODES, PROVIDERS } from './constants/providers'
 import { Button } from "./components/ui/button"
 import { Badge } from "./components/ui/badge"
-import { Card } from "./components/ui/card"
-import { cn } from "./lib/utils"
 // Icons
-import { Play, Square, Monitor, FileCode, Terminal, FileText, Code, Eye } from "lucide-react"
+import { Monitor, FileCode, Terminal, FileText, Code, Eye } from "lucide-react"
 
 function App() {
   const apiConfig = useApiConfig()
@@ -41,6 +40,11 @@ function App() {
   const [interval, setInterval] = useState(DEFAULT_CONFIG.interval)
   const [streamMode, setStreamMode] = useState(DEFAULT_CONFIG.streamMode)
   const [enableThinking, setEnableThinking] = useLocalStorage(STORAGE_KEYS.ENABLE_THINKING, DEFAULT_CONFIG.enableThinking)
+  const [vertexOptions, setVertexOptions] = useLocalStorage(STORAGE_KEYS.VERTEX_OPTIONS, DEFAULT_VERTEX_OPTIONS)
+  const resolvedVertexOptions = useMemo(
+    () => ({ ...DEFAULT_VERTEX_OPTIONS, ...(vertexOptions || {}) }),
+    [vertexOptions]
+  )
 
   // Modal
   const [modalOpen, setModalOpen] = useState(false)
@@ -49,13 +53,33 @@ function App() {
   const [modalRawContent, setModalRawContent] = useState('')
   const [defaultViewMode, setDefaultViewMode] = useLocalStorage(STORAGE_KEYS.MODAL_DEFAULT_VIEW_MODE, 'raw') // 默认视图模式
 
-  const handleStartTest = () => {
+  useEffect(() => {
+    if (apiConfig.currentProvider === PROVIDERS.VERTEX && resolvedVertexOptions.reasoningEffort && enableThinking) {
+      setEnableThinking(false)
+    }
+  }, [apiConfig.currentProvider, resolvedVertexOptions.reasoningEffort, enableThinking, setEnableThinking])
+
+  const handleStartTest = useCallback(() => {
     batchTest.startBatchTest({
       systemPrompt, userPrompt, model: selectedModel,
       batchSize, temperature, topP, maxTokens: maxTokens || undefined,
-      concurrency, interval, streamMode, enableThinking,
+      concurrency, interval, streamMode, enableThinking, vertexOptions: resolvedVertexOptions,
     })
-  }
+  }, [
+    batchTest,
+    systemPrompt,
+    userPrompt,
+    selectedModel,
+    batchSize,
+    temperature,
+    topP,
+    maxTokens,
+    concurrency,
+    interval,
+    streamMode,
+    enableThinking,
+    resolvedVertexOptions,
+  ])
 
   /* Full Screen Preview Handler */
   const handleViewFull = (result) => {
@@ -112,7 +136,7 @@ function App() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [batchTest.isRunning, systemPrompt, userPrompt, selectedModel])
+  }, [batchTest.isRunning, systemPrompt, userPrompt, selectedModel, handleStartTest])
 
   return (
     <div className="min-h-screen font-mono p-4 pb-20 selection:bg-primary selection:text-black">
@@ -126,7 +150,7 @@ function App() {
           <div className="flex flex-col justify-between">
             <div>
               <h1 className="text-4xl font-black tracking-tighter text-primary animate-pulse flex items-end gap-3 leading-none">
-                PROMPTY<span className="text-xl opacity-70 mb-1">v3.5.1</span>
+                PROMPTY<span className="text-xl opacity-70 mb-1">v3.7.0</span>
               </h1>
               <p className="text-secondary text-xs uppercase tracking-[0.2em] mt-1">
                                 // 高级提示词测试环境
@@ -154,6 +178,7 @@ function App() {
             />
 
             <AdvancedSettings
+              currentProvider={apiConfig.currentProvider}
               batchSize={batchSize} onBatchSizeChange={setBatchSize}
               interval={interval} onIntervalChange={setInterval}
               concurrency={concurrency} onConcurrencyChange={setConcurrency}
@@ -161,8 +186,16 @@ function App() {
               topP={topP} onTopPChange={setTopP}
               maxTokens={maxTokens} onMaxTokensChange={setMaxTokens}
               streamMode={streamMode} onStreamModeChange={setStreamMode}
+              vertexReasoningEffort={resolvedVertexOptions.reasoningEffort}
               enableThinking={enableThinking} onEnableThinkingChange={setEnableThinking}
             />
+
+            {apiConfig.currentProvider === PROVIDERS.VERTEX && (
+              <VertexAdvancedSettings
+                options={resolvedVertexOptions}
+                onChange={setVertexOptions}
+              />
+            )}
 
             {/* Action Buttons */}
             <div className="pt-4 space-y-4">

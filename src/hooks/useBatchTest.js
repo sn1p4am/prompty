@@ -1,11 +1,83 @@
 import { useState, useCallback, useRef } from 'react'
 import { streamRequest } from '../services/apiClient'
+import { PROVIDERS } from '../constants/providers'
 
 /**
  * 生成唯一 ID
  */
 function generateId() {
     return 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+}
+
+function parseJsonField(label, rawValue) {
+    if (!rawValue?.trim()) {
+        return null
+    }
+
+    try {
+        return JSON.parse(rawValue)
+    } catch {
+        throw new Error(`${label} 不是合法 JSON`)
+    }
+}
+
+function normalizeVertexOptions(vertexOptions = {}, enableThinking = false) {
+    const normalizedOptions = {
+        reasoningEffort: vertexOptions.reasoningEffort || '',
+        responseFormatType: vertexOptions.responseFormatType || '',
+        responseSchemaName: vertexOptions.responseSchemaName?.trim() || 'structured_output',
+        responseSchemaStrict: Boolean(vertexOptions.responseSchemaStrict),
+        responseSchemaJson: vertexOptions.responseSchemaJson || '',
+        customMimeType: vertexOptions.customMimeType?.trim() || '',
+        toolsJson: vertexOptions.toolsJson || '',
+        toolChoice: vertexOptions.toolChoice || 'auto',
+        parallelToolCalls: vertexOptions.parallelToolCalls !== false,
+        webSearchEnabled: Boolean(vertexOptions.webSearchEnabled),
+    }
+
+    if (enableThinking && normalizedOptions.reasoningEffort) {
+        throw new Error('Vertex 的 reasoning_effort 与 Thinking 互斥，请关闭其一')
+    }
+
+    const parsedTools = parseJsonField('Tools JSON', normalizedOptions.toolsJson)
+    const parsedSchema = parseJsonField('JSON Schema', normalizedOptions.responseSchemaJson)
+
+    if (parsedTools && !Array.isArray(parsedTools)) {
+        throw new Error('Tools JSON 必须是数组')
+    }
+
+    if (parsedSchema && (typeof parsedSchema !== 'object' || Array.isArray(parsedSchema))) {
+        throw new Error('JSON Schema 必须是对象')
+    }
+
+    if (normalizedOptions.responseFormatType === 'json_schema' && !parsedSchema) {
+        throw new Error('启用 json_schema 时必须填写 JSON Schema')
+    }
+
+    if (normalizedOptions.responseFormatType === 'custom_mime' && !normalizedOptions.customMimeType) {
+        throw new Error('启用自定义 MIME 时必须填写 MIME Type')
+    }
+
+    if ((normalizedOptions.toolChoice === 'required' || normalizedOptions.toolChoice === 'validated') && !parsedTools?.length && !normalizedOptions.webSearchEnabled) {
+        throw new Error('tool_choice 为 required / validated 时，至少需要配置 Tools 或开启 Web Search')
+    }
+
+    return {
+        reasoningEffort: normalizedOptions.reasoningEffort,
+        toolChoice: normalizedOptions.toolChoice,
+        parallelToolCalls: normalizedOptions.parallelToolCalls,
+        webSearchEnabled: normalizedOptions.webSearchEnabled,
+        tools: parsedTools,
+        responseFormat: normalizedOptions.responseFormatType
+            ? {
+                type: normalizedOptions.responseFormatType,
+                schemaName: normalizedOptions.responseSchemaName,
+                strict: normalizedOptions.responseSchemaStrict,
+                schema: parsedSchema,
+                customMimeType: normalizedOptions.customMimeType,
+            }
+            : null,
+    }
 }
 
 /**
@@ -36,6 +108,7 @@ export function useBatchTest({ apiConfig, onToast }) {
         interval = 500,
         streamMode = true,
         enableThinking = false,
+        vertexOptions = null,
     }) => {
         // 验证
         if (!systemPrompt && !userPrompt) {
@@ -50,8 +123,30 @@ export function useBatchTest({ apiConfig, onToast }) {
 
         const apiKey = apiConfig.getApiKey()
         if (!apiKey) {
-            onToast?.('请先配置 API Key')
+            onToast?.('请先配置访问令牌')
             return
+        }
+
+        const missingFields = apiConfig.getMissingProviderFields?.() || []
+        if (missingFields.length > 0) {
+            onToast?.(`请先完善渠道配置：${missingFields.join(' / ')}`)
+            return
+        }
+
+        const baseUrl = apiConfig.getBaseUrl()
+        if (!baseUrl) {
+            onToast?.('当前渠道的请求地址尚未配置完整')
+            return
+        }
+
+        let normalizedVertexOptions = null
+        if (apiConfig.currentProvider === PROVIDERS.VERTEX) {
+            try {
+                normalizedVertexOptions = normalizeVertexOptions(vertexOptions, enableThinking)
+            } catch (error) {
+                onToast?.(error.message)
+                return
+            }
         }
 
         // 重置状态
@@ -73,6 +168,7 @@ export function useBatchTest({ apiConfig, onToast }) {
                 maxTokens,
                 streamMode,
                 enableThinking,
+                vertexOptions: normalizedVertexOptions,
                 content: '',
                 status: 'pending',
                 error: null,
@@ -108,7 +204,7 @@ export function useBatchTest({ apiConfig, onToast }) {
                     {
                         provider: apiConfig.currentProvider,
                         apiKey: apiConfig.getApiKey(),
-                        baseUrl: apiConfig.getBaseUrl(),
+                        baseUrl,
                         model: request.model,
                         systemPrompt: request.systemPrompt,
                         userPrompt: request.userPrompt,
@@ -117,6 +213,7 @@ export function useBatchTest({ apiConfig, onToast }) {
                         maxTokens: request.maxTokens,
                         streamMode: request.streamMode,
                         enableThinking: request.enableThinking,
+                        vertexOptions: request.vertexOptions,
                     },
                     // onChunk
                     (chunk) => {

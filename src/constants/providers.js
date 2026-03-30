@@ -1,6 +1,7 @@
 // API 供应商配置 - 匹配原版 old-index.html
 export const PROVIDERS = {
     OPENROUTER: 'openrouter',
+    VERTEX: 'vertex',
     VOLCENGINE: 'volcengine',
     ALIBAILIAN: 'alibailian',
     CLOUDSWAY: 'cloudsway',
@@ -19,6 +20,37 @@ export const PROVIDER_INFO = {
             'google/gemini-3-flash-preview',
             'google/gemini-3-pro-preview',
             'anthropic/claude-sonnet-4.5'
+        ],
+    },
+    [PROVIDERS.VERTEX]: {
+        name: 'Vertex AI',
+        baseUrl: 'https://aiplatform.googleapis.com/v1',
+        keyStorageKey: 'vertex_access_token',
+        getKeyUrl: 'https://console.cloud.google.com/vertex-ai',
+        credentialLabel: '访问令牌 (Access Token)',
+        credentialPlaceholder: '输入 Google Cloud Access Token',
+        credentialHelpText: '需使用 Google Cloud OAuth Access Token，不支持普通 API Key',
+        models: [
+            'google/gemini-2.5-flash',
+            'google/gemini-2.5-pro',
+            'google/gemini-2.5-flash-lite'
+        ],
+        extraConfigFields: [
+            {
+                id: 'projectId',
+                label: 'Project ID',
+                storageKey: 'vertex_project_id',
+                placeholder: '输入 GCP Project ID',
+                required: true,
+            },
+            {
+                id: 'location',
+                label: 'Location',
+                storageKey: 'vertex_location',
+                placeholder: 'global',
+                defaultValue: 'global',
+                required: true,
+            }
         ],
     },
     [PROVIDERS.VOLCENGINE]: {
@@ -45,6 +77,15 @@ export const PROVIDER_INFO = {
         keyStorageKey: 'cloudsway_api_key',
         appIdStorageKey: 'cloudsway_app_id',
         getKeyUrl: 'https://cloudsway.net',
+        extraConfigFields: [
+            {
+                id: 'appId',
+                label: 'App ID',
+                storageKey: 'cloudsway_app_id',
+                placeholder: '输入 App ID',
+                required: true,
+            }
+        ],
         models: [
             'MaaS_Ge_3_flash_preview_20251217'
         ],
@@ -79,7 +120,20 @@ export const DEFAULT_CONFIG = {
     concurrency: 3,
     interval: 500,
     streamMode: true,
-    enableThinking: false, // 深度思考模式（阿里/火山原生支持，AiOnly/AiIIOnly 按兼容协议尝试）
+    enableThinking: false, // 深度思考模式（阿里/火山/Vertex 原生支持，AiOnly/AiIIOnly 按兼容协议尝试）
+}
+
+export const DEFAULT_VERTEX_OPTIONS = {
+    reasoningEffort: '',
+    responseFormatType: '',
+    responseSchemaName: 'structured_output',
+    responseSchemaStrict: false,
+    responseSchemaJson: '',
+    customMimeType: '',
+    toolsJson: '',
+    toolChoice: 'auto',
+    parallelToolCalls: true,
+    webSearchEnabled: false,
 }
 
 // LocalStorage 键名
@@ -91,6 +145,7 @@ export const STORAGE_KEYS = {
     LAST_SELECTED_MODEL: 'last_selected_model',
     ENABLE_THINKING: 'enable_thinking',
     MODAL_DEFAULT_VIEW_MODE: 'modal_default_view_mode', // 弹窗默认视图模式
+    VERTEX_OPTIONS: 'vertex_options',
 }
 
 // 显示模式

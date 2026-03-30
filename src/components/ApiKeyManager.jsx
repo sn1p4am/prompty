@@ -1,52 +1,84 @@
 import React from 'react'
-import { PROVIDERS, PROVIDER_INFO } from '../constants/providers'
+import { PROVIDER_INFO } from '../constants/providers'
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Select } from "./ui/select"
 import { Label } from "./ui/label"
 import { Key, Unlock } from "lucide-react"
 
+function buildFieldValueMap(provider, getProviderExtraFields, getProviderFieldValue) {
+    const fields = getProviderExtraFields(provider)
+
+    return fields.reduce((values, field) => {
+        values[field.id] = getProviderFieldValue(provider, field.id)
+        return values
+    }, {})
+}
+
 export function ApiKeyManager({ apiConfig, onToast }) {
-    const { currentProvider, getApiKey, saveApiKey, clearApiKey, switchProvider, getAppId, saveAppId, clearAppId } = apiConfig
+    const {
+        currentProvider,
+        getApiKey,
+        saveApiKey,
+        clearApiKey,
+        switchProvider,
+        getProviderExtraFields,
+        getProviderFieldValue,
+        saveProviderFieldValue,
+        clearProviderFieldValues,
+    } = apiConfig
+
     const [localKey, setLocalKey] = React.useState(getApiKey())
-    const [localAppId, setLocalAppId] = React.useState(getAppId?.() || '')
+    const [draftKey, setDraftKey] = React.useState('')
+    const [localFieldValues, setLocalFieldValues] = React.useState(() =>
+        buildFieldValueMap(currentProvider, getProviderExtraFields, getProviderFieldValue)
+    )
+    const [draftFieldValues, setDraftFieldValues] = React.useState(() =>
+        buildFieldValueMap(currentProvider, getProviderExtraFields, getProviderFieldValue)
+    )
     const [saveButtonText, setSaveButtonText] = React.useState('保存')
 
-    const isCloudsway = currentProvider === PROVIDERS.CLOUDSWAY
-
-    // Update local key when provider changes
-    React.useEffect(() => {
-        setLocalKey(getApiKey())
-        setLocalAppId(getAppId?.() || '')
-    }, [currentProvider, getApiKey, getAppId])
-
-    const hasKey = !!localKey
     const providerInfo = PROVIDER_INFO[currentProvider]
+    const extraFields = getProviderExtraFields(currentProvider)
+    const hasKey = !!localKey
+
+    React.useEffect(() => {
+        const nextFieldValues = buildFieldValueMap(currentProvider, getProviderExtraFields, getProviderFieldValue)
+        setLocalKey(getApiKey())
+        setDraftKey('')
+        setLocalFieldValues(nextFieldValues)
+        setDraftFieldValues(nextFieldValues)
+    }, [currentProvider, getApiKey, getProviderExtraFields, getProviderFieldValue])
 
     const handleSaveKey = () => {
-        const input = document.getElementById('api-key-input')
-        const appIdInput = document.getElementById('app-id-input')
+        const normalizedKey = draftKey.trim()
+        if (!normalizedKey) {
+            onToast('请先填写访问令牌')
+            return
+        }
 
-        if (isCloudsway) {
-            // Cloudsway 需要同时保存 App ID 和 API Key
-            const appIdValue = appIdInput?.value?.trim()
-            const keyValue = input?.value?.trim()
-            if (!appIdValue || !keyValue) {
-                onToast('请同时填写 App ID 和 API Key')
+        const nextFieldValues = {}
+        for (const field of extraFields) {
+            const rawValue = draftFieldValues[field.id]
+            const normalizedValue = rawValue?.trim?.() || field.defaultValue || ''
+
+            if (field.required && !normalizedValue) {
+                onToast(`请填写 ${field.label}`)
                 return
             }
-            saveAppId(currentProvider, appIdValue)
-            saveApiKey(currentProvider, keyValue)
-            setLocalAppId(appIdValue)
-            setLocalKey(keyValue)
-            appIdInput.value = ''
-            input.value = ''
-        } else {
-            if (!input || !input.value) return
-            saveApiKey(currentProvider, input.value)
-            setLocalKey(input.value)
-            input.value = ''
+
+            if (normalizedValue) {
+                saveProviderFieldValue(currentProvider, field.id, normalizedValue)
+            }
+
+            nextFieldValues[field.id] = normalizedValue
         }
+
+        saveApiKey(currentProvider, normalizedKey)
+        setLocalKey(normalizedKey)
+        setLocalFieldValues(nextFieldValues)
+        setDraftFieldValues(nextFieldValues)
+        setDraftKey('')
 
         onToast('密钥已保存')
         setSaveButtonText('已保存!')
@@ -54,20 +86,27 @@ export function ApiKeyManager({ apiConfig, onToast }) {
     }
 
     const handleClearKey = () => {
-        if (confirm('确认撤销访问密钥?')) {
-            clearApiKey(currentProvider)
-            setLocalKey('')
-            if (isCloudsway && clearAppId) {
-                clearAppId(currentProvider)
-                setLocalAppId('')
-            }
-            onToast('密钥已撤销')
+        if (!confirm('确认撤销访问密钥?')) {
+            return
         }
+
+        clearApiKey(currentProvider)
+        clearProviderFieldValues(currentProvider)
+
+        const clearedFieldValues = extraFields.reduce((values, field) => {
+            values[field.id] = field.defaultValue || ''
+            return values
+        }, {})
+
+        setLocalKey('')
+        setDraftKey('')
+        setLocalFieldValues(clearedFieldValues)
+        setDraftFieldValues(clearedFieldValues)
+        onToast('密钥已撤销')
     }
 
     return (
         <div className="flex items-end gap-6 border-b border-border pb-4 w-full">
-            {/* 供应商选择 */}
             <div className="w-[200px]">
                 <Label>供应商网络</Label>
                 <Select
@@ -84,30 +123,40 @@ export function ApiKeyManager({ apiConfig, onToast }) {
                 </Select>
             </div>
 
-            {/* Cloudsway App ID */}
-            {isCloudsway && (
-                <div className="w-[200px] flex flex-col justify-end">
-                    <Label className="flex justify-between w-full">
-                        <span>App ID</span>
-                        {localAppId ? (
-                            <span className="text-xs text-primary font-bold">已配置</span>
-                        ) : (
-                            <span className="text-xs text-destructive">未配置</span>
-                        )}
-                    </Label>
-                    <Input
-                        id="app-id-input"
-                        type="text"
-                        placeholder={localAppId ? localAppId.slice(0, 6) + '...' : '输入 App ID'}
-                        disabled={hasKey}
-                    />
-                </div>
-            )}
+            {extraFields.map(field => {
+                const fieldValue = hasKey
+                    ? (localFieldValues[field.id] || '')
+                    : (draftFieldValues[field.id] ?? field.defaultValue ?? '')
 
-            {/* API Key 输入 */}
+                return (
+                    <div key={field.id} className="w-[200px] flex flex-col justify-end">
+                        <Label className="flex justify-between w-full">
+                            <span>{field.label}</span>
+                            {localFieldValues[field.id] ? (
+                                <span className="text-xs text-primary font-bold">已配置</span>
+                            ) : (
+                                <span className="text-xs text-destructive">未配置</span>
+                            )}
+                        </Label>
+                        <Input
+                            type="text"
+                            value={fieldValue}
+                            placeholder={field.placeholder}
+                            disabled={hasKey}
+                            onChange={(e) => {
+                                setDraftFieldValues(prev => ({
+                                    ...prev,
+                                    [field.id]: e.target.value,
+                                }))
+                            }}
+                        />
+                    </div>
+                )
+            })}
+
             <div className="flex-1 flex flex-col justify-end">
                 <Label className="flex justify-between w-full">
-                    <span>访问令牌 (ACCESS_TOKEN)</span>
+                    <span>{providerInfo?.credentialLabel || '访问令牌 (ACCESS_TOKEN)'}</span>
                     {hasKey ? (
                         <span className="text-xs text-primary font-bold flex items-center gap-2 animate-pulse">
                             <Key className="w-3 h-3" /> 已认证
@@ -121,14 +170,15 @@ export function ApiKeyManager({ apiConfig, onToast }) {
 
                 <div className="flex gap-4">
                     <Input
-                        id="api-key-input"
                         type="password"
-                        placeholder={hasKey ? '****************' : `输入 ${providerInfo?.name.toUpperCase()} 密钥`}
+                        value={draftKey}
+                        placeholder={hasKey ? '****************' : (providerInfo?.credentialPlaceholder || `输入 ${providerInfo?.name?.toUpperCase()} 密钥`)}
                         className="flex-1"
+                        onChange={(e) => setDraftKey(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSaveKey()}
                         disabled={hasKey}
                     />
-                    <Button onClick={handleSaveKey} size="sm" disabled={saveButtonText !== '保存'}>
+                    <Button onClick={handleSaveKey} size="sm" disabled={hasKey || saveButtonText !== '保存'}>
                         {saveButtonText}
                     </Button>
                     {hasKey && (
@@ -137,6 +187,10 @@ export function ApiKeyManager({ apiConfig, onToast }) {
                         </Button>
                     )}
                 </div>
+
+                {providerInfo?.credentialHelpText && (
+                    <p className="text-[11px] text-muted-foreground mt-2">{providerInfo.credentialHelpText}</p>
+                )}
             </div>
         </div>
     )

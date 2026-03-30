@@ -4,12 +4,29 @@ function isAionlyCompatibleProvider(provider) {
     return provider === PROVIDERS.AIONLY || provider === PROVIDERS.AIIONLY
 }
 
+function isVertexProvider(provider) {
+    return provider === PROVIDERS.VERTEX
+}
+
 function prefersEnableThinking(model = '') {
     const normalizedModel = String(model).toLowerCase()
     return /(^|[/:_-])(qwq|qvq|qwen)([/:_-]|$)/.test(normalizedModel)
 }
 
 function buildThinkingPayload(style, enableThinking) {
+    if (style === 'vertex_google_thinking') {
+        return {
+            extra_body: {
+                google: {
+                    thinking_config: enableThinking
+                        ? { include_thoughts: true }
+                        : { thinking_budget: 0 },
+                    thought_tag_marker: 'think',
+                }
+            }
+        }
+    }
+
     if (style === 'thinking_object') {
         return {
             thinking: { type: enableThinking ? 'enabled' : 'disabled' }
@@ -25,13 +42,63 @@ function buildThinkingPayload(style, enableThinking) {
     return {}
 }
 
-function getThinkingPayloadVariants(provider, model, enableThinking) {
+function buildVertexRequestPayload(vertexOptions = {}) {
+    const payload = {}
+    const responseFormatType = vertexOptions.responseFormat?.type
+
+    if (vertexOptions.reasoningEffort) {
+        payload.reasoning_effort = vertexOptions.reasoningEffort
+    }
+
+    if (responseFormatType === 'json_schema') {
+        payload.response_format = {
+            type: 'json_schema',
+            json_schema: {
+                name: vertexOptions.responseFormat.schemaName,
+                schema: vertexOptions.responseFormat.schema,
+                strict: vertexOptions.responseFormat.strict,
+            }
+        }
+    } else if (responseFormatType === 'custom_mime') {
+        payload.response_format = {
+            type: vertexOptions.responseFormat.customMimeType
+        }
+    } else if (responseFormatType) {
+        payload.response_format = {
+            type: responseFormatType
+        }
+    }
+
+    if (vertexOptions.tools?.length) {
+        payload.tools = vertexOptions.tools
+        payload.parallel_tool_calls = vertexOptions.parallelToolCalls
+    }
+
+    if (vertexOptions.toolChoice && (vertexOptions.tools?.length || vertexOptions.webSearchEnabled || vertexOptions.toolChoice !== 'auto')) {
+        payload.tool_choice = vertexOptions.toolChoice
+    }
+
+    if (vertexOptions.webSearchEnabled) {
+        payload.web_search_options = {}
+    }
+
+    return payload
+}
+
+function getThinkingPayloadVariants(provider, model, enableThinking, vertexOptions) {
     if (provider === PROVIDERS.VOLCENGINE) {
         return [buildThinkingPayload('thinking_object', enableThinking)]
     }
 
     if (provider === PROVIDERS.ALIBAILIAN) {
         return [buildThinkingPayload('enable_thinking', enableThinking)]
+    }
+
+    if (isVertexProvider(provider)) {
+        if (vertexOptions?.reasoningEffort) {
+            return [{}]
+        }
+        return [buildThinkingPayload('vertex_google_thinking', enableThinking)]
     }
 
     // AiOnly / AiIIOnly 没有公开文档说明 thinking 参数格式，
@@ -55,33 +122,82 @@ function buildRequestBody({
     temperature,
     topP,
     maxTokens,
+    vertexOptions,
     thinkingPayload = {},
 }) {
+    const normalizedMaxTokens = maxTokens ? parseInt(maxTokens) : null
+    const vertexPayload = isVertexProvider(provider) ? buildVertexRequestPayload(vertexOptions) : null
+    const streamOptions = (
+        provider === PROVIDERS.VOLCENGINE || provider === PROVIDERS.ALIBAILIAN
+            ? {
+                include_usage: true,
+                chunk_include_usage: false
+            }
+            : isVertexProvider(provider)
+                ? {
+                    include_usage: true
+                }
+                : null
+    )
+
     return {
         model,
         messages,
         stream: streamMode,
         temperature,
         top_p: topP,
-        // 可选的 max_tokens
-        ...(maxTokens && { max_tokens: parseInt(maxTokens) }),
+        // Vertex OpenAI 兼容层使用 max_completion_tokens，其它兼容渠道沿用 max_tokens
+        ...(normalizedMaxTokens && (
+            isVertexProvider(provider)
+                ? { max_completion_tokens: normalizedMaxTokens }
+                : { max_tokens: normalizedMaxTokens }
+        )),
         // OpenRouter 需要 usage accounting
         ...(provider === PROVIDERS.OPENROUTER && {
             usage: { include: true }
         }),
+        ...(vertexPayload || {}),
         // 供应商特定的 thinking 参数
         ...thinkingPayload,
-        // 火山引擎和阿里百炼需要 stream_options（流式模式下）
-        ...((provider === PROVIDERS.VOLCENGINE || provider === PROVIDERS.ALIBAILIAN) && streamMode && {
-            stream_options: {
-                include_usage: true,
-                chunk_include_usage: false
-            }
+        // 火山引擎、阿里百炼和 Vertex 在流式模式下支持 usage 回传
+        ...(streamMode && streamOptions && {
+            stream_options: streamOptions
         })
     }
 }
 
-function normalizeApiError(response, errorText, model) {
+function serializeToolCalls(toolCalls) {
+    if (!toolCalls?.length) {
+        return ''
+    }
+
+    return `<tool_call>${JSON.stringify(toolCalls, null, 2)}</tool_call>`
+}
+
+function mergeToolCallDelta(toolCallsState, deltaToolCalls = []) {
+    for (const deltaToolCall of deltaToolCalls) {
+        const index = deltaToolCall.index ?? 0
+        const currentToolCall = toolCallsState[index] || {
+            type: deltaToolCall.type || 'function',
+            function: {
+                name: '',
+                arguments: '',
+            }
+        }
+
+        toolCallsState[index] = {
+            ...currentToolCall,
+            id: deltaToolCall.id || currentToolCall.id,
+            type: deltaToolCall.type || currentToolCall.type,
+            function: {
+                name: deltaToolCall.function?.name || currentToolCall.function?.name || '',
+                arguments: `${currentToolCall.function?.arguments || ''}${deltaToolCall.function?.arguments || ''}`,
+            }
+        }
+    }
+}
+
+function normalizeApiError(response, errorText, model, provider) {
     let errorMessage = `HTTP ${response.status}`
 
     try {
@@ -98,11 +214,17 @@ function normalizeApiError(response, errorText, model) {
         if (response.status === 404) {
             errorMessage = `模型 "${model}" 不存在或不可用`
         } else if (response.status === 401) {
-            errorMessage = 'API Key 无效或已过期'
+            errorMessage = isVertexProvider(provider)
+                ? 'Access Token 无效或已过期'
+                : 'API Key 无效或已过期'
         } else if (response.status === 402) {
             errorMessage = '账户余额不足'
         } else if (response.status === 429) {
             errorMessage = '请求频率过高，请降低并发数'
+        } else if (response.status === 403 && isVertexProvider(provider)) {
+            errorMessage = 'Vertex AI 拒绝访问，请确认 Access Token、IAM 权限和 Vertex AI API 已启用'
+        } else if (response.status === 400 && isVertexProvider(provider)) {
+            errorMessage = errorData.error?.message || 'Vertex AI 请求参数无效，请检查 Project ID、Location、模型 ID 和 Thinking 配置'
         }
     } catch {
         errorMessage = errorText || response.statusText
@@ -143,6 +265,7 @@ export async function streamRequest({
     maxTokens,
     streamMode = true,
     enableThinking = false,
+    vertexOptions = null,
 }, onChunk, onComplete, onError, onMetadata) {
 
     try {
@@ -171,7 +294,7 @@ export async function streamRequest({
             })
         }
 
-        const requestBodyVariants = getThinkingPayloadVariants(provider, model, enableThinking)
+        const requestBodyVariants = getThinkingPayloadVariants(provider, model, enableThinking, vertexOptions)
             .map(thinkingPayload => buildRequestBody({
                 provider,
                 model,
@@ -180,6 +303,7 @@ export async function streamRequest({
                 temperature,
                 topP,
                 maxTokens,
+                vertexOptions,
                 thinkingPayload,
             }))
 
@@ -203,7 +327,7 @@ export async function streamRequest({
             }
 
             const errorText = await response.text()
-            lastErrorMessage = normalizeApiError(response, errorText, model)
+            lastErrorMessage = normalizeApiError(response, errorText, model, provider)
 
             if (!shouldRetryThinkingVariant(provider, response, index, requestBodyVariants.length)) {
                 throw new Error(lastErrorMessage)
@@ -221,6 +345,7 @@ export async function streamRequest({
             // 提取内容和思维链
             const content = data.choices?.[0]?.message?.content || ''
             const reasoningContent = data.choices?.[0]?.message?.reasoning_content || ''
+            const toolCalls = data.choices?.[0]?.message?.tool_calls || []
 
             // 合并内容：如果有思维链，包装在 <think> 标签中
             let mergedContent = ''
@@ -230,8 +355,24 @@ export async function streamRequest({
             if (content) {
                 mergedContent += content
             }
+            if (toolCalls.length) {
+                mergedContent += serializeToolCalls(toolCalls)
+            }
 
             onChunk(mergedContent)
+            if (onMetadata) {
+                onMetadata({
+                    firstTokenLatency: null,
+                    totalDuration: Date.now() - requestStartTime,
+                    provider,
+                    ...(data.usage && {
+                        usage: {
+                            ...data.usage,
+                            reasoning_tokens: data.usage.completion_tokens_details?.reasoning_tokens
+                        }
+                    }),
+                })
+            }
             onComplete()
             return
         }
@@ -247,6 +388,7 @@ export async function streamRequest({
         // 累积 reasoning 内容，避免分词
         let accumulatedReasoning = ''
         let reasoningComplete = false
+        const accumulatedToolCalls = []
 
         while (true) {
             const { done, value } = await reader.read()
@@ -269,12 +411,17 @@ export async function streamRequest({
                         // 提取内容和思维链
                         const content = json.choices?.[0]?.delta?.content
                         const reasoningContent = json.choices?.[0]?.delta?.reasoning_content
+                        const toolCalls = json.choices?.[0]?.delta?.tool_calls
 
                         let mergedContent = ''
 
                         // 累积 reasoning 内容
                         if (reasoningContent) {
                             accumulatedReasoning += reasoningContent
+                        }
+
+                        if (toolCalls?.length) {
+                            mergeToolCallDelta(accumulatedToolCalls, toolCalls)
                         }
 
                         // 当开始接收 content 时，先发送完整的 reasoning（如果有）
@@ -324,6 +471,10 @@ export async function streamRequest({
         // 如果流结束时还有未发送的 reasoning 内容，发送它
         if (accumulatedReasoning && !reasoningComplete) {
             onChunk(`<think>${accumulatedReasoning}</think>`)
+        }
+
+        if (accumulatedToolCalls.length) {
+            onChunk(serializeToolCalls(accumulatedToolCalls))
         }
 
         // Pass metadata for all providers

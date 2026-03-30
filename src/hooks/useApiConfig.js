@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useCallback } from 'react'
 import { useLocalStorage } from './useLocalStorage'
 import { PROVIDERS, PROVIDER_INFO, STORAGE_KEYS, DEFAULT_CONFIG } from '../constants/providers'
 
@@ -38,28 +38,51 @@ export function useApiConfig() {
         }
     }, [])
 
-    // 获取 Cloudsway App ID
-    const getAppId = useCallback((provider = currentProvider) => {
-        const keyName = PROVIDER_INFO[provider]?.appIdStorageKey
-        if (!keyName) return ''
-        return localStorage.getItem(keyName) || ''
+    // 获取 provider 额外配置字段定义
+    const getProviderExtraFields = useCallback((provider = currentProvider) => {
+        return PROVIDER_INFO[provider]?.extraConfigFields || []
     }, [currentProvider])
 
-    // 保存 Cloudsway App ID
-    const saveAppId = useCallback((provider, appId) => {
-        const keyName = PROVIDER_INFO[provider]?.appIdStorageKey
-        if (keyName) {
-            localStorage.setItem(keyName, appId)
+    // 读取 provider 额外配置字段
+    const getProviderFieldValue = useCallback((provider = currentProvider, fieldId) => {
+        const field = PROVIDER_INFO[provider]?.extraConfigFields?.find(item => item.id === fieldId)
+        if (!field?.storageKey) return ''
+
+        return localStorage.getItem(field.storageKey) || field.defaultValue || ''
+    }, [currentProvider])
+
+    // 保存 provider 额外配置字段
+    const saveProviderFieldValue = useCallback((provider, fieldId, value) => {
+        const field = PROVIDER_INFO[provider]?.extraConfigFields?.find(item => item.id === fieldId)
+        if (!field?.storageKey) return
+
+        const normalizedValue = value?.trim?.() ?? value
+        const fallbackValue = normalizedValue || field.defaultValue || ''
+
+        if (fallbackValue) {
+            localStorage.setItem(field.storageKey, fallbackValue)
+            return
         }
+
+        localStorage.removeItem(field.storageKey)
     }, [])
 
-    // 清除 Cloudsway App ID
-    const clearAppId = useCallback((provider) => {
-        const keyName = PROVIDER_INFO[provider]?.appIdStorageKey
-        if (keyName) {
-            localStorage.removeItem(keyName)
-        }
+    // 清除 provider 额外配置字段
+    const clearProviderFieldValues = useCallback((provider) => {
+        const fields = PROVIDER_INFO[provider]?.extraConfigFields || []
+        fields.forEach(field => {
+            if (field.storageKey) {
+                localStorage.removeItem(field.storageKey)
+            }
+        })
     }, [])
+
+    const getMissingProviderFields = useCallback((provider = currentProvider) => {
+        const fields = PROVIDER_INFO[provider]?.extraConfigFields || []
+        return fields
+            .filter(field => field.required && !getProviderFieldValue(provider, field.id))
+            .map(field => field.label)
+    }, [currentProvider, getProviderFieldValue])
 
     // 切换供应商
     const switchProvider = useCallback((provider) => {
@@ -85,15 +108,22 @@ export function useApiConfig() {
         return true
     }, [customModels, setCustomModels])
 
-    // 获取 Base URL（Cloudsway 需要拼接 App ID）
+    // 获取 Base URL（Cloudsway / Vertex 需要拼接额外配置）
     const getBaseUrl = useCallback((provider = currentProvider) => {
         const baseUrl = PROVIDER_INFO[provider]?.baseUrl || ''
         if (provider === PROVIDERS.CLOUDSWAY) {
-            const appId = localStorage.getItem(PROVIDER_INFO[provider].appIdStorageKey) || ''
-            return appId ? `${baseUrl}/${appId}` : baseUrl
+            const appId = getProviderFieldValue(provider, 'appId')
+            return appId ? `${baseUrl}/${appId}` : ''
+        }
+        if (provider === PROVIDERS.VERTEX) {
+            const projectId = getProviderFieldValue(provider, 'projectId')
+            const location = getProviderFieldValue(provider, 'location') || 'global'
+            return projectId
+                ? `${baseUrl}/projects/${projectId}/locations/${location}/endpoints/openapi`
+                : ''
         }
         return baseUrl
-    }, [currentProvider])
+    }, [currentProvider, getProviderFieldValue])
 
     // 获取供应商信息
     const getProviderInfo = useCallback((provider = currentProvider) => {
@@ -110,10 +140,12 @@ export function useApiConfig() {
         saveApiKey,
         clearApiKey,
 
-        // App ID 相关（Cloudsway）
-        getAppId,
-        saveAppId,
-        clearAppId,
+        // Provider 额外配置
+        getProviderExtraFields,
+        getProviderFieldValue,
+        saveProviderFieldValue,
+        clearProviderFieldValues,
+        getMissingProviderFields,
 
         // 供应商相关
         switchProvider,

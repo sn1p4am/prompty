@@ -2,11 +2,13 @@ import { Input } from "./ui/input"
 import { Select } from "./ui/select"
 import { Label } from "./ui/label"
 import { Button } from "./ui/button"
-import { ChevronDown, ChevronUp, Settings } from "lucide-react"
+import { Settings } from "lucide-react"
 import { useState } from "react"
 import { cn } from "../lib/utils"
+import { PROVIDERS } from "../constants/providers"
 
 export function AdvancedSettings({
+    currentProvider,
     batchSize,
     onBatchSizeChange,
     interval,
@@ -21,10 +23,12 @@ export function AdvancedSettings({
     onMaxTokensChange,
     streamMode,
     onStreamModeChange,
+    vertexReasoningEffort,
     enableThinking,
     onEnableThinkingChange,
 }) {
     const [isOpen, setIsOpen] = useState(false)
+    const isVertexReasoningEffortActive = currentProvider === PROVIDERS.VERTEX && !!vertexReasoningEffort
 
     return (
         <div className="border border-border bg-black">
@@ -72,15 +76,21 @@ export function AdvancedSettings({
 
                 {/* 深度思考 */}
                 <div className="flex flex-col gap-2">
-                    <Label title="启用深度思考模式（阿里/火山原生支持，AiOnly/AiIIOnly 会按模型兼容协议自动尝试）" className="text-xs text-muted-foreground uppercase tracking-wider">深度思考 (Thinking)</Label>
+                    <Label title="启用深度思考模式（阿里/火山/Vertex 原生支持，AiOnly/AiIIOnly 会按模型兼容协议自动尝试）" className="text-xs text-muted-foreground uppercase tracking-wider">深度思考 (Thinking)</Label>
                     <Select
                         value={enableThinking ? 'true' : 'false'}
                         onChange={(e) => onEnableThinkingChange(e.target.value === 'true')}
                         className="h-9 text-sm"
+                        disabled={isVertexReasoningEffortActive}
                     >
                         <option value="false">禁用 (Disabled)</option>
                         <option value="true">启用 (Enabled)</option>
                     </Select>
+                    {isVertexReasoningEffortActive && (
+                        <p className="text-[11px] text-muted-foreground">
+                            当前已启用 Vertex `reasoning_effort`，Thinking 已自动禁用以避免参数冲突。
+                        </p>
+                    )}
                 </div>
 
                 {/* 并发 */}
