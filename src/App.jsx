@@ -18,6 +18,14 @@ import { Badge } from "./components/ui/badge"
 // Icons
 import { Monitor, FileCode, Terminal, FileText, Code, Eye } from "lucide-react"
 
+function normalizeVertexModelId(model = '') {
+  return String(model)
+    .trim()
+    .replace(/^publishers\/google\/models\//, '')
+    .replace(/^models\//, '')
+    .replace(/^google\//, '')
+}
+
 function App() {
   const apiConfig = useApiConfig()
   const { toast, showToast } = useToast()
@@ -52,6 +60,17 @@ function App() {
   const [modalViewMode, setModalViewMode] = useState('raw') // 'raw' | 'markdown' | 'html'
   const [modalRawContent, setModalRawContent] = useState('')
   const [defaultViewMode, setDefaultViewMode] = useLocalStorage(STORAGE_KEYS.MODAL_DEFAULT_VIEW_MODE, 'raw') // 默认视图模式
+
+  useEffect(() => {
+    if (apiConfig.currentProvider !== PROVIDERS.VERTEX) {
+      return
+    }
+
+    const normalizedSelectedModel = normalizeVertexModelId(selectedModel)
+    if (selectedModel && normalizedSelectedModel !== selectedModel) {
+      setSelectedModel(normalizedSelectedModel)
+    }
+  }, [apiConfig.currentProvider, selectedModel, setSelectedModel])
 
   const handleStartTest = useCallback(() => {
     batchTest.startBatchTest({

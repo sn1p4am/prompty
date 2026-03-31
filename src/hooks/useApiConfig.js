@@ -2,6 +2,19 @@ import { useCallback } from 'react'
 import { useLocalStorage } from './useLocalStorage'
 import { PROVIDERS, PROVIDER_INFO, STORAGE_KEYS, DEFAULT_CONFIG } from '../constants/providers'
 
+function normalizeVertexModelId(model = '') {
+    const normalizedModel = String(model).trim()
+
+    if (!normalizedModel) {
+        return ''
+    }
+
+    return normalizedModel
+        .replace(/^publishers\/google\/models\//, '')
+        .replace(/^models\//, '')
+        .replace(/^google\//, '')
+}
+
 /**
  * 自定义 Hook：管理 API 配置（API Keys、供应商切换、自定义模型）
  */
@@ -95,16 +108,36 @@ export function useApiConfig() {
         const userModels = customModels
             .filter(m => m.provider === provider)
             .map(m => m.model)
+
+        if (provider === PROVIDERS.VERTEX) {
+            const normalizedModels = [...builtInModels, ...userModels]
+                .map(model => normalizeVertexModelId(model))
+                .filter(Boolean)
+
+            return [...new Set(normalizedModels)]
+        }
+
         return [...builtInModels, ...userModels]
     }, [currentProvider, customModels])
 
     // 添加自定义模型
     const addCustomModel = useCallback((provider, modelName) => {
+        const normalizedModelName = provider === PROVIDERS.VERTEX
+            ? normalizeVertexModelId(modelName)
+            : modelName
+
+        if (!normalizedModelName) return false
+
         // 检查是否已存在
-        const exists = customModels.some(m => m.provider === provider && m.model === modelName)
+        const exists = customModels.some(m =>
+            m.provider === provider &&
+            (provider === PROVIDERS.VERTEX
+                ? normalizeVertexModelId(m.model) === normalizedModelName
+                : m.model === normalizedModelName)
+        )
         if (exists) return false
 
-        setCustomModels(prev => [...prev, { provider, model: modelName }])
+        setCustomModels(prev => [...prev, { provider, model: normalizedModelName }])
         return true
     }, [customModels, setCustomModels])
 

@@ -130,6 +130,14 @@ function normalizeVertexModelPath(model = '') {
     return `publishers/google/models/${normalizedModel.replace(/^google\//, '')}`
 }
 
+function normalizeVertexModelId(model = '') {
+    return String(model)
+        .trim()
+        .replace(/^publishers\/google\/models\//, '')
+        .replace(/^models\//, '')
+        .replace(/^google\//, '')
+}
+
 function buildVertexGenerationConfig({
     temperature,
     topP,
@@ -330,7 +338,20 @@ function normalizeApiError(response, errorText, model, provider) {
         }
 
         if (response.status === 404) {
-            errorMessage = `模型 "${model}" 不存在或不可用`
+            if (isVertexProvider(provider)) {
+                const normalizedVertexModel = normalizeVertexModelId(model)
+                const usedLegacyVertexModelId = String(model).trim() !== normalizedVertexModel
+                const previewHint = /preview/i.test(normalizedVertexModel)
+                    ? ' 你当前使用的是 preview 模型，请确认该 Express Mode API key 对该 preview 模型开放。'
+                    : ''
+                const legacyHint = usedLegacyVertexModelId
+                    ? ` 检测到旧模型 ID "${model}"，已自动按 "${normalizedVertexModel}" 请求。`
+                    : ''
+
+                errorMessage = `模型 "${normalizedVertexModel}" 不存在或当前 API key 不可用。${legacyHint}${previewHint} 可先尝试 "gemini-2.5-flash" 验证 key 是否正常。`
+            } else {
+                errorMessage = `模型 "${model}" 不存在或不可用`
+            }
         } else if (response.status === 401) {
             errorMessage = 'API Key 无效或已过期'
         } else if (response.status === 402) {
@@ -338,7 +359,7 @@ function normalizeApiError(response, errorText, model, provider) {
         } else if (response.status === 429) {
             errorMessage = '请求频率过高，请降低并发数'
         } else if (response.status === 403 && isVertexProvider(provider)) {
-            errorMessage = 'Vertex AI API Key 无效、受限，或未开通 Gemini API / Vertex AI Express Mode'
+            errorMessage = 'Vertex AI API Key 无效、受限，或当前 key 无权访问该模型。可先尝试 gemini-2.5-flash 验证 key 是否正常。'
         } else if (response.status === 400 && isVertexProvider(provider)) {
             errorMessage = errorData.error?.message || 'Vertex 原生请求参数无效，请检查模型 ID、Thinking 设置和结构化输出 Schema'
         }
