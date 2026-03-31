@@ -43,7 +43,7 @@ npm run build
 
 ## 📖 使用指南
 
-1. **配置访问凭证** - 点击设置图标，添加 API Key 或 Access Token
+1. **配置访问凭证** - 点击设置图标，添加 API Key
 2. **选择模型** - 从下拉菜单选择要测试的模型
 3. **输入 Prompt** - 在输入框中编写你的提示词
 4. **调整参数** - 设置 Temperature、Top-P、Max Tokens 等
@@ -51,100 +51,62 @@ npm run build
 
 ## ☁️ Vertex AI 配置说明
 
-Prompty 中的 Vertex AI 渠道走 **Vertex AI OpenAI 兼容接口**，需要同时配置以下字段：
+Prompty 中的 Vertex AI 渠道现在走 **Vertex 原生 Gemini API**：
 
-- **Project ID** - 你的 Google Cloud 项目标识
-- **Location** - 建议使用 `global`，也可替换成实际区域
-- **Access Token** - 必须是 Google Cloud OAuth Access Token，不能使用普通 API Key
+- 使用 `generateContent / streamGenerateContent`
+- 使用 **API key** 认证
+- 不再需要 **Project ID / Location / Access Token**
 
-本地获取 Access Token 的常见方式：
+模型示例：
 
-```bash
-gcloud auth application-default print-access-token
-```
+- `gemini-2.5-flash`
+- `gemini-2.5-pro`
+- `gemini-2.5-flash-lite`
 
-或：
+## 🧩 Vertex 原生参数
 
-```bash
-gcloud auth print-access-token
-```
+切换到 `Vertex AI` 渠道后，左侧会出现专属扩展面板，当前保留文本生成场景真正需要的原生参数：
 
-配置完成后，请在模型选择器中使用 Vertex 支持的模型 ID，例如：
-
-- `google/gemini-2.5-flash`
-- `google/gemini-2.5-pro`
-- `google/gemini-2.5-flash-lite`
-
-## 🧩 Vertex 高级参数
-
-切换到 `Vertex AI` 渠道后，左侧会出现专属扩展面板，当前已暴露：
-
-- `reasoning_effort`
-- `response_format`
-- `tools`
-- `tool_choice`
-- `parallel_tool_calls`
-- `web_search_options`
+- `thinkingLevel`
+- `thinkingBudget`
+- `responseMimeType`
+- `responseSchema`
 
 注意：
 
-- `reasoning_effort` 与通用 `Thinking` 开关互斥
-- `response_format = json_schema` 时需要提供合法 JSON Schema
-- `tool_choice = required / validated` 时，至少要配置 `tools` 或启用 `web_search_options`
-- 工具调用结果会在输出卡片中以 `工具调用` 区块展示
+- 顶部通用 `Thinking` 开关关闭时，会向原生接口发送 `thinkingBudget: 0`
+- `responseSchema` 只有在 `responseMimeType` 不是 `text/plain` 时才有效
+- `application/json` 可以不带 schema；`text/x.enum` 建议搭配 schema 使用
 
-### Vertex API 示例
+### Vertex 原生 API 示例
 
 ```bash
-ACCESS_TOKEN="$(gcloud auth print-access-token)"
-PROJECT_ID="your-project-id"
-LOCATION="global"
+API_KEY="your-google-api-key"
 
 curl -X POST \
-  "https://aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/endpoints/openapi/chat/completions" \
-  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key=${API_KEY}" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "google/gemini-2.5-flash",
-    "messages": [
-      { "role": "system", "content": "You are a precise assistant." },
-      { "role": "user", "content": "查询上海今天天气，并返回结构化结果。" }
-    ],
-    "stream": true,
-    "temperature": 0.3,
-    "stream_options": { "include_usage": true },
-    "tools": [
+    "systemInstruction": {
+      "role": "system",
+      "parts": [
+        { "text": "You are a precise assistant." }
+      ]
+    },
+    "contents": [
       {
-        "type": "function",
-        "function": {
-          "name": "get_weather",
-          "description": "Get weather by city name",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "city": { "type": "string" }
-            },
-            "required": ["city"]
-          }
-        }
+        "role": "user",
+        "parts": [
+          { "text": "用三句话解释为什么天空是蓝色的。" }
+        ]
       }
     ],
-    "tool_choice": "validated",
-    "parallel_tool_calls": true,
-    "response_format": {
-      "type": "json_schema",
-      "json_schema": {
-        "name": "weather_result",
-        "strict": true,
-        "schema": {
-          "type": "object",
-          "properties": {
-            "city": { "type": "string" },
-            "temperature": { "type": "string" },
-            "summary": { "type": "string" }
-          },
-          "required": ["city", "temperature", "summary"]
-        }
+    "generationConfig": {
+      "temperature": 0.3,
+      "topP": 0.95,
+      "maxOutputTokens": 1024,
+      "thinkingConfig": {
+        "thinkingLevel": "LOW"
       }
     }
   }'

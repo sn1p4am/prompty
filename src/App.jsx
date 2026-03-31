@@ -53,12 +53,6 @@ function App() {
   const [modalRawContent, setModalRawContent] = useState('')
   const [defaultViewMode, setDefaultViewMode] = useLocalStorage(STORAGE_KEYS.MODAL_DEFAULT_VIEW_MODE, 'raw') // 默认视图模式
 
-  useEffect(() => {
-    if (apiConfig.currentProvider === PROVIDERS.VERTEX && resolvedVertexOptions.reasoningEffort && enableThinking) {
-      setEnableThinking(false)
-    }
-  }, [apiConfig.currentProvider, resolvedVertexOptions.reasoningEffort, enableThinking, setEnableThinking])
-
   const handleStartTest = useCallback(() => {
     batchTest.startBatchTest({
       systemPrompt, userPrompt, model: selectedModel,
@@ -150,7 +144,7 @@ function App() {
           <div className="flex flex-col justify-between">
             <div>
               <h1 className="text-4xl font-black tracking-tighter text-primary animate-pulse flex items-end gap-3 leading-none">
-                PROMPTY<span className="text-xl opacity-70 mb-1">v3.7.0</span>
+                PROMPTY<span className="text-xl opacity-70 mb-1">v3.8.0</span>
               </h1>
               <p className="text-secondary text-xs uppercase tracking-[0.2em] mt-1">
                                 // 高级提示词测试环境
@@ -178,7 +172,6 @@ function App() {
             />
 
             <AdvancedSettings
-              currentProvider={apiConfig.currentProvider}
               batchSize={batchSize} onBatchSizeChange={setBatchSize}
               interval={interval} onIntervalChange={setInterval}
               concurrency={concurrency} onConcurrencyChange={setConcurrency}
@@ -186,7 +179,6 @@ function App() {
               topP={topP} onTopPChange={setTopP}
               maxTokens={maxTokens} onMaxTokensChange={setMaxTokens}
               streamMode={streamMode} onStreamModeChange={setStreamMode}
-              vertexReasoningEffort={resolvedVertexOptions.reasoningEffort}
               enableThinking={enableThinking} onEnableThinkingChange={setEnableThinking}
             />
 

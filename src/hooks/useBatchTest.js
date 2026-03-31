@@ -23,60 +23,35 @@ function parseJsonField(label, rawValue) {
 
 function normalizeVertexOptions(vertexOptions = {}, enableThinking = false) {
     const normalizedOptions = {
-        reasoningEffort: vertexOptions.reasoningEffort || '',
-        responseFormatType: vertexOptions.responseFormatType || '',
-        responseSchemaName: vertexOptions.responseSchemaName?.trim() || 'structured_output',
-        responseSchemaStrict: Boolean(vertexOptions.responseSchemaStrict),
+        thinkingLevel: vertexOptions.thinkingLevel || '',
+        thinkingBudget: vertexOptions.thinkingBudget?.trim?.() || '',
+        responseMimeType: vertexOptions.responseMimeType || '',
         responseSchemaJson: vertexOptions.responseSchemaJson || '',
-        customMimeType: vertexOptions.customMimeType?.trim() || '',
-        toolsJson: vertexOptions.toolsJson || '',
-        toolChoice: vertexOptions.toolChoice || 'auto',
-        parallelToolCalls: vertexOptions.parallelToolCalls !== false,
-        webSearchEnabled: Boolean(vertexOptions.webSearchEnabled),
     }
-
-    if (enableThinking && normalizedOptions.reasoningEffort) {
-        throw new Error('Vertex 的 reasoning_effort 与 Thinking 互斥，请关闭其一')
-    }
-
-    const parsedTools = parseJsonField('Tools JSON', normalizedOptions.toolsJson)
     const parsedSchema = parseJsonField('JSON Schema', normalizedOptions.responseSchemaJson)
-
-    if (parsedTools && !Array.isArray(parsedTools)) {
-        throw new Error('Tools JSON 必须是数组')
-    }
 
     if (parsedSchema && (typeof parsedSchema !== 'object' || Array.isArray(parsedSchema))) {
         throw new Error('JSON Schema 必须是对象')
     }
 
-    if (normalizedOptions.responseFormatType === 'json_schema' && !parsedSchema) {
-        throw new Error('启用 json_schema 时必须填写 JSON Schema')
+    if (normalizedOptions.thinkingBudget && Number.isNaN(Number(normalizedOptions.thinkingBudget))) {
+        throw new Error('Thinking Budget 必须是数字')
     }
 
-    if (normalizedOptions.responseFormatType === 'custom_mime' && !normalizedOptions.customMimeType) {
-        throw new Error('启用自定义 MIME 时必须填写 MIME Type')
+    if (parsedSchema && (!normalizedOptions.responseMimeType || normalizedOptions.responseMimeType === 'text/plain')) {
+        throw new Error('填写 JSON Schema 时，Response MIME Type 不能为 text/plain')
     }
 
-    if ((normalizedOptions.toolChoice === 'required' || normalizedOptions.toolChoice === 'validated') && !parsedTools?.length && !normalizedOptions.webSearchEnabled) {
-        throw new Error('tool_choice 为 required / validated 时，至少需要配置 Tools 或开启 Web Search')
+    if (normalizedOptions.responseMimeType === 'text/x.enum' && !parsedSchema) {
+        throw new Error('Response MIME Type 为 text/x.enum 时必须填写 JSON Schema')
     }
 
     return {
-        reasoningEffort: normalizedOptions.reasoningEffort,
-        toolChoice: normalizedOptions.toolChoice,
-        parallelToolCalls: normalizedOptions.parallelToolCalls,
-        webSearchEnabled: normalizedOptions.webSearchEnabled,
-        tools: parsedTools,
-        responseFormat: normalizedOptions.responseFormatType
-            ? {
-                type: normalizedOptions.responseFormatType,
-                schemaName: normalizedOptions.responseSchemaName,
-                strict: normalizedOptions.responseSchemaStrict,
-                schema: parsedSchema,
-                customMimeType: normalizedOptions.customMimeType,
-            }
-            : null,
+        thinkingLevel: normalizedOptions.thinkingLevel,
+        thinkingBudget: normalizedOptions.thinkingBudget ? parseInt(normalizedOptions.thinkingBudget, 10) : null,
+        responseMimeType: normalizedOptions.responseMimeType,
+        responseSchema: parsedSchema,
+        enableThinking,
     }
 }
 
@@ -123,7 +98,7 @@ export function useBatchTest({ apiConfig, onToast }) {
 
         const apiKey = apiConfig.getApiKey()
         if (!apiKey) {
-            onToast?.('请先配置访问令牌')
+            onToast?.('请先配置 API Key')
             return
         }
 

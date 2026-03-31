@@ -53,7 +53,7 @@ export function ApiKeyManager({ apiConfig, onToast }) {
     const handleSaveKey = () => {
         const normalizedKey = draftKey.trim()
         if (!normalizedKey) {
-            onToast('请先填写访问令牌')
+            onToast('请先填写访问凭证')
             return
         }
 

@@ -3,12 +3,12 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.7.0',
-    date: '2026-03-30',
+    version: 'v3.8.0',
+    date: '2026-03-31',
     changes: [
-        { emoji: '🧩', label: 'Vertex 面板', desc: '新增 reasoning_effort、response_format、tools、tool_choice、parallel_tool_calls 与 web_search_options 配置' },
-        { emoji: '🔧', label: '工具可视化', desc: 'Tool call 在流式与非流式结果中都会被聚合展示，不再只剩空白输出' },
-        { emoji: '📘', label: '示例补齐', desc: 'README 增加 Vertex 高级参数和 API payload 示例，方便直接对照调试' },
+        { emoji: '🔁', label: 'Vertex 原生', desc: 'Vertex 渠道切回原生 generateContent / streamGenerateContent，不再走 OpenAI 兼容层' },
+        { emoji: '🔐', label: 'API Key 认证', desc: 'Vertex 现改用 API key，移除 Project ID / Location / Access Token 依赖' },
+        { emoji: '📝', label: '文本优先', desc: 'Vertex 扩展面板精简为文本生成相关的 thinkingConfig 与 responseMimeType / responseSchema' },
     ]
 }
 

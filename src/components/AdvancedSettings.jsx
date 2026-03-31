@@ -5,10 +5,8 @@ import { Button } from "./ui/button"
 import { Settings } from "lucide-react"
 import { useState } from "react"
 import { cn } from "../lib/utils"
-import { PROVIDERS } from "../constants/providers"
 
 export function AdvancedSettings({
-    currentProvider,
     batchSize,
     onBatchSizeChange,
     interval,
@@ -23,12 +21,10 @@ export function AdvancedSettings({
     onMaxTokensChange,
     streamMode,
     onStreamModeChange,
-    vertexReasoningEffort,
     enableThinking,
     onEnableThinkingChange,
 }) {
     const [isOpen, setIsOpen] = useState(false)
-    const isVertexReasoningEffortActive = currentProvider === PROVIDERS.VERTEX && !!vertexReasoningEffort
 
     return (
         <div className="border border-border bg-black">
@@ -81,16 +77,10 @@ export function AdvancedSettings({
                         value={enableThinking ? 'true' : 'false'}
                         onChange={(e) => onEnableThinkingChange(e.target.value === 'true')}
                         className="h-9 text-sm"
-                        disabled={isVertexReasoningEffortActive}
                     >
                         <option value="false">禁用 (Disabled)</option>
                         <option value="true">启用 (Enabled)</option>
                     </Select>
-                    {isVertexReasoningEffortActive && (
-                        <p className="text-[11px] text-muted-foreground">
-                            当前已启用 Vertex `reasoning_effort`，Thinking 已自动禁用以避免参数冲突。
-                        </p>
-                    )}
                 </div>
 
                 {/* 并发 */}

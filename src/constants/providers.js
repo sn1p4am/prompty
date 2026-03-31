@@ -25,32 +25,15 @@ export const PROVIDER_INFO = {
     [PROVIDERS.VERTEX]: {
         name: 'Vertex AI',
         baseUrl: 'https://aiplatform.googleapis.com/v1',
-        keyStorageKey: 'vertex_access_token',
-        getKeyUrl: 'https://console.cloud.google.com/vertex-ai',
-        credentialLabel: '访问令牌 (Access Token)',
-        credentialPlaceholder: '输入 Google Cloud Access Token',
-        credentialHelpText: '需使用 Google Cloud OAuth Access Token，不支持普通 API Key',
+        keyStorageKey: 'vertex_api_key',
+        getKeyUrl: 'https://console.cloud.google.com/apis/credentials',
+        credentialLabel: 'API Key',
+        credentialPlaceholder: '输入 Google Cloud API Key',
+        credentialHelpText: '走 Vertex AI 原生 Gemini API（Express Mode），使用 API key，不需要 Project ID / Location / Access Token',
         models: [
-            'google/gemini-2.5-flash',
-            'google/gemini-2.5-pro',
-            'google/gemini-2.5-flash-lite'
-        ],
-        extraConfigFields: [
-            {
-                id: 'projectId',
-                label: 'Project ID',
-                storageKey: 'vertex_project_id',
-                placeholder: '输入 GCP Project ID',
-                required: true,
-            },
-            {
-                id: 'location',
-                label: 'Location',
-                storageKey: 'vertex_location',
-                placeholder: 'global',
-                defaultValue: 'global',
-                required: true,
-            }
+            'gemini-2.5-flash',
+            'gemini-2.5-pro',
+            'gemini-2.5-flash-lite'
         ],
     },
     [PROVIDERS.VOLCENGINE]: {
@@ -124,16 +107,10 @@ export const DEFAULT_CONFIG = {
 }
 
 export const DEFAULT_VERTEX_OPTIONS = {
-    reasoningEffort: '',
-    responseFormatType: '',
-    responseSchemaName: 'structured_output',
-    responseSchemaStrict: false,
+    thinkingLevel: '',
+    thinkingBudget: '',
+    responseMimeType: '',
     responseSchemaJson: '',
-    customMimeType: '',
-    toolsJson: '',
-    toolChoice: 'auto',
-    parallelToolCalls: true,
-    webSearchEnabled: false,
 }
 
 // LocalStorage 键名

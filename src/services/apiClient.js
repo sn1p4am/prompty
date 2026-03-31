@@ -14,19 +14,6 @@ function prefersEnableThinking(model = '') {
 }
 
 function buildThinkingPayload(style, enableThinking) {
-    if (style === 'vertex_google_thinking') {
-        return {
-            extra_body: {
-                google: {
-                    thinking_config: enableThinking
-                        ? { include_thoughts: true }
-                        : { thinking_budget: 0 },
-                    thought_tag_marker: 'think',
-                }
-            }
-        }
-    }
-
     if (style === 'thinking_object') {
         return {
             thinking: { type: enableThinking ? 'enabled' : 'disabled' }
@@ -42,50 +29,7 @@ function buildThinkingPayload(style, enableThinking) {
     return {}
 }
 
-function buildVertexRequestPayload(vertexOptions = {}) {
-    const payload = {}
-    const responseFormatType = vertexOptions.responseFormat?.type
-
-    if (vertexOptions.reasoningEffort) {
-        payload.reasoning_effort = vertexOptions.reasoningEffort
-    }
-
-    if (responseFormatType === 'json_schema') {
-        payload.response_format = {
-            type: 'json_schema',
-            json_schema: {
-                name: vertexOptions.responseFormat.schemaName,
-                schema: vertexOptions.responseFormat.schema,
-                strict: vertexOptions.responseFormat.strict,
-            }
-        }
-    } else if (responseFormatType === 'custom_mime') {
-        payload.response_format = {
-            type: vertexOptions.responseFormat.customMimeType
-        }
-    } else if (responseFormatType) {
-        payload.response_format = {
-            type: responseFormatType
-        }
-    }
-
-    if (vertexOptions.tools?.length) {
-        payload.tools = vertexOptions.tools
-        payload.parallel_tool_calls = vertexOptions.parallelToolCalls
-    }
-
-    if (vertexOptions.toolChoice && (vertexOptions.tools?.length || vertexOptions.webSearchEnabled || vertexOptions.toolChoice !== 'auto')) {
-        payload.tool_choice = vertexOptions.toolChoice
-    }
-
-    if (vertexOptions.webSearchEnabled) {
-        payload.web_search_options = {}
-    }
-
-    return payload
-}
-
-function getThinkingPayloadVariants(provider, model, enableThinking, vertexOptions) {
+function getThinkingPayloadVariants(provider, model, enableThinking) {
     if (provider === PROVIDERS.VOLCENGINE) {
         return [buildThinkingPayload('thinking_object', enableThinking)]
     }
@@ -94,15 +38,6 @@ function getThinkingPayloadVariants(provider, model, enableThinking, vertexOptio
         return [buildThinkingPayload('enable_thinking', enableThinking)]
     }
 
-    if (isVertexProvider(provider)) {
-        if (vertexOptions?.reasoningEffort) {
-            return [{}]
-        }
-        return [buildThinkingPayload('vertex_google_thinking', enableThinking)]
-    }
-
-    // AiOnly / AiIIOnly 没有公开文档说明 thinking 参数格式，
-    // 这里按常见兼容协议做有限重试，优先级由模型家族决定。
     if (isAionlyCompatibleProvider(provider) && enableThinking) {
         const orderedStyles = prefersEnableThinking(model)
             ? ['enable_thinking', 'thinking_object']
@@ -114,7 +49,7 @@ function getThinkingPayloadVariants(provider, model, enableThinking, vertexOptio
     return [{}]
 }
 
-function buildRequestBody({
+function buildOpenAiCompatibleRequestBody({
     provider,
     model,
     messages,
@@ -122,23 +57,9 @@ function buildRequestBody({
     temperature,
     topP,
     maxTokens,
-    vertexOptions,
     thinkingPayload = {},
 }) {
-    const normalizedMaxTokens = maxTokens ? parseInt(maxTokens) : null
-    const vertexPayload = isVertexProvider(provider) ? buildVertexRequestPayload(vertexOptions) : null
-    const streamOptions = (
-        provider === PROVIDERS.VOLCENGINE || provider === PROVIDERS.ALIBAILIAN
-            ? {
-                include_usage: true,
-                chunk_include_usage: false
-            }
-            : isVertexProvider(provider)
-                ? {
-                    include_usage: true
-                }
-                : null
-    )
+    const normalizedMaxTokens = maxTokens ? parseInt(maxTokens, 10) : null
 
     return {
         model,
@@ -146,22 +67,16 @@ function buildRequestBody({
         stream: streamMode,
         temperature,
         top_p: topP,
-        // Vertex OpenAI 兼容层使用 max_completion_tokens，其它兼容渠道沿用 max_tokens
-        ...(normalizedMaxTokens && (
-            isVertexProvider(provider)
-                ? { max_completion_tokens: normalizedMaxTokens }
-                : { max_tokens: normalizedMaxTokens }
-        )),
-        // OpenRouter 需要 usage accounting
+        ...(normalizedMaxTokens && { max_tokens: normalizedMaxTokens }),
         ...(provider === PROVIDERS.OPENROUTER && {
             usage: { include: true }
         }),
-        ...(vertexPayload || {}),
-        // 供应商特定的 thinking 参数
         ...thinkingPayload,
-        // 火山引擎、阿里百炼和 Vertex 在流式模式下支持 usage 回传
-        ...(streamMode && streamOptions && {
-            stream_options: streamOptions
+        ...((provider === PROVIDERS.VOLCENGINE || provider === PROVIDERS.ALIBAILIAN) && streamMode && {
+            stream_options: {
+                include_usage: true,
+                chunk_include_usage: false
+            }
         })
     }
 }
@@ -197,6 +112,206 @@ function mergeToolCallDelta(toolCallsState, deltaToolCalls = []) {
     }
 }
 
+function normalizeVertexModelPath(model = '') {
+    const normalizedModel = String(model).trim()
+
+    if (!normalizedModel) {
+        return ''
+    }
+
+    if (normalizedModel.startsWith('publishers/')) {
+        return normalizedModel
+    }
+
+    if (normalizedModel.startsWith('models/')) {
+        return `publishers/google/${normalizedModel}`
+    }
+
+    return `publishers/google/models/${normalizedModel.replace(/^google\//, '')}`
+}
+
+function buildVertexGenerationConfig({
+    temperature,
+    topP,
+    maxTokens,
+    enableThinking,
+    vertexOptions = {},
+}) {
+    const config = {}
+    const normalizedMaxTokens = maxTokens ? parseInt(maxTokens, 10) : null
+
+    if (typeof temperature === 'number' && !Number.isNaN(temperature)) {
+        config.temperature = temperature
+    }
+
+    if (typeof topP === 'number' && !Number.isNaN(topP)) {
+        config.topP = topP
+    }
+
+    if (normalizedMaxTokens) {
+        config.maxOutputTokens = normalizedMaxTokens
+    }
+
+    if (vertexOptions.responseMimeType) {
+        config.responseMimeType = vertexOptions.responseMimeType
+    }
+
+    if (vertexOptions.responseSchema) {
+        config.responseSchema = vertexOptions.responseSchema
+    }
+
+    if (!enableThinking) {
+        config.thinkingConfig = {
+            thinkingBudget: 0,
+        }
+        return config
+    }
+
+    if (vertexOptions.thinkingLevel || vertexOptions.thinkingBudget !== null) {
+        config.thinkingConfig = {
+            ...(vertexOptions.thinkingLevel && { thinkingLevel: vertexOptions.thinkingLevel }),
+            ...(vertexOptions.thinkingBudget !== null && { thinkingBudget: vertexOptions.thinkingBudget }),
+        }
+    }
+
+    return config
+}
+
+function buildVertexNativeRequestBody({
+    systemPrompt,
+    userPrompt,
+    temperature,
+    topP,
+    maxTokens,
+    enableThinking,
+    vertexOptions,
+}) {
+    const generationConfig = buildVertexGenerationConfig({
+        temperature,
+        topP,
+        maxTokens,
+        enableThinking,
+        vertexOptions,
+    })
+
+    const effectiveUserPrompt = userPrompt || systemPrompt || ''
+    const body = {
+        contents: [
+            {
+                role: 'user',
+                parts: [
+                    {
+                        text: effectiveUserPrompt,
+                    }
+                ]
+            }
+        ],
+        ...(systemPrompt && userPrompt && {
+            systemInstruction: {
+                role: 'system',
+                parts: [
+                    {
+                        text: systemPrompt,
+                    }
+                ]
+            }
+        }),
+        ...(Object.keys(generationConfig).length > 0 && { generationConfig }),
+    }
+
+    return body
+}
+
+function buildVertexRequestUrl(baseUrl, model, streamMode, apiKey) {
+    const modelPath = normalizeVertexModelPath(model)
+    const action = streamMode ? 'streamGenerateContent' : 'generateContent'
+    const params = new URLSearchParams({
+        key: apiKey,
+    })
+
+    if (streamMode) {
+        params.set('alt', 'sse')
+    }
+
+    return `${baseUrl}/${modelPath}:${action}?${params.toString()}`
+}
+
+function normalizeVertexUsage(usageMetadata) {
+    if (!usageMetadata) {
+        return null
+    }
+
+    return {
+        prompt_tokens: usageMetadata.promptTokenCount || 0,
+        completion_tokens: usageMetadata.candidatesTokenCount || 0,
+        total_tokens: usageMetadata.totalTokenCount || 0,
+        reasoning_tokens: usageMetadata.thoughtsTokenCount || usageMetadata.thoughtTokenCount,
+    }
+}
+
+function normalizeVertexFunctionCall(functionCall) {
+    if (!functionCall) {
+        return null
+    }
+
+    return {
+        type: 'function',
+        function: {
+            name: functionCall.name || '',
+            arguments: functionCall.args ? JSON.stringify(functionCall.args, null, 2) : '{}',
+        }
+    }
+}
+
+function extractVertexResponseContent(data) {
+    const parts = data.candidates?.[0]?.content?.parts || []
+
+    let answer = ''
+    let thinking = ''
+    const toolCalls = []
+
+    for (const part of parts) {
+        if (part.functionCall) {
+            const normalizedFunctionCall = normalizeVertexFunctionCall(part.functionCall)
+            if (normalizedFunctionCall) {
+                toolCalls.push(normalizedFunctionCall)
+            }
+        }
+
+        if (!part.text) {
+            continue
+        }
+
+        if (part.thought === true) {
+            thinking += part.text
+            continue
+        }
+
+        answer += part.text
+    }
+
+    return {
+        answer,
+        thinking,
+        toolCalls,
+    }
+}
+
+function buildVertexMetadata({
+    firstTokenLatency,
+    requestStartTime,
+    usageMetadata,
+}) {
+    return {
+        firstTokenLatency,
+        totalDuration: Date.now() - requestStartTime,
+        provider: 'vertex',
+        ...(usageMetadata && {
+            usage: usageMetadata,
+        })
+    }
+}
+
 function normalizeApiError(response, errorText, model, provider) {
     let errorMessage = `HTTP ${response.status}`
 
@@ -210,21 +325,18 @@ function normalizeApiError(response, errorText, model, provider) {
             errorMessage = errorData.message
         }
 
-        // 提供用户友好的错误提示
         if (response.status === 404) {
             errorMessage = `模型 "${model}" 不存在或不可用`
         } else if (response.status === 401) {
-            errorMessage = isVertexProvider(provider)
-                ? 'Access Token 无效或已过期'
-                : 'API Key 无效或已过期'
+            errorMessage = 'API Key 无效或已过期'
         } else if (response.status === 402) {
             errorMessage = '账户余额不足'
         } else if (response.status === 429) {
             errorMessage = '请求频率过高，请降低并发数'
         } else if (response.status === 403 && isVertexProvider(provider)) {
-            errorMessage = 'Vertex AI 拒绝访问，请确认 Access Token、IAM 权限和 Vertex AI API 已启用'
+            errorMessage = 'Vertex AI API Key 无效、受限，或未开通 Gemini API / Vertex AI Express Mode'
         } else if (response.status === 400 && isVertexProvider(provider)) {
-            errorMessage = errorData.error?.message || 'Vertex AI 请求参数无效，请检查 Project ID、Location、模型 ID 和 Thinking 配置'
+            errorMessage = errorData.error?.message || 'Vertex 原生请求参数无效，请检查模型 ID、Thinking 设置和结构化输出 Schema'
         }
     } catch {
         errorMessage = errorText || response.statusText
@@ -245,36 +357,181 @@ function shouldRetryThinkingVariant(provider, response, variantIndex, variantCou
     return response.status === 400 || response.status === 422
 }
 
-/**
- * 处理单个 API 请求（流式输出）
- * @param {Object} params - 请求参数
- * @param {Function} onChunk - 接收数据块的回调
- * @param {Function} onComplete - 完成回调
- * @param {Function} onError - 错误回调
- * @param {Function} onMetadata - 接收元数据的回调 (optional, for OpenRouter)
- */
-export async function streamRequest({
-    provider,
-    apiKey,
-    baseUrl,
-    model,
-    systemPrompt,
-    userPrompt,
-    temperature = 1,
-    topP = 1,
-    maxTokens,
-    streamMode = true,
-    enableThinking = false,
-    vertexOptions = null,
-}, onChunk, onComplete, onError, onMetadata) {
+async function streamVertexRequest(params, onChunk, onComplete, onError, onMetadata) {
+    const {
+        apiKey,
+        baseUrl,
+        model,
+        systemPrompt,
+        userPrompt,
+        temperature,
+        topP,
+        maxTokens,
+        streamMode,
+        enableThinking,
+        vertexOptions,
+    } = params
 
     try {
-        // 验证输入
-        if (!systemPrompt && !userPrompt) {
-            throw new Error('请至少输入 System Prompt 或 User Prompt')
+        const requestStartTime = Date.now()
+        const requestUrl = buildVertexRequestUrl(baseUrl, model, streamMode, apiKey)
+        const requestBody = buildVertexNativeRequestBody({
+            systemPrompt,
+            userPrompt,
+            temperature,
+            topP,
+            maxTokens,
+            enableThinking,
+            vertexOptions,
+        })
+
+        const response = await fetch(requestUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+        })
+
+        if (!response.ok) {
+            const errorText = await response.text()
+            throw new Error(normalizeApiError(response, errorText, model, PROVIDERS.VERTEX))
         }
 
-        // 所有 provider 统一使用标准 OpenAI 格式
+        if (!streamMode) {
+            const data = await response.json()
+            const { answer, thinking, toolCalls } = extractVertexResponseContent(data)
+
+            let mergedContent = ''
+            if (thinking) {
+                mergedContent += `<think>${thinking}</think>`
+            }
+            if (answer) {
+                mergedContent += answer
+            }
+            if (toolCalls.length) {
+                mergedContent += serializeToolCalls(toolCalls)
+            }
+
+            onChunk(mergedContent)
+
+            if (onMetadata) {
+                onMetadata(buildVertexMetadata({
+                    firstTokenLatency: null,
+                    requestStartTime,
+                    usageMetadata: normalizeVertexUsage(data.usageMetadata),
+                }))
+            }
+
+            onComplete()
+            return
+        }
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let firstTokenReceived = false
+        let firstTokenLatency = null
+        let accumulatedThinking = ''
+        let thinkingComplete = false
+        const accumulatedToolCalls = []
+        let usageMetadata = null
+
+        while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split('\n')
+            buffer = lines.pop() || ''
+
+            for (const line of lines) {
+                if (!line.trim() || line.startsWith(':')) continue
+
+                if (!line.startsWith('data: ')) continue
+
+                const data = line.slice(6)
+                if (data === '[DONE]') continue
+
+                try {
+                    const json = JSON.parse(data)
+                    const { answer, thinking, toolCalls } = extractVertexResponseContent(json)
+
+                    let mergedContent = ''
+
+                    if (thinking) {
+                        accumulatedThinking += thinking
+                    }
+
+                    if (toolCalls.length) {
+                        accumulatedToolCalls.push(...toolCalls)
+                    }
+
+                    if (answer && !thinkingComplete && accumulatedThinking) {
+                        mergedContent += `<think>${accumulatedThinking}</think>`
+                        thinkingComplete = true
+                    }
+
+                    if (answer) {
+                        mergedContent += answer
+                    }
+
+                    if (!firstTokenReceived && (mergedContent || thinking || toolCalls.length)) {
+                        firstTokenReceived = true
+                        firstTokenLatency = Date.now() - requestStartTime
+                    }
+
+                    if (mergedContent) {
+                        onChunk(mergedContent)
+                    }
+
+                    if (json.usageMetadata) {
+                        usageMetadata = normalizeVertexUsage(json.usageMetadata)
+                    }
+                } catch {
+                    // 忽略解析错误
+                }
+            }
+        }
+
+        if (accumulatedThinking && !thinkingComplete) {
+            onChunk(`<think>${accumulatedThinking}</think>`)
+        }
+
+        if (accumulatedToolCalls.length) {
+            onChunk(serializeToolCalls(accumulatedToolCalls))
+        }
+
+        if (onMetadata) {
+            onMetadata(buildVertexMetadata({
+                firstTokenLatency,
+                requestStartTime,
+                usageMetadata,
+            }))
+        }
+
+        onComplete()
+    } catch (error) {
+        onError(error)
+    }
+}
+
+async function streamOpenAiCompatibleRequest(params, onChunk, onComplete, onError, onMetadata) {
+    const {
+        provider,
+        apiKey,
+        baseUrl,
+        model,
+        systemPrompt,
+        userPrompt,
+        temperature,
+        topP,
+        maxTokens,
+        streamMode,
+        enableThinking,
+    } = params
+
+    try {
         const messages = []
         if (systemPrompt) {
             messages.push({ role: 'system', content: systemPrompt })
@@ -283,19 +540,17 @@ export async function streamRequest({
             messages.push({ role: 'user', content: userPrompt })
         }
 
-        // 构建请求头
         const headers = {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
-            // OpenRouter 专用头，其他供应商不发送（避免 CORS 预检失败）
             ...(provider === PROVIDERS.OPENROUTER && {
                 'HTTP-Referer': 'https://prompt-tester.app',
                 'X-Title': 'Prompt Tester'
             })
         }
 
-        const requestBodyVariants = getThinkingPayloadVariants(provider, model, enableThinking, vertexOptions)
-            .map(thinkingPayload => buildRequestBody({
+        const requestBodyVariants = getThinkingPayloadVariants(provider, model, enableThinking)
+            .map(thinkingPayload => buildOpenAiCompatibleRequestBody({
                 provider,
                 model,
                 messages,
@@ -303,7 +558,6 @@ export async function streamRequest({
                 temperature,
                 topP,
                 maxTokens,
-                vertexOptions,
                 thinkingPayload,
             }))
 
@@ -315,7 +569,6 @@ export async function streamRequest({
             const requestBody = requestBodyVariants[index]
             requestStartTime = Date.now()
 
-            // 所有 provider 统一使用 /chat/completions 端点
             response = await fetch(`${baseUrl}/chat/completions`, {
                 method: 'POST',
                 headers,
@@ -338,16 +591,13 @@ export async function streamRequest({
             throw new Error(lastErrorMessage || `HTTP ${response.status}`)
         }
 
-        // 非流式模式
         if (!streamMode) {
             const data = await response.json()
 
-            // 提取内容和思维链
             const content = data.choices?.[0]?.message?.content || ''
             const reasoningContent = data.choices?.[0]?.message?.reasoning_content || ''
             const toolCalls = data.choices?.[0]?.message?.tool_calls || []
 
-            // 合并内容：如果有思维链，包装在 <think> 标签中
             let mergedContent = ''
             if (reasoningContent) {
                 mergedContent += `<think>${reasoningContent}</think>`
@@ -377,7 +627,6 @@ export async function streamRequest({
             return
         }
 
-        // 流式模式处理
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
         let buffer = ''
@@ -385,7 +634,6 @@ export async function streamRequest({
         let firstTokenLatency = null
         let openRouterMeta = null
         let generationId = null
-        // 累积 reasoning 内容，避免分词
         let accumulatedReasoning = ''
         let reasoningComplete = false
         const accumulatedToolCalls = []
@@ -408,14 +656,12 @@ export async function streamRequest({
                     try {
                         const json = JSON.parse(data)
 
-                        // 提取内容和思维链
                         const content = json.choices?.[0]?.delta?.content
                         const reasoningContent = json.choices?.[0]?.delta?.reasoning_content
                         const toolCalls = json.choices?.[0]?.delta?.tool_calls
 
                         let mergedContent = ''
 
-                        // 累积 reasoning 内容
                         if (reasoningContent) {
                             accumulatedReasoning += reasoningContent
                         }
@@ -424,18 +670,15 @@ export async function streamRequest({
                             mergeToolCallDelta(accumulatedToolCalls, toolCalls)
                         }
 
-                        // 当开始接收 content 时，先发送完整的 reasoning（如果有）
                         if (content && !reasoningComplete && accumulatedReasoning) {
                             mergedContent += `<think>${accumulatedReasoning}</think>`
                             reasoningComplete = true
                         }
 
-                        // 添加正常内容
                         if (content) {
                             mergedContent += content
                         }
 
-                        // Track first token latency (from request start, not response start)
                         if (mergedContent && !firstTokenReceived) {
                             firstTokenReceived = true
                             firstTokenLatency = Date.now() - requestStartTime
@@ -445,18 +688,15 @@ export async function streamRequest({
                             onChunk(mergedContent)
                         }
 
-                        // Capture generation ID from first chunk (for later /generation call)
                         if (provider === PROVIDERS.OPENROUTER && !generationId && json.id) {
                             generationId = json.id
                         }
 
-                        // Extract metadata (usage info) for all providers
                         if (json.usage) {
                             openRouterMeta = {
                                 ...openRouterMeta,
                                 usage: {
                                     ...json.usage,
-                                    // 提取 reasoning_tokens（如果有）
                                     reasoning_tokens: json.usage.completion_tokens_details?.reasoning_tokens
                                 },
                             }
@@ -468,7 +708,6 @@ export async function streamRequest({
             }
         }
 
-        // 如果流结束时还有未发送的 reasoning 内容，发送它
         if (accumulatedReasoning && !reasoningComplete) {
             onChunk(`<think>${accumulatedReasoning}</think>`)
         }
@@ -477,26 +716,20 @@ export async function streamRequest({
             onChunk(serializeToolCalls(accumulatedToolCalls))
         }
 
-        // Pass metadata for all providers
         if (onMetadata) {
             const totalDuration = Date.now() - requestStartTime
 
-            // For OpenRouter, fetch additional provider info asynchronously
             if (provider === PROVIDERS.OPENROUTER) {
-                // First, pass what we have immediately
                 onMetadata({
                     firstTokenLatency,
                     totalDuration,
-                    provider: null, // Will be updated later
+                    provider: null,
                     ...openRouterMeta,
                 })
 
-                // Then, try to fetch real provider info with a delay (async, non-blocking)
                 if (generationId) {
                     setTimeout(async () => {
                         try {
-                            // Retry up to 5 times with 2s delay between each
-                            // Generation records may take a few seconds to be available
                             for (let attempt = 0; attempt < 5; attempt++) {
                                 const genResponse = await fetch(`${baseUrl}/generation?id=${generationId}`, {
                                     headers: { 'Authorization': `Bearer ${apiKey}` }
@@ -515,31 +748,51 @@ export async function streamRequest({
                                             totalCost: genData.data.total_cost,
                                             ...openRouterMeta,
                                         })
-                                        return // Success, exit the function
+                                        return
                                     }
                                 }
-                                // Wait 2s before retry (for 404 or missing data)
                                 await new Promise(r => setTimeout(r, 2000))
                             }
                         } catch {
-                            // Silently fail - generation API is optional enhancement
+                            // 忽略 generation 查询失败
                         }
-                    }, 2000) // Initial 2s delay before first attempt (wait for OpenRouter to process)
+                    }, 2000)
                 }
             } else {
-                // For other providers (Volcengine, Alibailian), pass basic metadata
                 onMetadata({
                     firstTokenLatency,
                     totalDuration,
-                    provider: provider, // Use the provider name directly
+                    provider,
                     ...openRouterMeta,
                 })
             }
         }
 
         onComplete()
-
     } catch (error) {
         onError(error)
     }
+}
+
+/**
+ * 处理单个 API 请求（流式输出）
+ */
+export async function streamRequest(params, onChunk, onComplete, onError, onMetadata) {
+    const {
+        provider,
+        systemPrompt,
+        userPrompt,
+    } = params
+
+    if (!systemPrompt && !userPrompt) {
+        onError(new Error('请至少输入 System Prompt 或 User Prompt'))
+        return
+    }
+
+    if (isVertexProvider(provider)) {
+        await streamVertexRequest(params, onChunk, onComplete, onError, onMetadata)
+        return
+    }
+
+    await streamOpenAiCompatibleRequest(params, onChunk, onComplete, onError, onMetadata)
 }

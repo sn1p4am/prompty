@@ -115,13 +115,6 @@ export function useApiConfig() {
             const appId = getProviderFieldValue(provider, 'appId')
             return appId ? `${baseUrl}/${appId}` : ''
         }
-        if (provider === PROVIDERS.VERTEX) {
-            const projectId = getProviderFieldValue(provider, 'projectId')
-            const location = getProviderFieldValue(provider, 'location') || 'global'
-            return projectId
-                ? `${baseUrl}/projects/${projectId}/locations/${location}/endpoints/openapi`
-                : ''
-        }
         return baseUrl
     }, [currentProvider, getProviderFieldValue])
 
