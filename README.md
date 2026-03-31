@@ -51,11 +51,12 @@ npm run build
 
 ## ☁️ Vertex AI 配置说明
 
-Prompty 中的 Vertex AI 渠道现在走 **Vertex 原生 Gemini API**：
+Prompty 中的 Vertex AI 渠道现在只保留 **Vertex Express Mode**：
 
-- 使用 `generateContent / streamGenerateContent`
-- 使用 **API key** 认证
-- 不再需要 **Project ID / Location / Access Token**
+- 使用 `API key`
+- 请求路径：`/v1/publishers/google/models/{MODEL_ID}:generateContent`
+- 不需要 `Project ID`
+- 不需要 `Location`
 
 模型示例：
 
@@ -78,36 +79,24 @@ Prompty 中的 Vertex AI 渠道现在走 **Vertex 原生 Gemini API**：
 - `responseSchema` 只有在 `responseMimeType` 不是 `text/plain` 时才有效
 - `application/json` 可以不带 schema；`text/x.enum` 建议搭配 schema 使用
 
-### Vertex 原生 API 示例
+### Express Mode 官方 curl
 
 ```bash
-API_KEY="your-google-api-key"
+MODEL_ID="gemini-3-pro-preview"
+API_KEY="YOUR_API_KEY"
 
-curl -X POST \
-  "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key=${API_KEY}" \
+curl \
+  -X POST \
   -H "Content-Type: application/json" \
-  -d '{
-    "systemInstruction": {
-      "role": "system",
+  "https://aiplatform.googleapis.com/v1/publishers/google/models/${MODEL_ID}:streamGenerateContent?key=${API_KEY}" -d \
+  $'{
+    "contents": {
+      "role": "user",
       "parts": [
-        { "text": "You are a precise assistant." }
+        {
+          "text": "Describe this picture."
+        }
       ]
-    },
-    "contents": [
-      {
-        "role": "user",
-        "parts": [
-          { "text": "用三句话解释为什么天空是蓝色的。" }
-        ]
-      }
-    ],
-    "generationConfig": {
-      "temperature": 0.3,
-      "topP": 0.95,
-      "maxOutputTokens": 1024,
-      "thinkingConfig": {
-        "thinkingLevel": "LOW"
-      }
     }
   }'
 ```

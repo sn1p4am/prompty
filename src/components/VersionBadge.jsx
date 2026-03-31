@@ -3,12 +3,12 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.0',
+    version: 'v3.8.1',
     date: '2026-03-31',
     changes: [
         { emoji: '🔁', label: 'Vertex 原生', desc: 'Vertex 渠道切回原生 generateContent / streamGenerateContent，不再走 OpenAI 兼容层' },
-        { emoji: '🔐', label: 'API Key 认证', desc: 'Vertex 现改用 API key，移除 Project ID / Location / Access Token 依赖' },
-        { emoji: '📝', label: '文本优先', desc: 'Vertex 扩展面板精简为文本生成相关的 thinkingConfig 与 responseMimeType / responseSchema' },
+        { emoji: '🔐', label: 'Express Only', desc: 'Vertex 仅保留 Express Mode(API key)，删除 Standard Vertex 相关配置与逻辑' },
+        { emoji: '📝', label: '文本优先', desc: 'Vertex 扩展面板聚焦文本生成，只保留 thinkingConfig 与 responseMimeType / responseSchema' },
     ]
 }
 

@@ -225,15 +225,19 @@ function buildVertexNativeRequestBody({
 function buildVertexRequestUrl(baseUrl, model, streamMode, apiKey) {
     const modelPath = normalizeVertexModelPath(model)
     const action = streamMode ? 'streamGenerateContent' : 'generateContent'
-    const params = new URLSearchParams({
-        key: apiKey,
-    })
+    const params = new URLSearchParams()
+
+    if (apiKey) {
+        params.set('key', apiKey)
+    }
 
     if (streamMode) {
         params.set('alt', 'sse')
     }
 
-    return `${baseUrl}/${modelPath}:${action}?${params.toString()}`
+    const queryString = params.toString()
+    const pathPrefix = modelPath ? `${baseUrl}/${modelPath}` : baseUrl
+    return `${pathPrefix}:${action}${queryString ? `?${queryString}` : ''}`
 }
 
 function normalizeVertexUsage(usageMetadata) {

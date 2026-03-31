@@ -29,8 +29,9 @@ export const PROVIDER_INFO = {
         getKeyUrl: 'https://console.cloud.google.com/apis/credentials',
         credentialLabel: 'API Key',
         credentialPlaceholder: '输入 Google Cloud API Key',
-        credentialHelpText: '走 Vertex AI 原生 Gemini API（Express Mode），使用 API key，不需要 Project ID / Location / Access Token',
+        credentialHelpText: '仅支持 Vertex AI Express Mode(API key)',
         models: [
+            'gemini-3-pro-preview',
             'gemini-2.5-flash',
             'gemini-2.5-pro',
             'gemini-2.5-flash-lite'
