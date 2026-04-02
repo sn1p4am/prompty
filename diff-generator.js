@@ -209,9 +209,6 @@ class DiffGenerator {
    * 生成统一差异格式（类似 git diff）
    */
   generateUnifiedDiff(original, modified, filePath = 'file') {
-    const originalLines = original.split('\n');
-    const modifiedLines = modified.split('\n');
-
     let unifiedDiff = `--- a/${filePath}\n`;
     unifiedDiff += `+++ b/${filePath}\n`;
 

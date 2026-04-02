@@ -7,6 +7,7 @@ export const PROVIDERS = {
     CLOUDSWAY: 'cloudsway',
     AIIONLY: 'aiionly',
     AIONLY: 'aionly',
+    MOXIN: 'moxin',
 }
 
 // API 供应商信息
@@ -91,6 +92,13 @@ export const PROVIDER_INFO = {
         models: [
             'qwen-vl-max'
         ],
+    },
+    [PROVIDERS.MOXIN]: {
+        name: 'Moxin',
+        baseUrl: 'https://www.moxin.studio/v1',
+        keyStorageKey: 'moxin_api_key',
+        getKeyUrl: 'https://www.moxin.studio/',
+        models: [],
     },
 }
 
