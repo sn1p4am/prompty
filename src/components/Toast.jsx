@@ -1,6 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useState, useEffect } from 'react'
-import { cn } from "../lib/utils"
-import { CheckCircle2, Terminal } from "lucide-react"
 
 export function Toast({ message }) {
     if (!message) return null

@@ -549,7 +549,7 @@ class MultiMatchHandler {
   /**
    * 分析用户意图中的范围
    */
-  analyzeScope(intent, userInput) {
+  analyzeScope(intent) {
     if (intent.scope === 'all') {
       return { type: 'all', confidence: 0.9 };
     } else if (intent.scope === 'single') {

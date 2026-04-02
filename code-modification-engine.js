@@ -255,8 +255,6 @@ class CodeModificationEngine {
     console.log('[ModEngine] 应用样式修改:', changes);
 
     for (const [property, value] of Object.entries(changes)) {
-      // 转换 CSS 属性名（background -> background）
-      const cssProperty = property.replace(/([A-Z])/g, '-$1').toLowerCase();
       element.style[property] = value;
     }
   }
@@ -353,7 +351,7 @@ class CodeModificationEngine {
     // 简单的格式化，实际项目可以使用专门的库
     return html
       .replace(/>\s+</g, '>\n<')
-      .replace(/(<\/[^>]+>)(<[^\/])/g, '$1\n$2');
+      .replace(/(<\/[^>]+>)(<[^/])/g, '$1\n$2');
   }
 
   /**

@@ -472,7 +472,7 @@ class SemanticMarkerInjector {
   markLinkElements(doc) {
     const links = doc.querySelectorAll('a[href]');
 
-    links.forEach((link, index) => {
+    links.forEach((link) => {
       if (!link.hasAttribute('data-semantic-id')) {
         const href = link.getAttribute('href');
 

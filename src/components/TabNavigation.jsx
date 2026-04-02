@@ -1,5 +1,3 @@
-import { useState } from 'react'
-
 export function TabNavigation({ activeTab, onTabChange, children }) {
     return (
         <div className="bg-card backdrop-blur-lg border border-card rounded-card mb-8 shadow-card overflow-hidden">

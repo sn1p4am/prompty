@@ -203,7 +203,7 @@ class DependencyResolver {
     }
 
     // 生成建议
-    impact.suggestions = await this.generateSuggestions(modifications, impact, versionId);
+    impact.suggestions = await this.generateSuggestions(modifications, impact);
 
     console.log(`[DependencyResolver] 影响分析完成:`);
     console.log(`  - 直接影响文件: ${impact.directFiles.size}`);
@@ -228,7 +228,7 @@ class DependencyResolver {
   /**
    * 生成修改建议
    */
-  async generateSuggestions(modifications, impact, versionId) {
+  async generateSuggestions(modifications, impact) {
     const suggestions = [];
 
     // 检查是否需要更新导航

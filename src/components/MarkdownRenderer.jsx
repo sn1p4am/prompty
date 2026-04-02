@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import mermaid from 'mermaid'
@@ -33,14 +33,11 @@ mermaid.initialize({
 
 export function MarkdownRenderer({ content, className }) {
     const containerRef = useRef(null)
-    const [isRendering, setIsRendering] = useState(true)
 
     useEffect(() => {
         if (!content || !containerRef.current) return
 
         const renderContent = async () => {
-            setIsRendering(true)
-
             try {
                 // 解析 Markdown
                 let html = marked.parse(content)
@@ -72,8 +69,6 @@ export function MarkdownRenderer({ content, className }) {
                     containerRef.current.textContent = content
                 }
             }
-
-            setIsRendering(false)
         }
 
         renderContent()

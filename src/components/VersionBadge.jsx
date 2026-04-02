@@ -3,12 +3,12 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.1',
-    date: '2026-03-31',
+    version: 'v3.8.2',
+    date: '2026-04-02',
     changes: [
-        { emoji: '🔁', label: 'Vertex 原生', desc: 'Vertex 渠道切回原生 generateContent / streamGenerateContent，不再走 OpenAI 兼容层' },
-        { emoji: '🔐', label: 'Express Only', desc: 'Vertex 仅保留 Express Mode(API key)，删除 Standard Vertex 相关配置与逻辑' },
-        { emoji: '📝', label: '文本优先', desc: 'Vertex 扩展面板聚焦文本生成，只保留 thinkingConfig 与 responseMimeType / responseSchema' },
+        { emoji: '🆕', label: 'Moxin 渠道', desc: '新增 Moxin 常规渠道，按 OpenAI 兼容协议请求 https://www.moxin.studio/v1' },
+        { emoji: '🧪', label: '自动化测试', desc: '补充最小 Vitest 测试基建，并为 provider 注册表新增回归测试' },
+        { emoji: '🧹', label: 'Lint 基线', desc: '修复仓库内既有 ESLint 报错，恢复 lint 校验通过' },
     ]
 }
 

@@ -63,7 +63,6 @@ export function repairHtml(html) {
     const hasHtmlClose = /<\/html>/i.test(repairedHtml)
     const hasBodyOpen = /<body/i.test(repairedHtml)
     const hasBodyClose = /<\/body>/i.test(repairedHtml)
-    const hasHeadClose = /<\/head>/i.test(repairedHtml)
 
     // 补全 </body>
     if (hasBodyOpen && !hasBodyClose) {
