@@ -3,12 +3,12 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.2',
+    version: 'v3.8.3',
     date: '2026-04-02',
     changes: [
-        { emoji: '🆕', label: 'Moxin 渠道', desc: '新增 Moxin 常规渠道，按 OpenAI 兼容协议请求 https://www.moxin.studio/v1' },
-        { emoji: '🧪', label: '自动化测试', desc: '补充最小 Vitest 测试基建，并为 provider 注册表新增回归测试' },
-        { emoji: '🧹', label: 'Lint 基线', desc: '修复仓库内既有 ESLint 报错，恢复 lint 校验通过' },
+        { emoji: '🛠️', label: '模型切换修复', desc: '切换到 Moxin 这类无内置模型渠道时，会自动清空旧模型，避免误发请求' },
+        { emoji: '🧪', label: '测试补强', desc: '新增 App 级回归测试，覆盖空模型渠道切换行为，并支持 *.test.jsx 发现' },
+        { emoji: '🆕', label: 'Moxin 渠道', desc: '延续 v3.8.2 的 Moxin OpenAI 兼容渠道支持与自动化测试基建' },
     ]
 }
 
