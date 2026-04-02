@@ -3,12 +3,12 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.3',
-    date: '2026-04-02',
+    version: 'v3.8.4',
+    date: '2026-04-03',
     changes: [
-        { emoji: '🛠️', label: '模型切换修复', desc: '切换到 Moxin 这类无内置模型渠道时，会自动清空旧模型，避免误发请求' },
-        { emoji: '🧪', label: '测试补强', desc: '新增 App 级回归测试，覆盖空模型渠道切换行为，并支持 *.test.jsx 发现' },
-        { emoji: '🆕', label: 'Moxin 渠道', desc: '延续 v3.8.2 的 Moxin OpenAI 兼容渠道支持与自动化测试基建' },
+        { emoji: '🧠', label: 'Claude/Bedrock 修复', desc: 'Claude 模型请求不再同时发送 temperature 和 top_p，避免 Bedrock 校验报错' },
+        { emoji: '🧪', label: '回归测试', desc: '新增 apiClient 回归测试，覆盖 Claude 参数冲突场景' },
+        { emoji: '🛠️', label: '模型切换修复', desc: '保留 v3.8.3 的空模型渠道切换修复与 JSX 测试发现支持' },
     ]
 }
 

@@ -13,6 +13,10 @@ function prefersEnableThinking(model = '') {
     return /(^|[/:_-])(qwq|qvq|qwen)([/:_-]|$)/.test(normalizedModel)
 }
 
+function isClaudeModel(model = '') {
+    return /(^|[/:_-])claude([/:_-]|$)/i.test(String(model))
+}
+
 function buildThinkingPayload(style, enableThinking) {
     if (style === 'thinking_object') {
         return {
@@ -60,13 +64,14 @@ function buildOpenAiCompatibleRequestBody({
     thinkingPayload = {},
 }) {
     const normalizedMaxTokens = maxTokens ? parseInt(maxTokens, 10) : null
+    const shouldOmitTopP = isClaudeModel(model) && typeof temperature === 'number' && !Number.isNaN(temperature)
 
     return {
         model,
         messages,
         stream: streamMode,
-        temperature,
-        top_p: topP,
+        ...(typeof temperature === 'number' && !Number.isNaN(temperature) && { temperature }),
+        ...(!shouldOmitTopP && typeof topP === 'number' && !Number.isNaN(topP) && { top_p: topP }),
         ...(normalizedMaxTokens && { max_tokens: normalizedMaxTokens }),
         ...(provider === PROVIDERS.OPENROUTER && {
             usage: { include: true }
