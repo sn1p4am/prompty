@@ -8,6 +8,7 @@ export const PROVIDERS = {
     AIIONLY: 'aiionly',
     AIONLY: 'aionly',
     MOXIN: 'moxin',
+    HOXKAI: 'hoxkai',
 }
 
 // API 供应商信息
@@ -99,6 +100,15 @@ export const PROVIDER_INFO = {
         keyStorageKey: 'moxin_api_key',
         getKeyUrl: 'https://www.moxin.studio/',
         models: [],
+    },
+    [PROVIDERS.HOXKAI]: {
+        name: 'Hoxkai',
+        baseUrl: 'https://api.hoxkai.top/v1',
+        keyStorageKey: 'hoxkai_api_key',
+        getKeyUrl: 'https://api.hoxkai.top/',
+        models: [
+            'gemini-3-flash-preview'
+        ],
     },
 }
 

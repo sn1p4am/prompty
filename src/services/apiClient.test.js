@@ -50,4 +50,50 @@ describe('streamRequest Claude parameter handling', () => {
     expect(body.temperature).toBe(1)
     expect(body.top_p).toBeUndefined()
   })
+
+  test('uses the OpenAI-compatible chat completions endpoint for hoxkai', async () => {
+    const fetchCalls = []
+
+    globalThis.fetch = async (url, options) => {
+      fetchCalls.push({ url, options })
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: 'ok',
+              },
+            },
+          ],
+        }),
+      }
+    }
+
+    await streamRequest(
+      {
+        provider: PROVIDERS.HOXKAI,
+        apiKey: 'test-key',
+        baseUrl: 'https://api.hoxkai.top/v1',
+        model: 'gemini-3-flash-preview',
+        systemPrompt: 'You are concise.',
+        userPrompt: 'Say OK',
+        temperature: 1,
+        topP: 1,
+        maxTokens: undefined,
+        streamMode: false,
+        enableThinking: false,
+      },
+      () => {},
+      () => {},
+      (error) => {
+        throw error
+      },
+      () => {}
+    )
+
+    expect(fetchCalls).toHaveLength(1)
+    expect(fetchCalls[0].url).toBe('https://api.hoxkai.top/v1/chat/completions')
+    expect(fetchCalls[0].options.headers.Authorization).toBe('Bearer test-key')
+  })
 })
