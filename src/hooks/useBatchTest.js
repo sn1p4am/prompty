@@ -102,13 +102,13 @@ export function useBatchTest({ apiConfig, onToast }) {
             return
         }
 
-        const missingFields = apiConfig.getMissingProviderFields?.() || []
+        const missingFields = apiConfig.getMissingProviderFields?.(apiConfig.currentProvider, model) || []
         if (missingFields.length > 0) {
             onToast?.(`请先完善渠道配置：${missingFields.join(' / ')}`)
             return
         }
 
-        const baseUrl = apiConfig.getBaseUrl()
+        const baseUrl = apiConfig.getBaseUrl(apiConfig.currentProvider, model)
         if (!baseUrl) {
             onToast?.('当前渠道的请求地址尚未配置完整')
             return

@@ -61,17 +61,7 @@ export const PROVIDER_INFO = {
         name: 'Cloudsway',
         baseUrl: 'https://genaiapi.cloudsway.net/v1/ai',
         keyStorageKey: 'cloudsway_api_key',
-        appIdStorageKey: 'cloudsway_app_id',
         getKeyUrl: 'https://cloudsway.net',
-        extraConfigFields: [
-            {
-                id: 'appId',
-                label: 'App ID',
-                storageKey: 'cloudsway_app_id',
-                placeholder: '输入 App ID',
-                required: true,
-            }
-        ],
         models: [
             'MaaS_Ge_3_flash_preview_20251217'
         ],

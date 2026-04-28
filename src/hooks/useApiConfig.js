@@ -15,6 +15,28 @@ function normalizeVertexModelId(model = '') {
         .replace(/^google\//, '')
 }
 
+function normalizeModelConfig(modelConfig) {
+    if (typeof modelConfig === 'string') {
+        return { model: modelConfig }
+    }
+
+    if (!modelConfig || typeof modelConfig !== 'object') {
+        return { model: '' }
+    }
+
+    return {
+        ...modelConfig,
+        model: String(modelConfig.model || '').trim(),
+        ...(modelConfig.appId !== undefined && { appId: String(modelConfig.appId || '').trim() }),
+    }
+}
+
+function normalizeModelNameForProvider(provider, model = '') {
+    return provider === PROVIDERS.VERTEX
+        ? normalizeVertexModelId(model)
+        : String(model).trim()
+}
+
 /**
  * 自定义 Hook：管理 API 配置（API Keys、供应商切换、自定义模型）
  */
@@ -25,7 +47,7 @@ export function useApiConfig() {
         DEFAULT_CONFIG.provider
     )
 
-    // 自定义模型（格式：{provider: 'xxx', model: 'xxx'}[]）
+    // 自定义模型（格式：{ provider: 'xxx', model: 'xxx', appId?: 'xxx' }[]）
     const [customModels, setCustomModels] = useLocalStorage(STORAGE_KEYS.CUSTOM_MODELS, [])
 
     // 获取指定供应商的 API Key（使用供应商专属的 key）
@@ -90,13 +112,6 @@ export function useApiConfig() {
         })
     }, [])
 
-    const getMissingProviderFields = useCallback((provider = currentProvider) => {
-        const fields = PROVIDER_INFO[provider]?.extraConfigFields || []
-        return fields
-            .filter(field => field.required && !getProviderFieldValue(provider, field.id))
-            .map(field => field.label)
-    }, [currentProvider, getProviderFieldValue])
-
     // 切换供应商
     const switchProvider = useCallback((provider) => {
         setCurrentProvider(provider)
@@ -104,10 +119,13 @@ export function useApiConfig() {
 
     // 获取当前供应商的模型列表
     const getModels = useCallback((provider = currentProvider) => {
-        const builtInModels = PROVIDER_INFO[provider]?.models || []
+        const builtInModels = (PROVIDER_INFO[provider]?.models || [])
+            .map(modelConfig => normalizeModelConfig(modelConfig).model)
+            .filter(Boolean)
         const userModels = customModels
             .filter(m => m.provider === provider)
-            .map(m => m.model)
+            .map(m => normalizeModelConfig(m).model)
+            .filter(Boolean)
 
         if (provider === PROVIDERS.VERTEX) {
             const normalizedModels = [...builtInModels, ...userModels]
@@ -117,39 +135,138 @@ export function useApiConfig() {
             return [...new Set(normalizedModels)]
         }
 
-        return [...builtInModels, ...userModels]
+        return [...new Set([...builtInModels, ...userModels])]
     }, [currentProvider, customModels])
 
+    const getModelConfig = useCallback((provider = currentProvider, modelName = '') => {
+        const normalizedModelName = normalizeModelNameForProvider(provider, modelName)
+        if (!normalizedModelName) {
+            return null
+        }
+
+        const builtInModelConfig = (PROVIDER_INFO[provider]?.models || [])
+            .map(normalizeModelConfig)
+            .find(modelConfig => normalizeModelNameForProvider(provider, modelConfig.model) === normalizedModelName)
+
+        const customModelConfig = customModels
+            .filter(modelConfig => modelConfig.provider === provider)
+            .map(normalizeModelConfig)
+            .find(modelConfig => normalizeModelNameForProvider(provider, modelConfig.model) === normalizedModelName)
+
+        return {
+            ...(builtInModelConfig || {}),
+            ...(customModelConfig || {}),
+            provider,
+            model: normalizedModelName,
+        }
+    }, [currentProvider, customModels])
+
+    const getModelAppId = useCallback((provider = currentProvider, modelName = '') => {
+        if (provider !== PROVIDERS.CLOUDSWAY) {
+            return ''
+        }
+
+        return getModelConfig(provider, modelName)?.appId || ''
+    }, [currentProvider, getModelConfig])
+
+    const saveModelAppId = useCallback((provider, modelName, appId) => {
+        if (provider !== PROVIDERS.CLOUDSWAY) {
+            return false
+        }
+
+        const normalizedModelName = normalizeModelNameForProvider(provider, modelName)
+        if (!normalizedModelName) {
+            return false
+        }
+
+        const normalizedAppId = String(appId || '').trim()
+
+        setCustomModels(prev => {
+            let found = false
+            const nextModels = prev.map(modelConfig => {
+                const normalizedModelConfig = normalizeModelConfig(modelConfig)
+                const isTargetModel = modelConfig.provider === provider &&
+                    normalizeModelNameForProvider(provider, normalizedModelConfig.model) === normalizedModelName
+
+                if (!isTargetModel) {
+                    return modelConfig
+                }
+
+                found = true
+                return {
+                    ...modelConfig,
+                    provider,
+                    model: normalizedModelName,
+                    appId: normalizedAppId,
+                }
+            })
+
+            if (found) {
+                return nextModels
+            }
+
+            return [
+                ...nextModels,
+                {
+                    provider,
+                    model: normalizedModelName,
+                    appId: normalizedAppId,
+                }
+            ]
+        })
+
+        return true
+    }, [setCustomModels])
+
     // 添加自定义模型
-    const addCustomModel = useCallback((provider, modelName) => {
-        const normalizedModelName = provider === PROVIDERS.VERTEX
-            ? normalizeVertexModelId(modelName)
-            : modelName
+    const addCustomModel = useCallback((provider, modelName, metadata = {}) => {
+        const normalizedModelName = normalizeModelNameForProvider(provider, modelName)
 
         if (!normalizedModelName) return false
+
+        if (provider === PROVIDERS.CLOUDSWAY) {
+            const appId = String(metadata.appId || '').trim()
+            if (!appId) return false
+
+            saveModelAppId(provider, normalizedModelName, appId)
+            return true
+        }
 
         // 检查是否已存在
         const exists = customModels.some(m =>
             m.provider === provider &&
             (provider === PROVIDERS.VERTEX
-                ? normalizeVertexModelId(m.model) === normalizedModelName
-                : m.model === normalizedModelName)
+                ? normalizeVertexModelId(normalizeModelConfig(m).model) === normalizedModelName
+                : normalizeModelConfig(m).model === normalizedModelName)
         )
         if (exists) return false
 
         setCustomModels(prev => [...prev, { provider, model: normalizedModelName }])
         return true
-    }, [customModels, setCustomModels])
+    }, [customModels, saveModelAppId, setCustomModels])
 
-    // 获取 Base URL（Cloudsway / Vertex 需要拼接额外配置）
-    const getBaseUrl = useCallback((provider = currentProvider) => {
+    const getMissingProviderFields = useCallback((provider = currentProvider, modelName = '') => {
+        const fields = PROVIDER_INFO[provider]?.extraConfigFields || []
+        const missingFields = fields
+            .filter(field => field.required && !getProviderFieldValue(provider, field.id))
+            .map(field => field.label)
+
+        if (provider === PROVIDERS.CLOUDSWAY && modelName && !getModelAppId(provider, modelName)) {
+            missingFields.push(`App ID（${modelName}）`)
+        }
+
+        return missingFields
+    }, [currentProvider, getModelAppId, getProviderFieldValue])
+
+    // 获取 Base URL（Cloudsway 需要按模型拼接 App ID）
+    const getBaseUrl = useCallback((provider = currentProvider, modelName = '') => {
         const baseUrl = PROVIDER_INFO[provider]?.baseUrl || ''
         if (provider === PROVIDERS.CLOUDSWAY) {
-            const appId = getProviderFieldValue(provider, 'appId')
+            const appId = getModelAppId(provider, modelName)
             return appId ? `${baseUrl}/${appId}` : ''
         }
         return baseUrl
-    }, [currentProvider, getProviderFieldValue])
+    }, [currentProvider, getModelAppId])
 
     // 获取供应商信息
     const getProviderInfo = useCallback((provider = currentProvider) => {
@@ -180,6 +297,9 @@ export function useApiConfig() {
 
         // 模型相关
         getModels,
+        getModelConfig,
+        getModelAppId,
+        saveModelAppId,
         addCustomModel,
     }
 }

@@ -25,4 +25,9 @@ describe('providers registry', () => {
             ],
         })
     })
+
+    test('keeps Cloudsway App ID out of provider-level header config', () => {
+        expect(PROVIDER_INFO[PROVIDERS.CLOUDSWAY].extraConfigFields).toBeUndefined()
+        expect(PROVIDER_INFO[PROVIDERS.CLOUDSWAY].appIdStorageKey).toBeUndefined()
+    })
 })
