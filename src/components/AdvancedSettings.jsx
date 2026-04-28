@@ -6,6 +6,20 @@ import { Settings } from "lucide-react"
 import { useState } from "react"
 import { cn } from "../lib/utils"
 
+const TEMPERATURE_OPTIONS = [
+    '',
+    ...Array.from({ length: 21 }, (_, index) => (index / 10).toFixed(1).replace(/\.0$/, ''))
+]
+
+const TOP_P_OPTIONS = [
+    '',
+    ...Array.from({ length: 21 }, (_, index) => (index * 0.05).toFixed(2).replace(/0$/, '').replace(/\.0$/, ''))
+]
+
+function parseOptionalNumber(value) {
+    return value === '' ? '' : parseFloat(value)
+}
+
 export function AdvancedSettings({
     batchSize,
     onBatchSizeChange,
@@ -111,23 +125,33 @@ export function AdvancedSettings({
                 {/* Temp */}
                 <div className="flex flex-col gap-2">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">温度 (Temp)</Label>
-                    <Input
-                        type="number" min="0" max="2" step="0.1"
-                        value={temperature}
-                        onChange={(e) => onTemperatureChange(parseFloat(e.target.value))}
+                    <Select
+                        value={temperature === '' ? '' : String(temperature)}
+                        onChange={(e) => onTemperatureChange(parseOptionalNumber(e.target.value))}
                         className="h-9 text-sm font-mono"
-                    />
+                    >
+                        {TEMPERATURE_OPTIONS.map(value => (
+                            <option key={value || 'disabled'} value={value}>
+                                {value || '关闭 (Omit)'}
+                            </option>
+                        ))}
+                    </Select>
                 </div>
 
                 {/* Top P */}
                 <div className="flex flex-col gap-2">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">核采样 (Top P)</Label>
-                    <Input
-                        type="number" min="0" max="1" step="0.05"
-                        value={topP}
-                        onChange={(e) => onTopPChange(parseFloat(e.target.value))}
+                    <Select
+                        value={topP === '' ? '' : String(topP)}
+                        onChange={(e) => onTopPChange(parseOptionalNumber(e.target.value))}
                         className="h-9 text-sm font-mono"
-                    />
+                    >
+                        {TOP_P_OPTIONS.map(value => (
+                            <option key={value || 'disabled'} value={value}>
+                                {value || '关闭 (Omit)'}
+                            </option>
+                        ))}
+                    </Select>
                 </div>
 
                 {/* Max Tokens */}

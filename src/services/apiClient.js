@@ -14,7 +14,7 @@ function prefersEnableThinking(model = '') {
 }
 
 function isClaudeModel(model = '') {
-    return /(^|[/:_-])claude([/:_-]|$)/i.test(String(model))
+    return /claude/i.test(String(model))
 }
 
 function buildThinkingPayload(style, enableThinking) {

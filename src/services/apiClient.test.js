@@ -96,4 +96,52 @@ describe('streamRequest Claude parameter handling', () => {
     expect(fetchCalls[0].url).toBe('https://api.hoxkai.top/v1/chat/completions')
     expect(fetchCalls[0].options.headers.Authorization).toBe('Bearer test-key')
   })
+
+  test('omits optional sampling parameters when they are disabled', async () => {
+    const fetchCalls = []
+
+    globalThis.fetch = async (url, options) => {
+      fetchCalls.push({ url, options })
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: 'ok',
+              },
+            },
+          ],
+        }),
+      }
+    }
+
+    await streamRequest(
+      {
+        provider: PROVIDERS.CLOUDSWAY,
+        apiKey: 'test-key',
+        baseUrl: 'https://genaiapi.cloudsway.net/v1/ai/app-id',
+        model: 'opaque-cloudsway-claude-id',
+        systemPrompt: 'You are concise.',
+        userPrompt: 'Say OK',
+        temperature: '',
+        topP: '',
+        maxTokens: undefined,
+        streamMode: false,
+        enableThinking: false,
+      },
+      () => {},
+      () => {},
+      (error) => {
+        throw error
+      },
+      () => {}
+    )
+
+    expect(fetchCalls).toHaveLength(1)
+
+    const body = JSON.parse(fetchCalls[0].options.body)
+    expect(body.temperature).toBeUndefined()
+    expect(body.top_p).toBeUndefined()
+  })
 })
