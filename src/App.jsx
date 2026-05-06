@@ -12,11 +12,12 @@ import { ResultsGrid } from './components/ResultsGrid'
 import { Modal } from './components/Modal'
 import { MarkdownRenderer } from './components/MarkdownRenderer'
 import { VersionBadge } from './components/VersionBadge'
+import { ImageGenerationLab } from './components/ImageGenerationLab'
 import { STORAGE_KEYS, DEFAULT_CONFIG, DEFAULT_VERTEX_OPTIONS, DISPLAY_MODES, PROVIDERS } from './constants/providers'
 import { Button } from "./components/ui/button"
 import { Badge } from "./components/ui/badge"
 // Icons
-import { Monitor, FileCode, Terminal, FileText, Code, Eye } from "lucide-react"
+import { Monitor, FileCode, Terminal, FileText, Code, Eye, ImagePlus } from "lucide-react"
 
 function normalizeVertexModelId(model = '') {
   return String(model)
@@ -60,6 +61,7 @@ function App() {
   const [modalViewMode, setModalViewMode] = useState('raw') // 'raw' | 'markdown' | 'html'
   const [modalRawContent, setModalRawContent] = useState('')
   const [defaultViewMode, setDefaultViewMode] = useLocalStorage(STORAGE_KEYS.MODAL_DEFAULT_VIEW_MODE, 'raw') // 默认视图模式
+  const [imageLabOpen, setImageLabOpen] = useState(false)
 
   useEffect(() => {
     if (apiConfig.currentProvider !== PROVIDERS.VERTEX) {
@@ -180,6 +182,14 @@ function App() {
             <div className="mt-auto pt-2 flex items-center gap-2">
               <Badge variant="outline" className="text-[10px]">系统状态: 在线</Badge>
               <VersionBadge />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-[10px]"
+                onClick={() => setImageLabOpen(true)}
+              >
+                <ImagePlus className="w-3 h-3 mr-1" /> 图像生成测试
+              </Button>
             </div>
           </div>
 
@@ -355,6 +365,11 @@ function App() {
           {renderModalContent()}
         </div>
       </Modal>
+      <ImageGenerationLab
+        isOpen={imageLabOpen}
+        onClose={() => setImageLabOpen(false)}
+        onToast={showToast}
+      />
       <Toast message={toast} />
     </div>
   )
