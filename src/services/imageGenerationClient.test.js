@@ -56,15 +56,20 @@ describe('fal.ai image generation client', () => {
   test('posts to the fal.run model endpoint with Key authorization', async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
-      json: async () => ({
+      text: async () => JSON.stringify({
         images: [
           {
             url: 'https://example.com/image.jpeg',
             content_type: 'image/jpeg',
+            width: 1024,
+            height: 768,
           },
         ],
         seed: 42,
         prompt: 'Generate one image',
+        timings: {
+          inference: 0.8,
+        },
       }),
     }))
     globalThis.fetch = fetchMock
@@ -90,6 +95,9 @@ describe('fal.ai image generation client', () => {
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Key fal-test-key')
     expect(JSON.parse(fetchMock.mock.calls[0][1].body).prompt).toBe('Generate one image')
     expect(result.images).toHaveLength(1)
+    expect(result.images[0].width).toBe(1024)
     expect(result.seed).toBe(42)
+    expect(result.timings).toEqual({ inference: 0.8 })
+    expect(result.clientTimings.total).toBeGreaterThanOrEqual(0)
   })
 })

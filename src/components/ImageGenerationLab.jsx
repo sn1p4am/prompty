@@ -6,6 +6,7 @@ import {
     Images,
     Key,
     Loader2,
+    Maximize2,
     Play,
     Trash2,
     X,
@@ -21,6 +22,7 @@ import { useImageGenerationBatch } from '../hooks/useImageGenerationBatch'
 import {
     DEFAULT_IMAGE_GENERATION_SETTINGS,
     FAL_IMAGE_SIZE_PRESETS,
+    IMAGE_GENERATION_SETTINGS_VERSION,
     IMAGE_GENERATION_PROVIDER_INFO,
     IMAGE_GENERATION_PROVIDERS,
     IMAGE_GENERATION_STORAGE_KEYS,
@@ -30,9 +32,71 @@ const NUMBER_INPUT_CLASS = "h-9 text-xs font-mono"
 const FIELD_LABEL_CLASS = "text-[11px] text-muted-foreground"
 
 function mergeSettings(settings) {
-    return {
+    const mergedSettings = {
         ...DEFAULT_IMAGE_GENERATION_SETTINGS,
         ...(settings || {}),
+    }
+
+    if (!settings?.settingsVersion || settings.settingsVersion < IMAGE_GENERATION_SETTINGS_VERSION) {
+        return {
+            ...mergedSettings,
+            settingsVersion: IMAGE_GENERATION_SETTINGS_VERSION,
+            batchCount: DEFAULT_IMAGE_GENERATION_SETTINGS.batchCount,
+        }
+    }
+
+    return mergedSettings
+}
+
+function toInt(value, fallback = 1) {
+    const parsedValue = parseInt(value, 10)
+    return Number.isNaN(parsedValue) ? fallback : parsedValue
+}
+
+function formatMs(value) {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+        return '-'
+    }
+
+    const numericValue = Number(value)
+    if (numericValue >= 1000) {
+        return `${(numericValue / 1000).toFixed(2)}s`
+    }
+
+    return `${Math.round(numericValue)}ms`
+}
+
+function formatTimingValue(value) {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+        return '-'
+    }
+
+    const numericValue = Number(value)
+    return `${numericValue.toFixed(2)}s`
+}
+
+function formatCompletedAt(value) {
+    if (!value) {
+        return '-'
+    }
+
+    return new Intl.DateTimeFormat('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    }).format(new Date(value))
+}
+
+function getImageSizeLabel(value) {
+    const preset = FAL_IMAGE_SIZE_PRESETS.find(item => item.value === value)
+    return preset?.label || value
+}
+
+function getEstimatedImageCount(settings) {
+    return {
+        batchCount: Math.max(1, toInt(settings.batchCount, 1)),
+        numImages: Math.max(1, toInt(settings.numImages, 1)),
     }
 }
 
@@ -50,7 +114,104 @@ function ImageStatusBadge({ status }) {
     return <Badge variant="outline">等待</Badge>
 }
 
-function ImagePreviewGrid({ jobs, onToast }) {
+function ImageTimingDetails({ job }) {
+    const serverTimings = job.timings && Object.keys(job.timings).length > 0
+        ? Object.entries(job.timings)
+        : []
+
+    return (
+        <div className="space-y-2 text-[11px] text-primary/70">
+            <div className="grid grid-cols-2 gap-2">
+                <span>完成: {formatCompletedAt(job.completedAt)}</span>
+                <span className="text-right">总耗时: {formatMs(job.duration)}</span>
+                <span>响应: {formatMs(job.clientTimings?.response)}</span>
+                <span className="text-right">返回: {formatMs(job.clientTimings?.download)}</span>
+                <span>解析: {formatMs(job.clientTimings?.parse)}</span>
+                <span className="text-right">请求ID: {job.requestId || '-'}</span>
+            </div>
+
+            {serverTimings.length > 0 && (
+                <div className="border-t border-border pt-2 grid grid-cols-2 gap-x-3 gap-y-1">
+                    {serverTimings.map(([key, value]) => (
+                        <div key={key} className="flex justify-between gap-2">
+                            <span className="truncate" title={key}>{key}</span>
+                            <span>{formatTimingValue(value)}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+}
+
+function ImageZoomModal({ image, onClose, onToast }) {
+    if (!image) {
+        return null
+    }
+
+    return (
+        <div
+            className="fixed inset-0 z-[10020] bg-black/95 backdrop-blur-sm p-4 lg:p-8 flex flex-col"
+            onClick={onClose}
+        >
+            <div
+                className="flex items-center justify-between gap-3 border border-primary bg-primary/10 p-3"
+                onClick={(event) => event.stopPropagation()}
+            >
+                <div className="text-primary font-bold uppercase tracking-widest text-sm">
+                    IMAGE #{String(image.job.index + 1).padStart(2, '0')}.{image.imageIndex + 1}
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-xs"
+                        onClick={() => {
+                            navigator.clipboard.writeText(image.url)
+                            onToast?.('图像 URL 已复制')
+                        }}
+                    >
+                        URL
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => window.open(image.url, '_blank', 'noopener,noreferrer')}
+                    >
+                        <ExternalLink className="w-4 h-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={onClose}
+                    >
+                        <X className="w-4 h-4" />
+                    </Button>
+                </div>
+            </div>
+            <div
+                className="flex-1 min-h-0 border-x border-primary bg-black flex items-center justify-center p-3"
+                onClick={(event) => event.stopPropagation()}
+            >
+                <img
+                    src={image.url}
+                    alt={`Generated enlarged preview ${image.job.index + 1}-${image.imageIndex + 1}`}
+                    className="max-w-full max-h-full object-contain"
+                />
+            </div>
+            <div
+                className="border border-primary bg-primary/5 p-3"
+                onClick={(event) => event.stopPropagation()}
+            >
+                <ImageTimingDetails job={image.job} />
+            </div>
+        </div>
+    )
+}
+
+function ImagePreviewGrid({ jobs, onToast, onZoom }) {
     const images = useMemo(() => jobs.flatMap(job =>
         job.images.map((image, imageIndex) => ({
             ...image,
@@ -75,11 +236,11 @@ function ImagePreviewGrid({ jobs, onToast }) {
                         key={`${image.job.id}_${image.id}`}
                         className="border border-border bg-black min-h-[300px] flex flex-col"
                     >
-                        <a
-                            href={image.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block bg-black border-b border-border aspect-[4/3] overflow-hidden"
+                        <button
+                            type="button"
+                            className="block bg-black border-b border-border aspect-[4/3] overflow-hidden relative group/preview"
+                            onClick={() => onZoom(image)}
+                            title="点击放大预览"
                         >
                             <img
                                 src={image.url}
@@ -87,7 +248,10 @@ function ImagePreviewGrid({ jobs, onToast }) {
                                 className="w-full h-full object-contain"
                                 loading="lazy"
                             />
-                        </a>
+                            <span className="absolute right-2 top-2 h-8 w-8 border border-primary bg-black/80 text-primary hidden group-hover/preview:flex items-center justify-center">
+                                <Maximize2 className="w-4 h-4" />
+                            </span>
+                        </button>
 
                         <div className="p-3 space-y-3 text-xs">
                             <div className="flex items-center justify-between gap-3">
@@ -104,6 +268,7 @@ function ImagePreviewGrid({ jobs, onToast }) {
                                     {image.width && image.height ? `${image.width}x${image.height}` : '-'}
                                 </span>
                             </div>
+                            <ImageTimingDetails job={image.job} />
                             <div className="grid grid-cols-3 gap-2">
                                 <Button
                                     variant="ghost"
@@ -178,6 +343,9 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
     const normalizedSettings = mergeSettings(settings)
     const batch = useImageGenerationBatch({ onToast })
     const providerInfo = IMAGE_GENERATION_PROVIDER_INFO[normalizedSettings.provider]
+    const [zoomImage, setZoomImage] = useState(null)
+    const estimatedCount = getEstimatedImageCount(normalizedSettings)
+    const estimatedTotalImages = estimatedCount.batchCount * estimatedCount.numImages
 
     if (!isOpen) {
         return null
@@ -191,6 +359,7 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
         const nextProviderInfo = IMAGE_GENERATION_PROVIDER_INFO[provider]
         setSettings(prev => ({
             ...mergeSettings(prev),
+            settingsVersion: IMAGE_GENERATION_SETTINGS_VERSION,
             provider,
             model: nextProviderInfo?.defaultModel || '',
         }))
@@ -286,7 +455,7 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
 
                         <div className="grid grid-cols-3 gap-3">
                             <div>
-                                <Label className={FIELD_LABEL_CLASS}>批量</Label>
+                                <Label className={FIELD_LABEL_CLASS}>生成批次</Label>
                                 <Input
                                     type="number"
                                     min="1"
@@ -366,6 +535,10 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                 <span>{batch.stats.total}</span>
                             </div>
                             <div className="flex items-center justify-between">
+                                <span className="text-primary/70">预计总张数</span>
+                                <span>{estimatedCount.batchCount} 批 x {estimatedCount.numImages} 张 = {estimatedTotalImages}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
                                 <span className="text-primary/70">SUCCESS / FAILED / RUNNING</span>
                                 <span>{batch.stats.success} / {batch.stats.failed} / {batch.stats.running}</span>
                             </div>
@@ -396,10 +569,15 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                             disabled={batch.isRunning}
                                         >
                                             {FAL_IMAGE_SIZE_PRESETS.map(size => (
-                                                <option key={size} value={size}>{size}</option>
+                                                <option key={size.value} value={size.value}>{size.label}</option>
                                             ))}
-                                            <option value="custom">custom</option>
+                                            <option value="custom">custom - 自定义尺寸</option>
                                         </Select>
+                                        <div className="mt-1 text-[11px] text-primary/50">
+                                            {normalizedSettings.imageSizePreset === 'custom'
+                                                ? `${normalizedSettings.customWidth}x${normalizedSettings.customHeight}`
+                                                : getImageSizeLabel(normalizedSettings.imageSizePreset)}
+                                        </div>
                                     </div>
 
                                     {normalizedSettings.imageSizePreset === 'custom' && (
@@ -471,7 +649,7 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                     </div>
 
                                     <div>
-                                        <Label className={FIELD_LABEL_CLASS}>单次出图</Label>
+                                        <Label className={FIELD_LABEL_CLASS}>每批张数</Label>
                                         <Select
                                             value={normalizedSettings.numImages}
                                             onChange={(event) => setField('numImages', event.target.value)}
@@ -545,10 +723,21 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                     {batch.jobs.reduce((count, job) => count + job.images.length, 0)} IMG
                                 </Badge>
                             </div>
-                            <ImagePreviewGrid jobs={batch.jobs} onToast={onToast} />
+                            <ImagePreviewGrid
+                                jobs={batch.jobs}
+                                onToast={onToast}
+                                onZoom={setZoomImage}
+                            />
                         </section>
                     </main>
                 </div>
+            </div>
+            <div onClick={(event) => event.stopPropagation()}>
+                <ImageZoomModal
+                    image={zoomImage}
+                    onClose={() => setZoomImage(null)}
+                    onToast={onToast}
+                />
             </div>
         </div>
     )

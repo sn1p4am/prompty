@@ -73,6 +73,9 @@ export function useImageGenerationBatch({ onToast } = {}) {
             requestId: null,
             prompt: settings.prompt,
             hasNsfwConcepts: [],
+            clientTimings: null,
+            completedAt: null,
+            timings: null,
         }))
 
         const runId = runIdRef.current + 1
@@ -163,6 +166,8 @@ export function useImageGenerationBatch({ onToast } = {}) {
                                 requestId: result.requestId,
                                 prompt: result.prompt,
                                 hasNsfwConcepts: result.hasNsfwConcepts,
+                                clientTimings: result.clientTimings,
+                                completedAt: result.completedAt,
                                 timings: result.timings,
                             })
                         })

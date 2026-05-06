@@ -33,6 +33,14 @@ function normalizeFalModelPath(model) {
         .replace(/^\/+/, '')
 }
 
+function now() {
+    return globalThis.performance?.now ? globalThis.performance.now() : Date.now()
+}
+
+function roundDuration(duration) {
+    return Math.max(0, Math.round(duration))
+}
+
 export function buildFalImageGenerationPayload(settings) {
     const prompt = String(settings.prompt || '').trim()
 
@@ -124,7 +132,7 @@ async function generateFalImage({ apiKey, model, settings, signal }) {
         throw new Error('请填写 fal.ai 模型 ID')
     }
 
-    const requestStartTime = Date.now()
+    const requestStartTime = now()
     const response = await fetch(`${IMAGE_GENERATION_PROVIDER_INFO[IMAGE_GENERATION_PROVIDERS.FAL].baseUrl}/${modelPath}`, {
         method: 'POST',
         headers: {
@@ -134,14 +142,25 @@ async function generateFalImage({ apiKey, model, settings, signal }) {
         body: JSON.stringify(buildFalImageGenerationPayload(settings)),
         signal,
     })
+    const responseReceivedTime = now()
 
     if (!response.ok) {
         const errorText = await response.text()
         throw new Error(normalizeImageGenerationError(response, errorText))
     }
 
-    const data = await response.json()
+    const responseText = await response.text()
+    const responseBodyReadTime = now()
+    const data = JSON.parse(responseText)
+    const responseParsedTime = now()
     const images = Array.isArray(data.images) ? data.images : []
+    const completedAt = new Date().toISOString()
+    const clientTimings = {
+        response: roundDuration(responseReceivedTime - requestStartTime),
+        download: roundDuration(responseBodyReadTime - responseReceivedTime),
+        parse: roundDuration(responseParsedTime - responseBodyReadTime),
+        total: roundDuration(responseParsedTime - requestStartTime),
+    }
 
     return {
         provider: IMAGE_GENERATION_PROVIDERS.FAL,
@@ -158,8 +177,10 @@ async function generateFalImage({ apiKey, model, settings, signal }) {
         })).filter(image => image.url),
         hasNsfwConcepts: data.has_nsfw_concepts || [],
         timings: data.timings || null,
+        clientTimings,
+        completedAt,
         requestId: data.request_id || data.requestId || null,
-        duration: Date.now() - requestStartTime,
+        duration: clientTimings.total,
         raw: data,
     }
 }
