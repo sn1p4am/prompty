@@ -75,6 +75,18 @@ function formatTimingValue(value) {
     return `${numericValue.toFixed(2)}s`
 }
 
+function formatServerTimingLabel(key) {
+    const labels = {
+        inference: '推理',
+        queue: '排队',
+        upload: '上传',
+        download: '下载',
+        total: '服务端',
+    }
+
+    return labels[key] || key
+}
+
 function formatCompletedAt(value) {
     if (!value) {
         return '-'
@@ -118,23 +130,47 @@ function ImageTimingDetails({ job }) {
     const serverTimings = job.timings && Object.keys(job.timings).length > 0
         ? Object.entries(job.timings)
         : []
+    const inferenceTiming = job.timings?.inference
+    const primaryTimings = [
+        { label: '总耗时', value: formatMs(job.duration) },
+        { label: '响应', value: formatMs(job.clientTimings?.response) },
+        { label: '返回', value: formatMs(job.clientTimings?.download) },
+        { label: '推理', value: formatTimingValue(inferenceTiming) },
+    ]
+    const secondaryTimings = serverTimings.filter(([key]) => key !== 'inference')
 
     return (
-        <div className="space-y-2 text-[11px] text-primary/70">
-            <div className="grid grid-cols-2 gap-2">
-                <span>完成: {formatCompletedAt(job.completedAt)}</span>
-                <span className="text-right">总耗时: {formatMs(job.duration)}</span>
-                <span>响应: {formatMs(job.clientTimings?.response)}</span>
-                <span className="text-right">返回: {formatMs(job.clientTimings?.download)}</span>
-                <span>解析: {formatMs(job.clientTimings?.parse)}</span>
-                <span className="text-right">请求ID: {job.requestId || '-'}</span>
+        <div className="border border-border bg-primary/5 p-2 text-[11px] text-primary/75 space-y-2">
+            <div className="flex items-center justify-between gap-3 border-b border-border pb-1">
+                <span className="font-bold text-primary uppercase tracking-widest">耗时</span>
+                <span className="text-primary/55">完成 {formatCompletedAt(job.completedAt)}</span>
             </div>
 
-            {serverTimings.length > 0 && (
-                <div className="border-t border-border pt-2 grid grid-cols-2 gap-x-3 gap-y-1">
-                    {serverTimings.map(([key, value]) => (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {primaryTimings.map(item => (
+                    <div key={item.label} className="min-w-0">
+                        <div className="text-primary/45">{item.label}</div>
+                        <div className="text-primary font-bold truncate">{item.value}</div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-primary/55">
+                <div className="flex justify-between gap-2">
+                    <span>解析</span>
+                    <span>{formatMs(job.clientTimings?.parse)}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                    <span>请求ID</span>
+                    <span className="truncate" title={job.requestId || ''}>{job.requestId || '-'}</span>
+                </div>
+            </div>
+
+            {secondaryTimings.length > 0 && (
+                <div className="border-t border-border pt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-primary/60">
+                    {secondaryTimings.map(([key, value]) => (
                         <div key={key} className="flex justify-between gap-2">
-                            <span className="truncate" title={key}>{key}</span>
+                            <span className="truncate" title={key}>{formatServerTimingLabel(key)}</span>
                             <span>{formatTimingValue(value)}</span>
                         </div>
                     ))}
