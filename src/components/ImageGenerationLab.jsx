@@ -371,21 +371,20 @@ function ImagePreviewGrid({ jobs, onToast, onZoom }) {
 }
 
 export function ImageGenerationLab({ isOpen, onClose, onToast }) {
-    const [apiKey, setApiKey] = useState('')
     const [settings, setSettings] = useLocalStorage(
         IMAGE_GENERATION_STORAGE_KEYS.SETTINGS,
         DEFAULT_IMAGE_GENERATION_SETTINGS
     )
+    const [apiKeys, setApiKeys] = useLocalStorage(IMAGE_GENERATION_STORAGE_KEYS.API_KEYS, {})
     const normalizedSettings = mergeSettings(settings)
     const batch = useImageGenerationBatch({ onToast })
     const providerInfo = IMAGE_GENERATION_PROVIDER_INFO[normalizedSettings.provider]
+    const [draftApiKey, setDraftApiKey] = useState('')
     const [zoomImage, setZoomImage] = useState(null)
     const estimatedCount = getEstimatedImageCount(normalizedSettings)
     const estimatedTotalImages = estimatedCount.batchCount * estimatedCount.numImages
-
-    if (!isOpen) {
-        return null
-    }
+    const savedApiKey = apiKeys?.[normalizedSettings.provider] || ''
+    const hasApiKey = Boolean(savedApiKey)
 
     const setField = (field, value) => {
         setSettings(prev => updateField(mergeSettings(prev), field, value))
@@ -399,12 +398,48 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
             provider,
             model: nextProviderInfo?.defaultModel || '',
         }))
+        setDraftApiKey('')
+    }
+
+    const handleSaveApiKey = () => {
+        const normalizedKey = draftApiKey.trim()
+
+        if (!normalizedKey) {
+            onToast?.('请先填写图像生成 API Key')
+            return
+        }
+
+        if (!providerInfo?.keyStorageKey) {
+            onToast?.('当前供应商暂不支持保存密钥')
+            return
+        }
+
+        setApiKeys(prev => ({
+            ...(prev || {}),
+            [normalizedSettings.provider]: normalizedKey,
+        }))
+        setDraftApiKey('')
+        onToast?.('图像生成 API Key 已保存')
+    }
+
+    const handleClearApiKey = () => {
+        if (!providerInfo?.keyStorageKey) {
+            return
+        }
+
+        setApiKeys(prev => {
+            const nextApiKeys = { ...(prev || {}) }
+            delete nextApiKeys[normalizedSettings.provider]
+            return nextApiKeys
+        })
+        setDraftApiKey('')
+        onToast?.('图像生成 API Key 已撤销')
     }
 
     const handleStart = () => {
         batch.startBatch({
             provider: normalizedSettings.provider,
-            apiKey,
+            apiKey: savedApiKey,
             model: normalizedSettings.model,
             settings: normalizedSettings,
             batchCount: normalizedSettings.batchCount,
@@ -414,27 +449,23 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
     }
 
     return (
-        <div
-            className="fixed inset-0 z-[9998] bg-black/90 backdrop-blur-sm p-4 lg:p-6 overflow-y-auto"
-            onClick={onClose}
-        >
-            <div
-                className="max-w-[1800px] mx-auto min-h-[calc(100vh-3rem)] border border-primary bg-black shadow-glow flex flex-col"
-                onClick={(event) => event.stopPropagation()}
-            >
+        <div className={isOpen ? "space-y-6" : "hidden"}>
+            <div className="border border-primary bg-black shadow-glow flex flex-col">
                 <div className="flex items-center justify-between gap-4 border-b border-primary bg-primary/10 p-3">
                     <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-widest">
                         <Image className="w-4 h-4" />
                         <span>{`>> IMAGE_GENERATION_TEST`}</span>
                     </div>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={onClose}
-                        className="h-8 w-8 p-0 hover:bg-primary hover:text-black"
-                    >
-                        <X className="w-4 h-4" />
-                    </Button>
+                    {onClose && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={onClose}
+                            className="h-8 text-xs"
+                        >
+                            返回文本测试
+                        </Button>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-[430px_1fr] flex-1">
@@ -456,14 +487,41 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                             </div>
 
                             <div>
-                                <Label className={FIELD_LABEL_CLASS}>API Key</Label>
-                                <Input
-                                    type="password"
-                                    value={apiKey}
-                                    placeholder={`输入 ${providerInfo?.keyLabel || 'API Key'}`}
-                                    onChange={(event) => setApiKey(event.target.value)}
-                                    disabled={batch.isRunning}
-                                />
+                                <Label className={`${FIELD_LABEL_CLASS} flex items-center justify-between`}>
+                                    <span>API Key</span>
+                                    <span className={hasApiKey ? "text-primary" : "text-destructive"}>
+                                        {hasApiKey ? '已保存' : '未保存'}
+                                    </span>
+                                </Label>
+                                <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+                                    <Input
+                                        type="password"
+                                        value={draftApiKey}
+                                        placeholder={hasApiKey ? '****************' : `输入 ${providerInfo?.keyLabel || 'API Key'}`}
+                                        onChange={(event) => setDraftApiKey(event.target.value)}
+                                        onKeyDown={(event) => event.key === 'Enter' && handleSaveApiKey()}
+                                        disabled={batch.isRunning || hasApiKey}
+                                    />
+                                    <Button
+                                        size="sm"
+                                        className="h-10"
+                                        onClick={handleSaveApiKey}
+                                        disabled={batch.isRunning || hasApiKey}
+                                    >
+                                        保存
+                                    </Button>
+                                    {hasApiKey && (
+                                        <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            className="h-10"
+                                            onClick={handleClearApiKey}
+                                            disabled={batch.isRunning}
+                                        >
+                                            撤销
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

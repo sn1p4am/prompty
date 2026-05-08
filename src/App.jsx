@@ -17,7 +17,12 @@ import { STORAGE_KEYS, DEFAULT_CONFIG, DEFAULT_VERTEX_OPTIONS, DISPLAY_MODES, PR
 import { Button } from "./components/ui/button"
 import { Badge } from "./components/ui/badge"
 // Icons
-import { Monitor, FileCode, Terminal, FileText, Code, Eye, ImagePlus } from "lucide-react"
+import { Monitor, FileCode, Terminal, FileText, Code, Eye, ImagePlus, MessageSquareText } from "lucide-react"
+
+const WORKSPACES = {
+  TEXT: 'text',
+  IMAGE: 'image',
+}
 
 function normalizeVertexModelId(model = '') {
   return String(model)
@@ -61,7 +66,9 @@ function App() {
   const [modalViewMode, setModalViewMode] = useState('raw') // 'raw' | 'markdown' | 'html'
   const [modalRawContent, setModalRawContent] = useState('')
   const [defaultViewMode, setDefaultViewMode] = useLocalStorage(STORAGE_KEYS.MODAL_DEFAULT_VIEW_MODE, 'raw') // 默认视图模式
-  const [imageLabOpen, setImageLabOpen] = useState(false)
+  const [workspace, setWorkspace] = useState(WORKSPACES.TEXT)
+  const isTextWorkspace = workspace === WORKSPACES.TEXT
+  const isImageWorkspace = workspace === WORKSPACES.IMAGE
 
   useEffect(() => {
     if (apiConfig.currentProvider !== PROVIDERS.VERTEX) {
@@ -153,13 +160,13 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.ctrlKey && e.key === 'Enter') {
-        if (!batchTest.isRunning && (systemPrompt || userPrompt) && selectedModel) handleStartTest()
+        if (isTextWorkspace && !batchTest.isRunning && (systemPrompt || userPrompt) && selectedModel) handleStartTest()
       }
       if (e.key === 'Escape') setModalOpen(false)
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [batchTest.isRunning, systemPrompt, userPrompt, selectedModel, handleStartTest])
+  }, [batchTest.isRunning, systemPrompt, userPrompt, selectedModel, handleStartTest, isTextWorkspace])
 
   return (
     <div className="min-h-screen font-mono p-4 pb-20 selection:bg-primary selection:text-black">
@@ -182,146 +189,166 @@ function App() {
             <div className="mt-auto pt-2 flex items-center gap-2">
               <Badge variant="outline" className="text-[10px]">系统状态: 在线</Badge>
               <VersionBadge />
+            </div>
+            <div className="mt-3 flex items-center gap-2">
               <Button
                 size="sm"
-                variant="outline"
-                className="h-7 px-2 text-[10px]"
-                onClick={() => setImageLabOpen(true)}
+                variant={isTextWorkspace ? 'default' : 'outline'}
+                className="h-8 px-2 text-[10px]"
+                onClick={() => setWorkspace(WORKSPACES.TEXT)}
+              >
+                <MessageSquareText className="w-3 h-3 mr-1" /> 文本测试
+              </Button>
+              <Button
+                size="sm"
+                variant={isImageWorkspace ? 'default' : 'outline'}
+                className="h-8 px-2 text-[10px]"
+                onClick={() => setWorkspace(WORKSPACES.IMAGE)}
               >
                 <ImagePlus className="w-3 h-3 mr-1" /> 图像生成测试
               </Button>
             </div>
           </div>
 
-          <div className="flex-1 border-l border-dashed border-border pl-6">
+          <div className={isTextWorkspace ? "flex-1 border-l border-dashed border-border pl-6" : "hidden"}>
             <ApiKeyManager apiConfig={apiConfig} onToast={showToast} />
           </div>
         </header>
 
-        {/* Main Control Grid */}
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-          {/* Left Column: Configuration */}
-          <div className="xl:col-span-1 space-y-6">
-            <ModelSelector
-              apiConfig={apiConfig}
-              selectedModel={selectedModel}
-              onModelChange={setSelectedModel}
-            />
+        {isTextWorkspace ? (
+          <>
+            {/* Main Control Grid */}
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+              {/* Left Column: Configuration */}
+              <div className="xl:col-span-1 space-y-6">
+                <ModelSelector
+                  apiConfig={apiConfig}
+                  selectedModel={selectedModel}
+                  onModelChange={setSelectedModel}
+                />
 
-            <AdvancedSettings
-              batchSize={batchSize} onBatchSizeChange={setBatchSize}
-              interval={interval} onIntervalChange={setInterval}
-              concurrency={concurrency} onConcurrencyChange={setConcurrency}
-              temperature={temperature} onTemperatureChange={setTemperature}
-              topP={topP} onTopPChange={setTopP}
-              maxTokens={maxTokens} onMaxTokensChange={setMaxTokens}
-              streamMode={streamMode} onStreamModeChange={setStreamMode}
-              enableThinking={enableThinking} onEnableThinkingChange={setEnableThinking}
-            />
+                <AdvancedSettings
+                  batchSize={batchSize} onBatchSizeChange={setBatchSize}
+                  interval={interval} onIntervalChange={setInterval}
+                  concurrency={concurrency} onConcurrencyChange={setConcurrency}
+                  temperature={temperature} onTemperatureChange={setTemperature}
+                  topP={topP} onTopPChange={setTopP}
+                  maxTokens={maxTokens} onMaxTokensChange={setMaxTokens}
+                  streamMode={streamMode} onStreamModeChange={setStreamMode}
+                  enableThinking={enableThinking} onEnableThinkingChange={setEnableThinking}
+                />
 
-            {apiConfig.currentProvider === PROVIDERS.VERTEX && (
-              <VertexAdvancedSettings
-                options={resolvedVertexOptions}
-                onChange={setVertexOptions}
-              />
-            )}
-
-            {/* Action Buttons */}
-            <div className="pt-4 space-y-4">
-              <Button
-                size="lg"
-                className="w-full text-base h-16 border-2 border-primary hover:bg-primary hover:text-black transition-none"
-                onClick={handleStartTest}
-                disabled={batchTest.isRunning || (!systemPrompt && !userPrompt) || !selectedModel}
-              >
-                {batchTest.isRunning ? (
-                  <span className="animate-pulse">{`>> 执行中...`}</span>
-                ) : (
-                  <span>启动序列</span>
-                )}
-              </Button>
-
-              {batchTest.isRunning && (
-                <Button
-                  variant="destructive" size="lg"
-                  onClick={batchTest.stopAllRequests}
-                  className="w-full border-2 border-destructive"
-                >
-                  终止任务
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Right Column: Prompt Input */}
-          <div className="xl:col-span-3 h-full">
-            <ConfigPanel
-              systemPrompt={systemPrompt} onSystemPromptChange={setSystemPrompt}
-              userPrompt={userPrompt} onUserPromptChange={setUserPrompt}
-            />
-
-            {/* Progress Bar (ASCII Style) */}
-            {batchTest.isRunning && (
-              <div className="mt-4 font-mono text-xs text-primary">
-                <div className="flex justify-between mb-1">
-                  <span>进度_线程_1</span>
-                  <span>{Math.round(batchTest.progress)}%</span>
-                </div>
-                <div className="h-4 w-full border border-primary p-0.5">
-                  <div
-                    className="h-full bg-primary"
-                    style={{ width: `${batchTest.progress}%` }}
+                {apiConfig.currentProvider === PROVIDERS.VERTEX && (
+                  <VertexAdvancedSettings
+                    options={resolvedVertexOptions}
+                    onChange={setVertexOptions}
                   />
+                )}
+
+                {/* Action Buttons */}
+                <div className="pt-4 space-y-4">
+                  <Button
+                    size="lg"
+                    className="w-full text-base h-16 border-2 border-primary hover:bg-primary hover:text-black transition-none"
+                    onClick={handleStartTest}
+                    disabled={batchTest.isRunning || (!systemPrompt && !userPrompt) || !selectedModel}
+                  >
+                    {batchTest.isRunning ? (
+                      <span className="animate-pulse">{`>> 执行中...`}</span>
+                    ) : (
+                      <span>启动序列</span>
+                    )}
+                  </Button>
+
+                  {batchTest.isRunning && (
+                    <Button
+                      variant="destructive" size="lg"
+                      onClick={batchTest.stopAllRequests}
+                      className="w-full border-2 border-destructive"
+                    >
+                      终止任务
+                    </Button>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Separator */}
-        <div className="text-border select-none overflow-hidden whitespace-nowrap text-xs opacity-50 my-8">
-          ====================================================================================================================================================================================
-        </div>
+              {/* Right Column: Prompt Input */}
+              <div className="xl:col-span-3 h-full">
+                <ConfigPanel
+                  systemPrompt={systemPrompt} onSystemPromptChange={setSystemPrompt}
+                  userPrompt={userPrompt} onUserPromptChange={setUserPrompt}
+                />
 
-        {/* Results Section */}
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest text-secondary">
-              <Terminal className="w-5 h-5" />
-              {`>> 输出流缓冲区`}
-            </h2>
-
-            {/* Display Mode Switcher */}
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant={displayMode === DISPLAY_MODES.CARD ? 'default' : 'outline'}
-                onClick={() => setDisplayMode(DISPLAY_MODES.CARD)}
-                className="h-8 text-xs"
-              >
-                <Monitor className="w-3 h-3 mr-2" /> 网格视图
-              </Button>
-              <Button
-                size="sm"
-                variant={displayMode === DISPLAY_MODES.HTML ? 'default' : 'outline'}
-                onClick={() => setDisplayMode(DISPLAY_MODES.HTML)}
-                className="h-8 text-xs"
-              >
-                <FileCode className="w-3 h-3 mr-2" /> HTML预览
-              </Button>
+                {/* Progress Bar (ASCII Style) */}
+                {batchTest.isRunning && (
+                  <div className="mt-4 font-mono text-xs text-primary">
+                    <div className="flex justify-between mb-1">
+                      <span>进度_线程_1</span>
+                      <span>{Math.round(batchTest.progress)}%</span>
+                    </div>
+                    <div className="h-4 w-full border border-primary p-0.5">
+                      <div
+                        className="h-full bg-primary"
+                        style={{ width: `${batchTest.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          <ResultsGrid
-            results={batchTest.results}
-            displayMode={displayMode}
-            onViewFull={handleViewFull}
-            onCopy={(text) => {
-              navigator.clipboard.writeText(text)
-              showToast('缓冲区已复制到剪贴板')
-            }}
+            {/* Separator */}
+            <div className="text-border select-none overflow-hidden whitespace-nowrap text-xs opacity-50 my-8">
+              ====================================================================================================================================================================================
+            </div>
+
+            {/* Results Section */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold flex items-center gap-2 uppercase tracking-widest text-secondary">
+                  <Terminal className="w-5 h-5" />
+                  {`>> 输出流缓冲区`}
+                </h2>
+
+                {/* Display Mode Switcher */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant={displayMode === DISPLAY_MODES.CARD ? 'default' : 'outline'}
+                    onClick={() => setDisplayMode(DISPLAY_MODES.CARD)}
+                    className="h-8 text-xs"
+                  >
+                    <Monitor className="w-3 h-3 mr-2" /> 网格视图
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={displayMode === DISPLAY_MODES.HTML ? 'default' : 'outline'}
+                    onClick={() => setDisplayMode(DISPLAY_MODES.HTML)}
+                    className="h-8 text-xs"
+                  >
+                    <FileCode className="w-3 h-3 mr-2" /> HTML预览
+                  </Button>
+                </div>
+              </div>
+
+              <ResultsGrid
+                results={batchTest.results}
+                displayMode={displayMode}
+                onViewFull={handleViewFull}
+                onCopy={(text) => {
+                  navigator.clipboard.writeText(text)
+                  showToast('缓冲区已复制到剪贴板')
+                }}
+              />
+            </div>
+          </>
+        ) : (
+          <ImageGenerationLab
+            isOpen={isImageWorkspace}
+            onClose={() => setWorkspace(WORKSPACES.TEXT)}
+            onToast={showToast}
           />
-        </div>
+        )}
       </div>
 
       {/* Modal & Toast */}
@@ -365,11 +392,6 @@ function App() {
           {renderModalContent()}
         </div>
       </Modal>
-      <ImageGenerationLab
-        isOpen={imageLabOpen}
-        onClose={() => setImageLabOpen(false)}
-        onToast={showToast}
-      />
       <Toast message={toast} />
     </div>
   )

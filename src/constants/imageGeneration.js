@@ -7,6 +7,7 @@ export const IMAGE_GENERATION_PROVIDER_INFO = {
         name: 'fal.ai',
         baseUrl: 'https://fal.run',
         keyLabel: 'FAL_KEY',
+        keyStorageKey: 'fal_image_generation_api_key',
         defaultModel: 'fal-ai/flux-1/schnell',
         models: [
             'fal-ai/flux-1/schnell',
@@ -48,4 +49,5 @@ export const DEFAULT_IMAGE_GENERATION_SETTINGS = {
 
 export const IMAGE_GENERATION_STORAGE_KEYS = {
     SETTINGS: 'image_generation_settings',
+    API_KEYS: 'image_generation_api_keys',
 }
