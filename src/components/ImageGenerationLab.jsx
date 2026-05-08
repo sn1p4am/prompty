@@ -59,6 +59,10 @@ function formatMs(value) {
     }
 
     const numericValue = Number(value)
+    if (numericValue > 0 && numericValue < 1) {
+        return '<1ms'
+    }
+
     if (numericValue >= 1000) {
         return `${(numericValue / 1000).toFixed(2)}s`
     }
@@ -85,6 +89,10 @@ function formatServerTimingLabel(key) {
     }
 
     return labels[key] || key
+}
+
+function getNow() {
+    return globalThis.performance?.now ? globalThis.performance.now() : Date.now()
 }
 
 function formatCompletedAt(value) {
@@ -126,15 +134,29 @@ function ImageStatusBadge({ status }) {
     return <Badge variant="outline">等待</Badge>
 }
 
-function ImageTimingDetails({ job }) {
+function TrackedImage({ src, alt, className, loading, onLoad }) {
+    const [loadStartTime] = useState(() => getNow())
+
+    return (
+        <img
+            src={src}
+            alt={alt}
+            className={className}
+            loading={loading}
+            onLoad={() => onLoad?.(src, Math.max(0.5, getNow() - loadStartTime))}
+        />
+    )
+}
+
+function ImageTimingDetails({ job, imageLoadDuration }) {
     const serverTimings = job.timings && Object.keys(job.timings).length > 0
         ? Object.entries(job.timings)
         : []
     const inferenceTiming = job.timings?.inference
     const primaryTimings = [
         { label: '总耗时', value: formatMs(job.duration) },
-        { label: '响应', value: formatMs(job.clientTimings?.response) },
-        { label: '返回', value: formatMs(job.clientTimings?.download) },
+        { label: '请求耗时', value: formatMs(job.clientTimings?.response) },
+        { label: '接收结果', value: formatMs(job.clientTimings?.download) },
         { label: '推理', value: formatTimingValue(inferenceTiming) },
     ]
     const secondaryTimings = serverTimings.filter(([key]) => key !== 'inference')
@@ -157,8 +179,12 @@ function ImageTimingDetails({ job }) {
 
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-primary/55">
                 <div className="flex justify-between gap-2">
-                    <span>解析</span>
+                    <span>解析结果</span>
                     <span>{formatMs(job.clientTimings?.parse)}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                    <span>图片加载</span>
+                    <span>{formatMs(imageLoadDuration)}</span>
                 </div>
                 <div className="flex justify-between gap-2">
                     <span>请求ID</span>
@@ -180,7 +206,7 @@ function ImageTimingDetails({ job }) {
     )
 }
 
-function ImageZoomModal({ image, onClose, onToast }) {
+function ImageZoomModal({ image, onClose, onToast, imageLoadDuration, onImageLoad }) {
     if (!image) {
         return null
     }
@@ -231,23 +257,24 @@ function ImageZoomModal({ image, onClose, onToast }) {
                 className="flex-1 min-h-0 border-x border-primary bg-black flex items-center justify-center p-3"
                 onClick={(event) => event.stopPropagation()}
             >
-                <img
+                <TrackedImage
                     src={image.url}
                     alt={`Generated enlarged preview ${image.job.index + 1}-${image.imageIndex + 1}`}
                     className="max-w-full max-h-full object-contain"
+                    onLoad={onImageLoad}
                 />
             </div>
             <div
                 className="border border-primary bg-primary/5 p-3"
                 onClick={(event) => event.stopPropagation()}
             >
-                <ImageTimingDetails job={image.job} />
+                <ImageTimingDetails job={image.job} imageLoadDuration={imageLoadDuration} />
             </div>
         </div>
     )
 }
 
-function ImagePreviewGrid({ jobs, onToast, onZoom }) {
+function ImagePreviewGrid({ jobs, onToast, onZoom, imageLoadDurations, onImageLoad }) {
     const images = useMemo(() => jobs.flatMap(job =>
         job.images.map((image, imageIndex) => ({
             ...image,
@@ -278,11 +305,12 @@ function ImagePreviewGrid({ jobs, onToast, onZoom }) {
                             onClick={() => onZoom(image)}
                             title="点击放大预览"
                         >
-                            <img
+                            <TrackedImage
                                 src={image.url}
                                 alt={`Generated preview ${image.job.index + 1}-${image.imageIndex + 1}`}
                                 className="w-full h-full object-contain"
                                 loading="lazy"
+                                onLoad={onImageLoad}
                             />
                             <span className="absolute right-2 top-2 h-8 w-8 border border-primary bg-black/80 text-primary hidden group-hover/preview:flex items-center justify-center">
                                 <Maximize2 className="w-4 h-4" />
@@ -304,7 +332,10 @@ function ImagePreviewGrid({ jobs, onToast, onZoom }) {
                                     {image.width && image.height ? `${image.width}x${image.height}` : '-'}
                                 </span>
                             </div>
-                            <ImageTimingDetails job={image.job} />
+                            <ImageTimingDetails
+                                job={image.job}
+                                imageLoadDuration={imageLoadDurations[image.url]}
+                            />
                             <div className="grid grid-cols-3 gap-2">
                                 <Button
                                     variant="ghost"
@@ -381,6 +412,7 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
     const providerInfo = IMAGE_GENERATION_PROVIDER_INFO[normalizedSettings.provider]
     const [draftApiKey, setDraftApiKey] = useState('')
     const [zoomImage, setZoomImage] = useState(null)
+    const [imageLoadDurations, setImageLoadDurations] = useState({})
     const estimatedCount = getEstimatedImageCount(normalizedSettings)
     const estimatedTotalImages = estimatedCount.batchCount * estimatedCount.numImages
     const savedApiKey = apiKeys?.[normalizedSettings.provider] || ''
@@ -437,6 +469,7 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
     }
 
     const handleStart = () => {
+        setImageLoadDurations({})
         batch.startBatch({
             provider: normalizedSettings.provider,
             apiKey: savedApiKey,
@@ -446,6 +479,17 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
             concurrency: normalizedSettings.concurrency,
             interval: normalizedSettings.interval,
         })
+    }
+
+    const handleImageLoad = (url, duration) => {
+        if (!url || imageLoadDurations[url] !== undefined) {
+            return
+        }
+
+        setImageLoadDurations(prev => ({
+            ...prev,
+            [url]: duration,
+        }))
     }
 
     return (
@@ -821,6 +865,8 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                 jobs={batch.jobs}
                                 onToast={onToast}
                                 onZoom={setZoomImage}
+                                imageLoadDurations={imageLoadDurations}
+                                onImageLoad={handleImageLoad}
                             />
                         </section>
                     </main>
@@ -831,6 +877,8 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                     image={zoomImage}
                     onClose={() => setZoomImage(null)}
                     onToast={onToast}
+                    imageLoadDuration={zoomImage ? imageLoadDurations[zoomImage.url] : undefined}
+                    onImageLoad={handleImageLoad}
                 />
             </div>
         </div>
