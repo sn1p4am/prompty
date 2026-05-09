@@ -1,5 +1,6 @@
 export const IMAGE_GENERATION_PROVIDERS = {
     FAL: 'fal',
+    TOGETHER: 'together',
 }
 
 export const IMAGE_GENERATION_PROVIDER_INFO = {
@@ -13,9 +14,44 @@ export const IMAGE_GENERATION_PROVIDER_INFO = {
             'fal-ai/flux-1/schnell',
         ],
     },
+    [IMAGE_GENERATION_PROVIDERS.TOGETHER]: {
+        name: 'Together.ai',
+        baseUrl: 'https://api.together.xyz/v1',
+        keyLabel: 'TOGETHER_API_KEY',
+        keyStorageKey: 'together_image_generation_api_key',
+        defaultModel: 'black-forest-labs/FLUX.1-schnell',
+        models: [
+            'black-forest-labs/FLUX.1-schnell',
+            'black-forest-labs/FLUX.1-schnell-Free',
+            'black-forest-labs/FLUX.1.1-pro',
+            'black-forest-labs/FLUX.1-kontext-pro',
+            'black-forest-labs/FLUX.1-kontext-max',
+            'black-forest-labs/FLUX.1-krea-dev',
+            'black-forest-labs/FLUX.2-pro',
+            'black-forest-labs/FLUX.2-dev',
+            'black-forest-labs/FLUX.2-flex',
+            'black-forest-labs/FLUX.2-max',
+            'google/imagen-4.0-fast',
+            'google/imagen-4.0-preview',
+            'google/imagen-4.0-ultra',
+            'google/flash-image-2.5',
+            'google/flash-image-3.1',
+            'google/gemini-3-pro-image',
+            'openai/gpt-image-1.5',
+            'ByteDance-Seed/Seedream-3.0',
+            'ByteDance-Seed/Seedream-4.0',
+            'Qwen/Qwen-Image',
+            'Qwen/Qwen-Image-2.0',
+            'Qwen/Qwen-Image-2.0-Pro',
+            'RunDiffusion/Juggernaut-pro-flux',
+            'Rundiffusion/Juggernaut-Lightning-Flux',
+            'stabilityai/stable-diffusion-3-medium',
+            'stabilityai/stable-diffusion-xl-base-1.0',
+        ],
+    },
 }
 
-export const IMAGE_GENERATION_SETTINGS_VERSION = 2
+export const IMAGE_GENERATION_SETTINGS_VERSION = 3
 
 export const FAL_IMAGE_SIZE_PRESETS = [
     { value: 'square_hd', label: 'square_hd - 1024x1024', width: 1024, height: 1024 },
@@ -24,6 +60,17 @@ export const FAL_IMAGE_SIZE_PRESETS = [
     { value: 'portrait_16_9', label: 'portrait_16_9 - 576x1024', width: 576, height: 1024 },
     { value: 'landscape_4_3', label: 'landscape_4_3 - 1024x768', width: 1024, height: 768 },
     { value: 'landscape_16_9', label: 'landscape_16_9 - 1024x576', width: 1024, height: 576 },
+]
+
+export const TOGETHER_ASPECT_RATIO_PRESETS = [
+    { value: '1:1', label: '1:1 - square' },
+    { value: '16:9', label: '16:9 - landscape' },
+    { value: '9:16', label: '9:16 - portrait' },
+    { value: '4:3', label: '4:3 - landscape' },
+    { value: '3:4', label: '3:4 - portrait' },
+    { value: '3:2', label: '3:2 - landscape' },
+    { value: '2:3', label: '2:3 - portrait' },
+    { value: '21:9', label: '21:9 - ultrawide' },
 ]
 
 export const DEFAULT_IMAGE_GENERATION_SETTINGS = {
@@ -45,6 +92,18 @@ export const DEFAULT_IMAGE_GENERATION_SETTINGS = {
     enableSafetyChecker: true,
     outputFormat: 'jpeg',
     acceleration: 'regular',
+    togetherSteps: 4,
+    togetherSizeMode: 'default',
+    togetherAspectRatio: '1:1',
+    togetherWidth: 1024,
+    togetherHeight: 1024,
+    togetherNumImages: 1,
+    togetherSeed: '',
+    togetherGuidanceScale: 3.5,
+    togetherNegativePrompt: '',
+    togetherResponseFormat: 'url',
+    togetherOutputFormat: 'jpeg',
+    togetherDisableSafetyChecker: false,
 }
 
 export const IMAGE_GENERATION_STORAGE_KEYS = {

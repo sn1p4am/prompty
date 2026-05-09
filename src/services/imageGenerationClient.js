@@ -33,6 +33,10 @@ function normalizeFalModelPath(model) {
         .replace(/^\/+/, '')
 }
 
+function normalizeTogetherModel(model) {
+    return String(model || '').trim()
+}
+
 function now() {
     return globalThis.performance?.now ? globalThis.performance.now() : Date.now()
 }
@@ -95,7 +99,74 @@ export function buildFalImageGenerationPayload(settings) {
     }
 }
 
-export function normalizeImageGenerationError(response, errorText) {
+export function buildTogetherImageGenerationPayload(settings, model) {
+    const prompt = String(settings.prompt || '').trim()
+    const normalizedModel = normalizeTogetherModel(model || settings.model)
+
+    if (!prompt) {
+        throw new Error('请填写图像提示词')
+    }
+
+    if (!normalizedModel) {
+        throw new Error('请填写 Together.ai 模型 ID')
+    }
+
+    const steps = parseNumber(settings.togetherSteps, 'Steps', {
+        min: 1,
+        max: 50,
+        integer: true,
+    })
+    const numImages = parseNumber(settings.togetherNumImages, '单次出图数量', {
+        min: 1,
+        max: 4,
+        integer: true,
+    })
+    const seed = parseNumber(settings.togetherSeed, 'Seed', {
+        integer: true,
+    })
+    const guidanceScale = parseNumber(settings.togetherGuidanceScale, 'Guidance Scale', {
+        min: 0,
+        max: 50,
+    })
+    const negativePrompt = String(settings.togetherNegativePrompt || '').trim()
+    const responseFormat = settings.togetherResponseFormat || 'url'
+    const outputFormat = settings.togetherOutputFormat || 'jpeg'
+    const sizeMode = settings.togetherSizeMode || 'default'
+
+    const payload = {
+        model: normalizedModel,
+        prompt,
+        ...(steps !== null && { steps }),
+        ...(numImages !== null && { n: numImages }),
+        ...(seed !== null && { seed }),
+        ...(guidanceScale !== null && { guidance_scale: guidanceScale }),
+        ...(negativePrompt && { negative_prompt: negativePrompt }),
+        ...(responseFormat && { response_format: responseFormat }),
+        ...(outputFormat && { output_format: outputFormat }),
+        ...(settings.togetherDisableSafetyChecker && { disable_safety_checker: true }),
+    }
+
+    if (sizeMode === 'aspect_ratio') {
+        payload.aspect_ratio = settings.togetherAspectRatio || '1:1'
+    }
+
+    if (sizeMode === 'dimensions') {
+        payload.width = parseNumber(settings.togetherWidth, '宽度', {
+            min: 64,
+            max: 4096,
+            integer: true,
+        })
+        payload.height = parseNumber(settings.togetherHeight, '高度', {
+            min: 64,
+            max: 4096,
+            integer: true,
+        })
+    }
+
+    return payload
+}
+
+export function normalizeImageGenerationError(response, errorText, provider = IMAGE_GENERATION_PROVIDERS.FAL) {
     let message = `HTTP ${response.status}`
 
     try {
@@ -111,8 +182,10 @@ export function normalizeImageGenerationError(response, errorText) {
         message = errorText || response.statusText || message
     }
 
+    const providerName = provider === IMAGE_GENERATION_PROVIDERS.TOGETHER ? 'Together.ai' : 'fal.ai'
+
     if (response.status === 401 || response.status === 403) {
-        return 'fal.ai API Key 无效或无权访问该模型'
+        return `${providerName} API Key 无效或无权访问该模型`
     }
 
     if (response.status === 429) {
@@ -124,6 +197,23 @@ export function normalizeImageGenerationError(response, errorText) {
     }
 
     return message
+}
+
+function buildImageResult({ data, index, fallbackModel, defaultContentType = '' }) {
+    const contentType = data.content_type || data.contentType || data.mime_type || data.mimeType || ''
+    const b64Json = data.b64_json || data.b64Json || data.base64 || ''
+    const url = data.url || data.content || (b64Json
+        ? `data:${contentType || defaultContentType || 'image/png'};base64,${b64Json}`
+        : '')
+
+    return {
+        id: `${Date.now()}_${index}_${Math.random().toString(36).slice(2, 8)}`,
+        url,
+        contentType: contentType || fallbackModel,
+        width: data.width,
+        height: data.height,
+        fileName: data.file_name || data.fileName || '',
+    }
 }
 
 async function generateFalImage({ apiKey, model, settings, signal }) {
@@ -146,7 +236,7 @@ async function generateFalImage({ apiKey, model, settings, signal }) {
 
     if (!response.ok) {
         const errorText = await response.text()
-        throw new Error(normalizeImageGenerationError(response, errorText))
+        throw new Error(normalizeImageGenerationError(response, errorText, IMAGE_GENERATION_PROVIDERS.FAL))
     }
 
     const responseText = await response.text()
@@ -167,19 +257,74 @@ async function generateFalImage({ apiKey, model, settings, signal }) {
         model: modelPath,
         prompt: data.prompt || settings.prompt,
         seed: data.seed,
-        images: images.map((image, index) => ({
-            id: `${Date.now()}_${index}_${Math.random().toString(36).slice(2, 8)}`,
-            url: image.url || image.content || '',
-            contentType: image.content_type || image.contentType || '',
-            width: image.width,
-            height: image.height,
-            fileName: image.file_name || image.fileName || '',
+        images: images.map((image, index) => buildImageResult({
+            data: image,
+            index,
+            fallbackModel: modelPath,
+            defaultContentType: settings.outputFormat === 'png' ? 'image/png' : 'image/jpeg',
         })).filter(image => image.url),
         hasNsfwConcepts: data.has_nsfw_concepts || [],
         timings: data.timings || null,
         clientTimings,
         completedAt,
         requestId: data.request_id || data.requestId || null,
+        duration: clientTimings.total,
+        raw: data,
+    }
+}
+
+async function generateTogetherImage({ apiKey, model, settings, signal }) {
+    const normalizedModel = normalizeTogetherModel(model)
+    if (!normalizedModel) {
+        throw new Error('请填写 Together.ai 模型 ID')
+    }
+
+    const requestStartTime = now()
+    const response = await fetch(`${IMAGE_GENERATION_PROVIDER_INFO[IMAGE_GENERATION_PROVIDERS.TOGETHER].baseUrl}/images/generations`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(buildTogetherImageGenerationPayload(settings, normalizedModel)),
+        signal,
+    })
+    const responseReceivedTime = now()
+
+    if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(normalizeImageGenerationError(response, errorText, IMAGE_GENERATION_PROVIDERS.TOGETHER))
+    }
+
+    const responseText = await response.text()
+    const responseBodyReadTime = now()
+    const data = JSON.parse(responseText)
+    const responseParsedTime = now()
+    const images = Array.isArray(data.data) ? data.data : []
+    const completedAt = new Date().toISOString()
+    const clientTimings = {
+        response: roundDuration(responseReceivedTime - requestStartTime),
+        download: roundDuration(responseBodyReadTime - responseReceivedTime),
+        parse: roundDuration(responseParsedTime - responseBodyReadTime),
+        total: roundDuration(responseParsedTime - requestStartTime),
+    }
+
+    return {
+        provider: IMAGE_GENERATION_PROVIDERS.TOGETHER,
+        model: data.model || normalizedModel,
+        prompt: settings.prompt,
+        seed: data.seed ?? settings.togetherSeed ?? null,
+        images: images.map((image, index) => buildImageResult({
+            data: image,
+            index,
+            fallbackModel: data.model || normalizedModel,
+            defaultContentType: settings.togetherOutputFormat === 'png' ? 'image/png' : 'image/jpeg',
+        })).filter(image => image.url),
+        hasNsfwConcepts: data.has_nsfw_concepts || [],
+        timings: data.timings || null,
+        clientTimings,
+        completedAt,
+        requestId: data.id || data.request_id || data.requestId || null,
         duration: clientTimings.total,
         raw: data,
     }
@@ -194,6 +339,10 @@ export async function generateImage(params) {
 
     if (provider === IMAGE_GENERATION_PROVIDERS.FAL) {
         return generateFalImage(params)
+    }
+
+    if (provider === IMAGE_GENERATION_PROVIDERS.TOGETHER) {
+        return generateTogetherImage(params)
     }
 
     throw new Error('暂未支持该图像生成供应商')

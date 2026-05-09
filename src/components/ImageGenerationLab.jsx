@@ -26,6 +26,7 @@ import {
     IMAGE_GENERATION_PROVIDER_INFO,
     IMAGE_GENERATION_PROVIDERS,
     IMAGE_GENERATION_STORAGE_KEYS,
+    TOGETHER_ASPECT_RATIO_PRESETS,
 } from '../constants/imageGeneration'
 
 const NUMBER_INPUT_CLASS = "h-9 text-xs font-mono"
@@ -113,10 +114,26 @@ function getImageSizeLabel(value) {
     return preset?.label || value
 }
 
+function getProviderParameterTitle(provider) {
+    if (provider === IMAGE_GENERATION_PROVIDERS.TOGETHER) {
+        return 'TOGETHER.PARAMETERS'
+    }
+
+    return 'FAL.PARAMETERS'
+}
+
+function getProviderImageCount(settings) {
+    if (settings.provider === IMAGE_GENERATION_PROVIDERS.TOGETHER) {
+        return settings.togetherNumImages
+    }
+
+    return settings.numImages
+}
+
 function getEstimatedImageCount(settings) {
     return {
         batchCount: Math.max(1, toInt(settings.batchCount, 1)),
-        numImages: Math.max(1, toInt(settings.numImages, 1)),
+        numImages: Math.max(1, toInt(getProviderImageCount(settings), 1)),
     }
 }
 
@@ -571,13 +588,28 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
 
                         <div>
                             <Label className={FIELD_LABEL_CLASS}>模型 ID</Label>
-                            <Input
-                                type="text"
-                                value={normalizedSettings.model}
-                                placeholder={providerInfo?.defaultModel}
-                                onChange={(event) => setField('model', event.target.value)}
-                                disabled={batch.isRunning}
-                            />
+                            <div className="space-y-2">
+                                <Input
+                                    type="text"
+                                    value={normalizedSettings.model}
+                                    placeholder={providerInfo?.defaultModel}
+                                    onChange={(event) => setField('model', event.target.value)}
+                                    disabled={batch.isRunning}
+                                />
+                                {providerInfo?.models?.length > 0 && (
+                                    <Select
+                                        value={providerInfo.models.includes(normalizedSettings.model) ? normalizedSettings.model : ''}
+                                        onChange={(event) => event.target.value && setField('model', event.target.value)}
+                                        disabled={batch.isRunning}
+                                        className="h-9 text-xs"
+                                    >
+                                        <option value="">选择内置模型</option>
+                                        {providerInfo.models.map(model => (
+                                            <option key={model} value={model}>{model}</option>
+                                        ))}
+                                    </Select>
+                                )}
+                            </div>
                         </div>
 
                         <div>
@@ -692,7 +724,7 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                             <div className="border-b border-dashed border-border p-3 flex items-center justify-between gap-3">
                                 <div className="flex items-center gap-2 font-bold text-secondary uppercase tracking-widest text-sm">
                                     <Key className="w-4 h-4" />
-                                    FAL.PARAMETERS
+                                    {getProviderParameterTitle(normalizedSettings.provider)}
                                 </div>
                                 <Badge variant="outline">{normalizedSettings.model || providerInfo?.defaultModel}</Badge>
                             </div>
@@ -846,6 +878,168 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                             <option value="false">false</option>
                                             <option value="true">true</option>
                                         </Select>
+                                    </div>
+                                </div>
+                            )}
+
+                            {normalizedSettings.provider === IMAGE_GENERATION_PROVIDERS.TOGETHER && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4 p-4">
+                                    <div>
+                                        <Label className={FIELD_LABEL_CLASS}>尺寸模式</Label>
+                                        <Select
+                                            value={normalizedSettings.togetherSizeMode}
+                                            onChange={(event) => setField('togetherSizeMode', event.target.value)}
+                                            disabled={batch.isRunning}
+                                        >
+                                            <option value="default">model default</option>
+                                            <option value="aspect_ratio">aspect_ratio</option>
+                                            <option value="dimensions">width / height</option>
+                                        </Select>
+                                    </div>
+
+                                    {normalizedSettings.togetherSizeMode === 'aspect_ratio' && (
+                                        <div>
+                                            <Label className={FIELD_LABEL_CLASS}>Aspect Ratio</Label>
+                                            <Select
+                                                value={normalizedSettings.togetherAspectRatio}
+                                                onChange={(event) => setField('togetherAspectRatio', event.target.value)}
+                                                disabled={batch.isRunning}
+                                            >
+                                                {TOGETHER_ASPECT_RATIO_PRESETS.map(size => (
+                                                    <option key={size.value} value={size.value}>{size.label}</option>
+                                                ))}
+                                            </Select>
+                                        </div>
+                                    )}
+
+                                    {normalizedSettings.togetherSizeMode === 'dimensions' && (
+                                        <>
+                                            <div>
+                                                <Label className={FIELD_LABEL_CLASS}>宽度</Label>
+                                                <Input
+                                                    type="number"
+                                                    min="64"
+                                                    max="4096"
+                                                    step="8"
+                                                    value={normalizedSettings.togetherWidth}
+                                                    onChange={(event) => setField('togetherWidth', event.target.value)}
+                                                    disabled={batch.isRunning}
+                                                    className={NUMBER_INPUT_CLASS}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className={FIELD_LABEL_CLASS}>高度</Label>
+                                                <Input
+                                                    type="number"
+                                                    min="64"
+                                                    max="4096"
+                                                    step="8"
+                                                    value={normalizedSettings.togetherHeight}
+                                                    onChange={(event) => setField('togetherHeight', event.target.value)}
+                                                    disabled={batch.isRunning}
+                                                    className={NUMBER_INPUT_CLASS}
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+
+                                    <div>
+                                        <Label className={FIELD_LABEL_CLASS}>Steps</Label>
+                                        <Input
+                                            type="number"
+                                            min="1"
+                                            max="50"
+                                            value={normalizedSettings.togetherSteps}
+                                            onChange={(event) => setField('togetherSteps', event.target.value)}
+                                            disabled={batch.isRunning}
+                                            className={NUMBER_INPUT_CLASS}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <Label className={FIELD_LABEL_CLASS}>Guidance</Label>
+                                        <Input
+                                            type="number"
+                                            min="0"
+                                            max="50"
+                                            step="0.1"
+                                            value={normalizedSettings.togetherGuidanceScale}
+                                            onChange={(event) => setField('togetherGuidanceScale', event.target.value)}
+                                            disabled={batch.isRunning}
+                                            className={NUMBER_INPUT_CLASS}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <Label className={FIELD_LABEL_CLASS}>Seed</Label>
+                                        <Input
+                                            type="number"
+                                            value={normalizedSettings.togetherSeed}
+                                            placeholder="random"
+                                            onChange={(event) => setField('togetherSeed', event.target.value)}
+                                            disabled={batch.isRunning}
+                                            className={NUMBER_INPUT_CLASS}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <Label className={FIELD_LABEL_CLASS}>每批张数</Label>
+                                        <Select
+                                            value={normalizedSettings.togetherNumImages}
+                                            onChange={(event) => setField('togetherNumImages', event.target.value)}
+                                            disabled={batch.isRunning}
+                                        >
+                                            {[1, 2, 3, 4].map(value => (
+                                                <option key={value} value={value}>{value}</option>
+                                            ))}
+                                        </Select>
+                                    </div>
+
+                                    <div>
+                                        <Label className={FIELD_LABEL_CLASS}>Response</Label>
+                                        <Select
+                                            value={normalizedSettings.togetherResponseFormat}
+                                            onChange={(event) => setField('togetherResponseFormat', event.target.value)}
+                                            disabled={batch.isRunning}
+                                        >
+                                            <option value="url">url</option>
+                                            <option value="base64">base64</option>
+                                        </Select>
+                                    </div>
+
+                                    <div>
+                                        <Label className={FIELD_LABEL_CLASS}>格式</Label>
+                                        <Select
+                                            value={normalizedSettings.togetherOutputFormat}
+                                            onChange={(event) => setField('togetherOutputFormat', event.target.value)}
+                                            disabled={batch.isRunning}
+                                        >
+                                            <option value="jpeg">jpeg</option>
+                                            <option value="png">png</option>
+                                        </Select>
+                                    </div>
+
+                                    <div>
+                                        <Label className={FIELD_LABEL_CLASS}>安全检查</Label>
+                                        <Select
+                                            value={normalizedSettings.togetherDisableSafetyChecker ? 'disabled' : 'enabled'}
+                                            onChange={(event) => setField('togetherDisableSafetyChecker', event.target.value === 'disabled')}
+                                            disabled={batch.isRunning}
+                                        >
+                                            <option value="enabled">enabled</option>
+                                            <option value="disabled">disabled</option>
+                                        </Select>
+                                    </div>
+
+                                    <div className="sm:col-span-2 lg:col-span-4">
+                                        <Label className={FIELD_LABEL_CLASS}>Negative Prompt</Label>
+                                        <Textarea
+                                            value={normalizedSettings.togetherNegativePrompt}
+                                            onChange={(event) => setField('togetherNegativePrompt', event.target.value)}
+                                            disabled={batch.isRunning}
+                                            className="min-h-[88px] leading-relaxed"
+                                            placeholder="blurry, low quality, distorted, watermark"
+                                        />
                                     </div>
                                 </div>
                             )}
