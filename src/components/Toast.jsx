@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useState, useEffect } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 
 export function Toast({ message }) {
     if (!message) return null
@@ -21,9 +21,9 @@ export function Toast({ message }) {
 export function useToast() {
     const [toast, setToast] = useState(null)
 
-    const showToast = (message) => {
+    const showToast = useCallback((message) => {
         setToast(message)
-    }
+    }, [])
 
     useEffect(() => {
         if (toast) {

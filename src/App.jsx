@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { lazy, Suspense, useState, useEffect, useCallback, useMemo } from 'react'
 import { useApiConfig } from './hooks/useApiConfig'
 import { useBatchTest } from './hooks/useBatchTest'
 import { useLocalStorage } from './hooks/useLocalStorage'
@@ -10,9 +10,7 @@ import { AdvancedSettings } from './components/AdvancedSettings'
 import { VertexAdvancedSettings } from './components/VertexAdvancedSettings'
 import { ResultsGrid } from './components/ResultsGrid'
 import { Modal } from './components/Modal'
-import { MarkdownRenderer } from './components/MarkdownRenderer'
 import { VersionBadge } from './components/VersionBadge'
-import { ImageGenerationLab } from './components/ImageGenerationLab'
 import { STORAGE_KEYS, DEFAULT_CONFIG, DEFAULT_VERTEX_OPTIONS, DISPLAY_MODES, PROVIDERS } from './constants/providers'
 import { Button } from "./components/ui/button"
 import { Badge } from "./components/ui/badge"
@@ -23,6 +21,14 @@ const WORKSPACES = {
   TEXT: 'text',
   IMAGE: 'image',
 }
+
+const MarkdownRenderer = lazy(() =>
+  import('./components/MarkdownRenderer').then(module => ({ default: module.MarkdownRenderer }))
+)
+
+const ImageGenerationLab = lazy(() =>
+  import('./components/ImageGenerationLab').then(module => ({ default: module.ImageGenerationLab }))
+)
 
 function normalizeVertexModelId(model = '') {
   return String(model)
@@ -112,12 +118,17 @@ function App() {
   ])
 
   /* Full Screen Preview Handler */
-  const handleViewFull = (result) => {
+  const handleViewFull = useCallback((result) => {
     setModalTitle(result.model.toUpperCase())
     setModalRawContent(result.content || result.error || '<NULL_OUTPUT>')
     setModalViewMode(defaultViewMode) // 使用用户设置的默认视图模式
     setModalOpen(true)
-  }
+  }, [defaultViewMode])
+
+  const handleCopyResult = useCallback((text) => {
+    navigator.clipboard.writeText(text)
+    showToast('缓冲区已复制到剪贴板')
+  }, [showToast])
 
   /* 提取 HTML 内容 */
   const getHtmlContent = (content) => {
@@ -135,7 +146,11 @@ function App() {
         </div>
       )
     } else if (modalViewMode === 'markdown') {
-      return <MarkdownRenderer content={modalRawContent} />
+      return (
+        <Suspense fallback={<div className="text-primary/60 text-sm animate-pulse">Markdown 渲染器加载中...</div>}>
+          <MarkdownRenderer content={modalRawContent} />
+        </Suspense>
+      )
     } else if (modalViewMode === 'html') {
       const htmlContent = getHtmlContent(modalRawContent)
       return htmlContent ? (
@@ -143,7 +158,8 @@ function App() {
           srcDoc={htmlContent}
           className="w-full h-full border-none bg-white"
           title="HTML Preview"
-          sandbox="allow-scripts"
+          sandbox=""
+          referrerPolicy="no-referrer"
         />
       ) : (
         <div className="flex flex-col items-center justify-center h-full text-destructive">
@@ -180,7 +196,7 @@ function App() {
           <div className="flex flex-col justify-between">
             <div>
               <h1 className="text-4xl font-black tracking-tighter text-primary animate-pulse flex items-end gap-3 leading-none">
-                PROMPTY<span className="text-xl opacity-70 mb-1">v3.8.4</span>
+                PROMPTY<span className="text-xl opacity-70 mb-1">v3.8.5</span>
               </h1>
               <p className="text-secondary text-xs uppercase tracking-[0.2em] mt-1">
                                 // 高级提示词测试环境
@@ -335,19 +351,18 @@ function App() {
                 results={batchTest.results}
                 displayMode={displayMode}
                 onViewFull={handleViewFull}
-                onCopy={(text) => {
-                  navigator.clipboard.writeText(text)
-                  showToast('缓冲区已复制到剪贴板')
-                }}
+                onCopy={handleCopyResult}
               />
             </div>
           </>
         ) : (
-          <ImageGenerationLab
-            isOpen={isImageWorkspace}
-            onClose={() => setWorkspace(WORKSPACES.TEXT)}
-            onToast={showToast}
-          />
+          <Suspense fallback={<div className="border border-primary p-6 text-primary/60 animate-pulse">图像生成实验室加载中...</div>}>
+            <ImageGenerationLab
+              isOpen={isImageWorkspace}
+              onClose={() => setWorkspace(WORKSPACES.TEXT)}
+              onToast={showToast}
+            />
+          </Suspense>
         )}
       </div>
 

@@ -400,6 +400,7 @@ async function streamVertexRequest(params, onChunk, onComplete, onError, onMetad
         streamMode,
         enableThinking,
         vertexOptions,
+        signal,
     } = params
 
     try {
@@ -421,6 +422,7 @@ async function streamVertexRequest(params, onChunk, onComplete, onError, onMetad
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(requestBody),
+            signal,
         })
 
         if (!response.ok) {
@@ -559,6 +561,7 @@ async function streamOpenAiCompatibleRequest(params, onChunk, onComplete, onErro
         maxTokens,
         streamMode,
         enableThinking,
+        signal,
     } = params
 
     try {
@@ -603,6 +606,7 @@ async function streamOpenAiCompatibleRequest(params, onChunk, onComplete, onErro
                 method: 'POST',
                 headers,
                 body: JSON.stringify(requestBody),
+                signal,
             })
 
             if (response.ok) {
@@ -761,8 +765,12 @@ async function streamOpenAiCompatibleRequest(params, onChunk, onComplete, onErro
                     setTimeout(async () => {
                         try {
                             for (let attempt = 0; attempt < 5; attempt++) {
+                                if (signal?.aborted) {
+                                    return
+                                }
                                 const genResponse = await fetch(`${baseUrl}/generation?id=${generationId}`, {
-                                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                                    headers: { 'Authorization': `Bearer ${apiKey}` },
+                                    signal,
                                 })
                                 if (genResponse.ok) {
                                     const genData = await genResponse.json()

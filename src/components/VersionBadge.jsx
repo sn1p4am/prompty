@@ -3,12 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.4',
-    date: '2026-04-03',
+    version: 'v3.8.5',
+    date: '2026-05-12',
     changes: [
-        { emoji: '🧠', label: 'Claude/Bedrock 修复', desc: 'Claude 模型请求不再同时发送 temperature 和 top_p，避免 Bedrock 校验报错' },
-        { emoji: '🧪', label: '回归测试', desc: '新增 apiClient 回归测试，覆盖 Claude 参数冲突场景' },
-        { emoji: '🛠️', label: '模型切换修复', desc: '保留 v3.8.3 的空模型渠道切换修复与 JSX 测试发现支持' },
+        { emoji: '🔐', label: '预览安全加固', desc: 'Markdown 渲染加入净化处理，HTML 预览默认禁用脚本执行' },
+        { emoji: '⛔', label: '真实停止请求', desc: '文本批量测试接入 AbortController，停止后会取消仍在进行的网络请求' },
+        { emoji: '⚡', label: '首屏性能优化', desc: 'Markdown、Mermaid 与图像测试实验室改为按需加载，主入口包体显著下降' },
+        { emoji: '🌊', label: '流式输出优化', desc: '流式 chunk 按帧批量提交，降低长输出和高并发时的渲染压力' },
     ]
 }
 

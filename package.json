@@ -1,7 +1,7 @@
 {
   "name": "prompty",
   "private": true,
-  "version": "3.8.4",
+  "version": "3.8.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,6 +13,7 @@
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dompurify": "^3.4.2",
     "highlight.js": "^11.9.0",
     "lucide-react": "^0.562.0",
     "marked": "^11.1.1",

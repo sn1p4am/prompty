@@ -27,15 +27,18 @@ export function useLocalStorage(key, initialValue) {
 
     // 更新 LocalStorage 的函数
     const setValue = useCallback((value) => {
-        try {
-            // 允许传入函数（类似 useState）
-            const valueToStore = value instanceof Function ? value(storedValue) : value
-            setStoredValue(valueToStore)
-            window.localStorage.setItem(key, JSON.stringify(valueToStore))
-        } catch (error) {
-            console.error(`写入 LocalStorage 失败 (${key}):`, error)
-        }
-    }, [key, storedValue])
+        setStoredValue(currentValue => {
+            try {
+                // 允许传入函数（类似 useState）
+                const valueToStore = value instanceof Function ? value(currentValue) : value
+                window.localStorage.setItem(key, JSON.stringify(valueToStore))
+                return valueToStore
+            } catch (error) {
+                console.error(`写入 LocalStorage 失败 (${key}):`, error)
+                return currentValue
+            }
+        })
+    }, [key])
 
     // 删除 LocalStorage 的函数
     const removeValue = useCallback(() => {

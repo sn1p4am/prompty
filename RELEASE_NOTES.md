@@ -1,5 +1,16 @@
 # Release Notes
 
+## v3.8.5 (2026-05-12)
+
+### 本次更新
+
+- 🔐 加固 Markdown 与 HTML 预览安全：Markdown 输出经过 DOMPurify 净化，HTML iframe 默认禁用脚本执行
+- ⛔ 文本批量测试支持真实取消：停止任务会 abort 仍在进行的网络请求，避免继续消耗额度
+- ⚡ 优化首屏包体：MarkdownRenderer、Mermaid、图像生成实验室改为按需加载，主入口 chunk 从约 1.58 MB 降至约 287 kB
+- 🌊 优化流式输出渲染：chunk 按帧批量提交，并减少结果卡片的重复解析
+- 🧰 修复 `useLocalStorage` 函数式更新的闭包旧值问题
+- 🛡️ 依赖安全审计修复至 0 vulnerabilities
+
 ## v3.5.1 (2026-03-27)
 
 ### 本次更新

@@ -2,8 +2,12 @@ import { DISPLAY_MODES } from '../constants/providers'
 import { Card, CardHeader, CardContent, CardFooter } from "./ui/card"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
-import { useEffect, useRef } from "react"
+import { memo, useEffect, useMemo, useRef } from "react"
 import { Maximize2, Loader2, SquareTerminal, AlertTriangle, Brain, Wrench } from "lucide-react"
+
+const THINK_TAG_REGEX = /<think>([\s\S]*?)<\/think>|<thinking>([\s\S]*?)<\/thinking>|<thought>([\s\S]*?)<\/thought>/gi
+const TOOL_CALL_REGEX = /<tool_call>([\s\S]*?)<\/tool_call>/gi
+const HTML_DOCUMENT_REGEX = /<!DOCTYPE html>[\s\S]*<\/html>|<html[\s\S]*<\/html>/i
 
 /**
  * 解析内容，提取 thinking 部分和实际回答部分
@@ -12,27 +16,23 @@ import { Maximize2, Loader2, SquareTerminal, AlertTriangle, Brain, Wrench } from
 function parseResponseContent(content) {
     if (!content) return { thinking: '', toolCalls: '', answer: '' }
 
-    // 匹配各种可能的 thinking 标签
-    const thinkRegex = /<think>([\s\S]*?)<\/think>|<thinking>([\s\S]*?)<\/thinking>|<thought>([\s\S]*?)<\/thought>/gi
-    const toolCallRegex = /<tool_call>([\s\S]*?)<\/tool_call>/gi
-
     let thinking = ''
     let toolCalls = ''
     let answer = content
 
     // 提取所有 thinking 内容
-    const matches = content.matchAll(thinkRegex)
+    const matches = content.matchAll(THINK_TAG_REGEX)
     for (const match of matches) {
         thinking += (match[1] || match[2] || match[3] || '') + '\n\n'
     }
 
-    const toolCallMatches = content.matchAll(toolCallRegex)
+    const toolCallMatches = content.matchAll(TOOL_CALL_REGEX)
     for (const match of toolCallMatches) {
         toolCalls += (match[1] || '') + '\n\n'
     }
 
     // 移除特殊标签，得到实际回答
-    answer = content.replace(thinkRegex, '').replace(toolCallRegex, '').trim()
+    answer = content.replace(THINK_TAG_REGEX, '').replace(TOOL_CALL_REGEX, '').trim()
 
     return {
         thinking: thinking.trim(),
@@ -48,9 +48,13 @@ function StatusBadge({ status }) {
     return <Badge variant="outline">等待中</Badge>
 }
 
-function ResultCard({ result, onViewFull, onCopy }) {
+const ResultCard = memo(function ResultCard({ result, onViewFull, onCopy }) {
     // Auto-scroll logic
     const contentRef = useRef(null)
+    const parsedContent = useMemo(
+        () => parseResponseContent(result.content),
+        [result.content]
+    )
 
     useEffect(() => {
         if (contentRef.current) {
@@ -78,7 +82,7 @@ function ResultCard({ result, onViewFull, onCopy }) {
                     <span className="text-destructive whitespace-pre-wrap">{`[ERROR]: ${result.error}`}</span>
                 ) : result.content ? (
                     (() => {
-                        const { thinking, toolCalls, answer } = parseResponseContent(result.content)
+                        const { thinking, toolCalls, answer } = parsedContent
                         return (
                             <div className="space-y-3">
                                 {/* Thinking 内容区域 */}
@@ -173,19 +177,22 @@ function ResultCard({ result, onViewFull, onCopy }) {
             </CardFooter>
         </Card>
     )
-}
+})
 
-function HtmlPreviewCard({ result, onViewFull }) {
+const HtmlPreviewCard = memo(function HtmlPreviewCard({ result, onViewFull }) {
     const isCompleted = result.status === 'success' || result.status === 'failed'
 
     // Extract HTML content logic
     const getHtmlContent = (content) => {
         if (!content) return null
-        const match = content.match(/<!DOCTYPE html>[\s\S]*<\/html>/i) || content.match(/<html[\s\S]*<\/html>/i)
+        const match = content.match(HTML_DOCUMENT_REGEX)
         return match ? match[0] : null
     }
 
-    const htmlContent = isCompleted ? getHtmlContent(result.content) : null
+    const htmlContent = useMemo(
+        () => (isCompleted ? getHtmlContent(result.content) : null),
+        [isCompleted, result.content]
+    )
 
     return (
         <Card className="flex flex-col h-[600px] overflow-hidden border-border hover:shadow-glow">
@@ -220,7 +227,8 @@ function HtmlPreviewCard({ result, onViewFull }) {
                         srcDoc={htmlContent}
                         className="w-full h-full border-none"
                         title={`Preview ${result.index}`}
-                        sandbox="allow-scripts"
+                        sandbox=""
+                        referrerPolicy="no-referrer"
                     />
                 ) : (
                     // Failed or No HTML found
@@ -237,7 +245,7 @@ function HtmlPreviewCard({ result, onViewFull }) {
             </div>
         </Card>
     )
-}
+})
 
 export function ResultsGrid({ results, displayMode, onViewFull, onCopy }) {
     if (!results || results.length === 0) return null

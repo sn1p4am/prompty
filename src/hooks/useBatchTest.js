@@ -69,6 +69,70 @@ export function useBatchTest({ apiConfig, onToast }) {
     const [isRunning, setIsRunning] = useState(false)
     const [progress, setProgress] = useState(0)
     const abortRef = useRef(false)
+    const abortControllersRef = useRef([])
+    const runIdRef = useRef(0)
+    const chunkBuffersRef = useRef(new Map())
+    const chunkFlushHandleRef = useRef(null)
+
+    const flushQueuedChunks = useCallback(() => {
+        chunkFlushHandleRef.current = null
+
+        if (chunkBuffersRef.current.size === 0) {
+            return
+        }
+
+        const chunksById = chunkBuffersRef.current
+        chunkBuffersRef.current = new Map()
+
+        setResults(prev => prev.map(result => {
+            const chunk = chunksById.get(result.id)
+            return chunk
+                ? { ...result, content: result.content + chunk }
+                : result
+        }))
+    }, [])
+
+    const cancelQueuedChunkFlush = useCallback(() => {
+        const handle = chunkFlushHandleRef.current
+        if (!handle) {
+            return
+        }
+
+        if (handle.type === 'animationFrame' && globalThis.cancelAnimationFrame) {
+            globalThis.cancelAnimationFrame(handle.id)
+        } else {
+            clearTimeout(handle.id)
+        }
+        chunkFlushHandleRef.current = null
+    }, [])
+
+    const queueResultChunk = useCallback((requestId, chunk) => {
+        if (!chunk) {
+            return
+        }
+
+        chunkBuffersRef.current.set(
+            requestId,
+            `${chunkBuffersRef.current.get(requestId) || ''}${chunk}`
+        )
+
+        if (chunkFlushHandleRef.current) {
+            return
+        }
+
+        if (globalThis.requestAnimationFrame) {
+            chunkFlushHandleRef.current = {
+                type: 'animationFrame',
+                id: globalThis.requestAnimationFrame(flushQueuedChunks),
+            }
+            return
+        }
+
+        chunkFlushHandleRef.current = {
+            type: 'timeout',
+            id: setTimeout(flushQueuedChunks, 16),
+        }
+    }, [flushQueuedChunks])
 
     // 开始批量测试
     const startBatchTest = useCallback(async ({
@@ -85,6 +149,11 @@ export function useBatchTest({ apiConfig, onToast }) {
         enableThinking = false,
         vertexOptions = null,
     }) => {
+        if (isRunning) {
+            onToast?.('批量测试正在运行')
+            return
+        }
+
         // 验证
         if (!systemPrompt && !userPrompt) {
             onToast?.('请至少输入 System Prompt 或 User Prompt')
@@ -125,7 +194,12 @@ export function useBatchTest({ apiConfig, onToast }) {
         }
 
         // 重置状态
+        const runId = runIdRef.current + 1
+        runIdRef.current = runId
         abortRef.current = false
+        abortControllersRef.current = []
+        cancelQueuedChunkFlush()
+        chunkBuffersRef.current = new Map()
         setIsRunning(true)
         setProgress(0)
         setStats({ total: batchSize, success: 0, failed: 0, running: 0 })
@@ -161,11 +235,50 @@ export function useBatchTest({ apiConfig, onToast }) {
         let activeCount = 0
         let completed = 0
 
-        const processNext = async () => {
-            if (abortRef.current || queueIndex >= requests.length) return
+        const isCurrentRun = () => runIdRef.current === runId && !abortRef.current
 
-            while (activeCount < concurrency && queueIndex < requests.length && !abortRef.current) {
+        const finishRequest = (request, status, patch = {}, controller = null) => {
+            if (!isCurrentRun()) return
+
+            if (controller) {
+                abortControllersRef.current = abortControllersRef.current.filter(item => item !== controller)
+            }
+
+            flushQueuedChunks()
+            setResults(prev => prev.map(r =>
+                r.id === request.id ? { ...r, status, ...patch } : r
+            ))
+            setStats(prev => ({
+                ...prev,
+                success: prev.success + (status === 'success' ? 1 : 0),
+                failed: prev.failed + (status === 'failed' ? 1 : 0),
+                running: Math.max(0, prev.running - 1),
+            }))
+
+            activeCount--
+            completed++
+            setProgress(Math.round((completed / batchSize) * 100))
+
+            if (completed >= batchSize) {
+                setIsRunning(false)
+                abortControllersRef.current = []
+                return
+            }
+
+            if (interval > 0) {
+                setTimeout(processNext, interval)
+            } else {
+                processNext()
+            }
+        }
+
+        const processNext = async () => {
+            if (!isCurrentRun() || queueIndex >= requests.length) return
+
+            while (activeCount < concurrency && queueIndex < requests.length && isCurrentRun()) {
                 const request = requests[queueIndex++]
+                const abortController = new AbortController()
+                abortControllersRef.current.push(abortController)
                 activeCount++
 
                 // 更新状态为 running
@@ -189,75 +302,24 @@ export function useBatchTest({ apiConfig, onToast }) {
                         streamMode: request.streamMode,
                         enableThinking: request.enableThinking,
                         vertexOptions: request.vertexOptions,
+                        signal: abortController.signal,
                     },
                     // onChunk
                     (chunk) => {
-                        if (abortRef.current) return
-                        setResults(prev => prev.map(r =>
-                            r.id === request.id
-                                ? { ...r, content: r.content + chunk }
-                                : r
-                        ))
+                        if (!isCurrentRun()) return
+                        queueResultChunk(request.id, chunk)
                     },
                     // onComplete
                     () => {
-                        if (abortRef.current) return
-                        setResults(prev => prev.map(r =>
-                            r.id === request.id ? { ...r, status: 'success' } : r
-                        ))
-                        setStats(prev => ({
-                            ...prev,
-                            success: prev.success + 1,
-                            running: prev.running - 1,
-                        }))
-                        activeCount--
-                        completed++
-                        setProgress(Math.round((completed / batchSize) * 100))
-
-                        // 继续下一个
-                        if (interval > 0) {
-                            setTimeout(processNext, interval)
-                        } else {
-                            processNext()
-                        }
-
-                        // 检查是否全部完成
-                        if (completed >= batchSize) {
-                            setIsRunning(false)
-                        }
+                        finishRequest(request, 'success', {}, abortController)
                     },
                     // onError
                     (error) => {
-                        if (abortRef.current) return
-                        setResults(prev => prev.map(r =>
-                            r.id === request.id
-                                ? { ...r, status: 'failed', error: error.message }
-                                : r
-                        ))
-                        setStats(prev => ({
-                            ...prev,
-                            failed: prev.failed + 1,
-                            running: prev.running - 1,
-                        }))
-                        activeCount--
-                        completed++
-                        setProgress(Math.round((completed / batchSize) * 100))
-
-                        // 继续下一个
-                        if (interval > 0) {
-                            setTimeout(processNext, interval)
-                        } else {
-                            processNext()
-                        }
-
-                        // 检查是否全部完成
-                        if (completed >= batchSize) {
-                            setIsRunning(false)
-                        }
+                        finishRequest(request, 'failed', { error: error.message }, abortController)
                     },
                     // onMetadata (for OpenRouter)
                     (metadata) => {
-                        if (abortRef.current) return
+                        if (!isCurrentRun()) return
                         setResults(prev => prev.map(r =>
                             r.id === request.id
                                 ? { ...r, metadata }
@@ -275,21 +337,45 @@ export function useBatchTest({ apiConfig, onToast }) {
 
         // 启动处理
         processNext()
-    }, [apiConfig, onToast])
+    }, [apiConfig, cancelQueuedChunkFlush, flushQueuedChunks, isRunning, onToast, queueResultChunk])
 
     // 停止所有请求
     const stopAllRequests = useCallback(() => {
+        const stoppableCount = results.filter(result => (
+            result.status === 'pending' || result.status === 'running'
+        )).length
+
         abortRef.current = true
+        runIdRef.current += 1
+        abortControllersRef.current.forEach(controller => controller.abort())
+        abortControllersRef.current = []
+        cancelQueuedChunkFlush()
+        chunkBuffersRef.current = new Map()
         setIsRunning(false)
+        setResults(prev => prev.map(result =>
+            result.status === 'pending' || result.status === 'running'
+                ? { ...result, status: 'failed', error: '请求已停止' }
+                : result
+        ))
+        setStats(prev => ({
+            ...prev,
+            running: 0,
+            failed: prev.failed + stoppableCount,
+        }))
+        if (results.length > 0) {
+            setProgress(100)
+        }
         onToast?.('已停止所有请求')
-    }, [onToast])
+    }, [cancelQueuedChunkFlush, onToast, results])
 
     // 清除结果
     const clearResults = useCallback(() => {
+        cancelQueuedChunkFlush()
+        chunkBuffersRef.current = new Map()
         setResults([])
         setStats({ total: 0, success: 0, failed: 0, running: 0 })
         setProgress(0)
-    }, [])
+    }, [cancelQueuedChunkFlush])
 
     return {
         results,
