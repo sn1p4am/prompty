@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.5',
+    version: 'v3.8.6',
     date: '2026-05-12',
     changes: [
-        { emoji: '🔐', label: '预览安全加固', desc: 'Markdown 渲染加入净化处理，HTML 预览默认禁用脚本执行' },
-        { emoji: '⛔', label: '真实停止请求', desc: '文本批量测试接入 AbortController，停止后会取消仍在进行的网络请求' },
-        { emoji: '⚡', label: '首屏性能优化', desc: 'Markdown、Mermaid 与图像测试实验室改为按需加载，主入口包体显著下降' },
-        { emoji: '🌊', label: '流式输出优化', desc: '流式 chunk 按帧批量提交，降低长输出和高并发时的渲染压力' },
+        { emoji: '📱', label: '移动端密钥布局', desc: 'API Key 区域在小屏改为纵向排布，避免标签和按钮挤压变形' },
+        { emoji: '🧭', label: '运行前状态提示', desc: '运行按钮会直接提示缺少模型、Prompt、访问令牌或渠道配置' },
+        { emoji: '⚙️', label: '高级参数摘要', desc: '折叠状态下展示 batch、并发、模式、采样和 Max Token 摘要' },
+        { emoji: '🧹', label: '首屏分割优化', desc: '移动端 Header 配置区改用横向分隔，界面层次更稳' },
     ]
 }
 

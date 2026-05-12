@@ -75,6 +75,45 @@ function App() {
   const [workspace, setWorkspace] = useState(WORKSPACES.TEXT)
   const isTextWorkspace = workspace === WORKSPACES.TEXT
   const isImageWorkspace = workspace === WORKSPACES.IMAGE
+  const trimmedSystemPrompt = systemPrompt.trim()
+  const trimmedUserPrompt = userPrompt.trim()
+  const currentApiKey = apiConfig.getApiKey()
+  const missingProviderFields = useMemo(
+    () => apiConfig.getMissingProviderFields?.(apiConfig.currentProvider, selectedModel) || [],
+    [apiConfig, selectedModel]
+  )
+  const baseUrlReady = Boolean(apiConfig.getBaseUrl(apiConfig.currentProvider, selectedModel))
+  const startDisabledReason = useMemo(() => {
+    if (!selectedModel) {
+      return '请选择目标模型'
+    }
+
+    if (!trimmedSystemPrompt && !trimmedUserPrompt) {
+      return '请填写 System 或 User Prompt'
+    }
+
+    if (!currentApiKey) {
+      return '请先保存访问令牌'
+    }
+
+    if (missingProviderFields.length > 0) {
+      return `请完善渠道配置：${missingProviderFields.join(' / ')}`
+    }
+
+    if (!baseUrlReady) {
+      return '当前渠道请求地址未配置完整'
+    }
+
+    return ''
+  }, [
+    baseUrlReady,
+    currentApiKey,
+    missingProviderFields,
+    selectedModel,
+    trimmedSystemPrompt,
+    trimmedUserPrompt,
+  ])
+  const canStartTextTest = !batchTest.isRunning && !startDisabledReason
 
   useEffect(() => {
     if (apiConfig.currentProvider !== PROVIDERS.VERTEX) {
@@ -176,13 +215,13 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.ctrlKey && e.key === 'Enter') {
-        if (isTextWorkspace && !batchTest.isRunning && (systemPrompt || userPrompt) && selectedModel) handleStartTest()
+        if (isTextWorkspace && canStartTextTest) handleStartTest()
       }
       if (e.key === 'Escape') setModalOpen(false)
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [batchTest.isRunning, systemPrompt, userPrompt, selectedModel, handleStartTest, isTextWorkspace])
+  }, [canStartTextTest, handleStartTest, isTextWorkspace])
 
   return (
     <div className="min-h-screen font-mono p-4 pb-20 selection:bg-primary selection:text-black">
@@ -196,7 +235,7 @@ function App() {
           <div className="flex flex-col justify-between">
             <div>
               <h1 className="text-4xl font-black tracking-tighter text-primary animate-pulse flex items-end gap-3 leading-none">
-                PROMPTY<span className="text-xl opacity-70 mb-1">v3.8.5</span>
+                PROMPTY<span className="text-xl opacity-70 mb-1">v3.8.6</span>
               </h1>
               <p className="text-secondary text-xs uppercase tracking-[0.2em] mt-1">
                                 // 高级提示词测试环境
@@ -226,7 +265,7 @@ function App() {
             </div>
           </div>
 
-          <div className={isTextWorkspace ? "flex-1 border-l border-dashed border-border pl-6" : "hidden"}>
+          <div className={isTextWorkspace ? "flex-1 border-t lg:border-t-0 lg:border-l border-dashed border-border pt-4 lg:pt-0 lg:pl-6" : "hidden"}>
             <ApiKeyManager apiConfig={apiConfig} onToast={showToast} />
           </div>
         </header>
@@ -262,19 +301,26 @@ function App() {
                 )}
 
                 {/* Action Buttons */}
-                <div className="pt-4 space-y-4">
+                <div className="pt-4 space-y-3">
                   <Button
                     size="lg"
                     className="w-full text-base h-16 border-2 border-primary hover:bg-primary hover:text-black transition-none"
                     onClick={handleStartTest}
-                    disabled={batchTest.isRunning || (!systemPrompt && !userPrompt) || !selectedModel}
+                    disabled={!canStartTextTest}
+                    title={startDisabledReason || 'Ctrl + Enter'}
                   >
                     {batchTest.isRunning ? (
                       <span className="animate-pulse">{`>> 执行中...`}</span>
                     ) : (
-                      <span>启动序列</span>
+                      <span>运行测试</span>
                     )}
                   </Button>
+
+                  {!batchTest.isRunning && startDisabledReason && (
+                    <div className="border border-dashed border-border bg-primary/5 px-3 py-2 text-xs text-secondary leading-relaxed">
+                      {startDisabledReason}
+                    </div>
+                  )}
 
                   {batchTest.isRunning && (
                     <Button

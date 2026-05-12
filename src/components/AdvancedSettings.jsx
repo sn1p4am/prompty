@@ -20,6 +20,14 @@ function parseOptionalNumber(value) {
     return value === '' ? '' : parseFloat(value)
 }
 
+function formatOptionalValue(value) {
+    return value === '' || value === null || value === undefined ? 'omit' : value
+}
+
+function formatMode(streamMode) {
+    return streamMode ? 'S' : 'B'
+}
+
 export function AdvancedSettings({
     batchSize,
     onBatchSizeChange,
@@ -39,18 +47,31 @@ export function AdvancedSettings({
     onEnableThinkingChange,
 }) {
     const [isOpen, setIsOpen] = useState(false)
+    const summary = [
+        `${batchSize}x`,
+        `C${concurrency}`,
+        formatMode(streamMode),
+        `T${formatOptionalValue(temperature)}`,
+        `P${formatOptionalValue(topP)}`,
+        maxTokens ? `M${maxTokens}` : 'Minf',
+        enableThinking ? 'Think' : null,
+    ].filter(Boolean).join(' ')
 
     return (
         <div className="border border-border bg-black">
             <Button
                 variant="ghost"
-                className="w-full flex justify-between items-center px-4 py-2 h-10 border-none hover:bg-primary hover:text-black uppercase tracking-widest text-xs"
+                className="group w-full flex items-center gap-3 px-4 py-2 h-10 border-none hover:bg-primary hover:text-black uppercase tracking-widest text-xs"
                 onClick={() => setIsOpen(!isOpen)}
+                title={summary}
             >
                 <span className="flex items-center gap-2">
                     <Settings className="w-4 h-4" /> 高级参数配置
                 </span>
-                {isOpen ? "[-]" : "[+]"}
+                <span className="hidden md:block ml-auto min-w-0 truncate text-[10px] normal-case tracking-normal text-primary/60 group-hover:text-black/70">
+                    {summary}
+                </span>
+                <span className="ml-auto md:ml-0 shrink-0">{isOpen ? "[-]" : "[+]"}</span>
             </Button>
 
             <div className={cn(

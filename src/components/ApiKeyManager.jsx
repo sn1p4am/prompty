@@ -106,8 +106,8 @@ export function ApiKeyManager({ apiConfig, onToast }) {
     }
 
     return (
-        <div className="flex items-end gap-6 border-b border-border pb-4 w-full">
-            <div className="w-[200px]">
+        <div className="flex flex-col xl:flex-row xl:items-end gap-4 xl:gap-6 border-b border-border pb-4 w-full">
+            <div className="w-full xl:w-[200px]">
                 <Label>供应商网络</Label>
                 <Select
                     value={currentProvider}
@@ -129,13 +129,13 @@ export function ApiKeyManager({ apiConfig, onToast }) {
                     : (draftFieldValues[field.id] ?? field.defaultValue ?? '')
 
                 return (
-                    <div key={field.id} className="w-[200px] flex flex-col justify-end">
-                        <Label className="flex justify-between w-full">
+                    <div key={field.id} className="w-full xl:w-[200px] flex flex-col justify-end">
+                        <Label className="flex justify-between gap-3 w-full">
                             <span>{field.label}</span>
                             {localFieldValues[field.id] ? (
-                                <span className="text-xs text-primary font-bold">已配置</span>
+                                <span className="text-xs text-primary font-bold shrink-0 whitespace-nowrap">已配置</span>
                             ) : (
-                                <span className="text-xs text-destructive">未配置</span>
+                                <span className="text-xs text-destructive shrink-0 whitespace-nowrap">未配置</span>
                             )}
                         </Label>
                         <Input
@@ -154,21 +154,21 @@ export function ApiKeyManager({ apiConfig, onToast }) {
                 )
             })}
 
-            <div className="flex-1 flex flex-col justify-end">
-                <Label className="flex justify-between w-full">
+            <div className="w-full xl:flex-1 flex flex-col justify-end min-w-0">
+                <Label className="flex justify-between gap-3 w-full">
                     <span>{providerInfo?.credentialLabel || '访问令牌 (ACCESS_TOKEN)'}</span>
                     {hasKey ? (
-                        <span className="text-xs text-primary font-bold flex items-center gap-2 animate-pulse">
+                        <span className="text-xs text-primary font-bold flex items-center gap-2 animate-pulse shrink-0 whitespace-nowrap">
                             <Key className="w-3 h-3" /> 已认证
                         </span>
                     ) : (
-                        <span className="text-xs text-destructive flex items-center gap-2">
+                        <span className="text-xs text-destructive flex items-center gap-2 shrink-0 whitespace-nowrap">
                             <Unlock className="w-3 h-3" /> 未加密
                         </span>
                     )}
                 </Label>
 
-                <div className="flex gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto_auto] gap-3">
                     <Input
                         type="password"
                         value={draftKey}
@@ -178,11 +178,16 @@ export function ApiKeyManager({ apiConfig, onToast }) {
                         onKeyDown={(e) => e.key === 'Enter' && handleSaveKey()}
                         disabled={hasKey}
                     />
-                    <Button onClick={handleSaveKey} size="sm" disabled={hasKey || saveButtonText !== '保存'}>
+                    <Button
+                        onClick={handleSaveKey}
+                        size="sm"
+                        className="h-10"
+                        disabled={hasKey || saveButtonText !== '保存'}
+                    >
                         {saveButtonText}
                     </Button>
                     {hasKey && (
-                        <Button variant="destructive" onClick={handleClearKey} size="sm">
+                        <Button variant="destructive" onClick={handleClearKey} size="sm" className="h-10">
                             撤销
                         </Button>
                     )}
