@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.14',
+    version: 'v3.8.15',
     date: '2026-05-14',
     changes: [
-        { emoji: '🧾', label: 'Claude User ID', desc: '缓存测试支持 Claude metadata.user_id 透传' },
-        { emoji: '🛡️', label: '隐私提示', desc: '提醒 user_id 应使用 opaque 标识，避免姓名、邮箱或手机号' },
-        { emoji: '📌', label: '口径说明', desc: '明确 user_id 不是官方缓存命中保证，适合验证代理请求亲和' },
-        { emoji: '🧪', label: '测试覆盖', desc: '补充 Claude metadata 请求体断言' },
+        { emoji: '🔆', label: '说明文字提亮', desc: '提升 muted 辅助文字在黑底终端主题下的对比度' },
+        { emoji: '🖼️', label: '图像面板可读性', desc: '提亮图像参数提示、状态统计和耗时详情' },
+        { emoji: '📊', label: '结果元信息', desc: '提升结果卡片中的供应商、延迟、tokens 等元信息可读性' },
+        { emoji: '🧭', label: '保持层级', desc: '保留主次视觉关系，同时减少过暗文字' },
     ]
 }
 
@@ -44,7 +44,7 @@ export function VersionBadge() {
                     {/* 更新列表 */}
                     <ul className="space-y-2">
                         {VERSION_INFO.changes.map((change, index) => (
-                            <li key={index} className="text-xs text-foreground/80 leading-relaxed">
+                            <li key={index} className="text-xs text-foreground/90 leading-relaxed">
                                 <span className="mr-1.5">{change.emoji}</span>
                                 <strong className="text-primary">{change.label}</strong>
                                 <span className="text-muted">：{change.desc}</span>

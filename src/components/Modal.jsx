@@ -27,8 +27,8 @@ export function Modal({ isOpen, onClose, title, children, className, defaultView
                         {/* 默认视图模式选择器 */}
                         {onDefaultViewModeChange && (
                             <div className="flex items-center gap-2 mr-2 text-xs">
-                                <Settings className="w-3 h-3 text-primary/70" />
-                                <span className="text-primary/70 hidden sm:inline">默认:</span>
+                                <Settings className="w-3 h-3 text-primary/80" />
+                                <span className="text-primary/80 hidden sm:inline">默认:</span>
                                 <select
                                     value={defaultViewMode}
                                     onChange={(e) => onDefaultViewModeChange(e.target.value)}
@@ -58,7 +58,7 @@ export function Modal({ isOpen, onClose, title, children, className, defaultView
                 </div>
 
                 {/* Footer Status Bar */}
-                <div className="border-t border-primary p-2 bg-primary/5 text-xs text-primary/70 flex justify-between uppercase">
+                <div className="border-t border-primary p-2 bg-primary/5 text-xs text-primary/80 flex justify-between uppercase">
                     <span>MODE: READ_ONLY</span>
                     <span>EOF</span>
                 </div>

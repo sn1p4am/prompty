@@ -68,7 +68,7 @@ export function AdvancedSettings({
                 <span className="flex items-center gap-2">
                     <Settings className="w-4 h-4" /> 高级参数配置
                 </span>
-                <span className="hidden md:block ml-auto min-w-0 truncate text-[10px] normal-case tracking-normal text-primary/60 group-hover:text-black/70">
+                <span className="hidden md:block ml-auto min-w-0 truncate text-[10px] normal-case tracking-normal text-primary/80 group-hover:text-black/70">
                     {summary}
                 </span>
                 <span className="ml-auto md:ml-0 shrink-0">{isOpen ? "[-]" : "[+]"}</span>

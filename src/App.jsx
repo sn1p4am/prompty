@@ -192,7 +192,7 @@ function App() {
       )
     } else if (modalViewMode === 'markdown') {
       return (
-        <Suspense fallback={<div className="text-primary/60 text-sm animate-pulse">Markdown 渲染器加载中...</div>}>
+        <Suspense fallback={<div className="text-primary/80 text-sm animate-pulse">Markdown 渲染器加载中...</div>}>
           <MarkdownRenderer content={modalRawContent} />
         </Suspense>
       )
@@ -209,7 +209,7 @@ function App() {
       ) : (
         <div className="flex flex-col items-center justify-center h-full text-destructive">
           <span className="text-xl">无法预览</span>
-          <span className="text-sm opacity-50 mt-2">未检测到有效的 HTML 内容</span>
+          <span className="text-sm opacity-70 mt-2">未检测到有效的 HTML 内容</span>
         </div>
       )
     }
@@ -241,7 +241,7 @@ function App() {
           <div className="flex flex-col justify-between">
             <div>
               <h1 className="text-4xl font-black tracking-tighter text-primary animate-pulse flex items-end gap-3 leading-none">
-                PROMPTY<span className="text-xl opacity-70 mb-1">v3.8.14</span>
+                PROMPTY<span className="text-xl opacity-70 mb-1">v3.8.15</span>
               </h1>
               <p className="text-secondary text-xs uppercase tracking-[0.2em] mt-1">
                                 // 高级提示词测试环境
@@ -374,7 +374,7 @@ function App() {
             </div>
 
             {/* Separator */}
-            <div className="text-border select-none overflow-hidden whitespace-nowrap text-xs opacity-50 my-8">
+            <div className="text-border select-none overflow-hidden whitespace-nowrap text-xs opacity-70 my-8">
               ====================================================================================================================================================================================
             </div>
 
@@ -416,7 +416,7 @@ function App() {
             </div>
           </>
         ) : isImageWorkspace ? (
-          <Suspense fallback={<div className="border border-primary p-6 text-primary/60 animate-pulse">图像生成实验室加载中...</div>}>
+          <Suspense fallback={<div className="border border-primary p-6 text-primary/80 animate-pulse">图像生成实验室加载中...</div>}>
             <ImageGenerationLab
               isOpen={isImageWorkspace}
               onClose={() => setWorkspace(WORKSPACES.TEXT)}
@@ -424,7 +424,7 @@ function App() {
             />
           </Suspense>
         ) : (
-          <Suspense fallback={<div className="border border-primary p-6 text-primary/60 animate-pulse">缓存命中测试工具加载中...</div>}>
+          <Suspense fallback={<div className="border border-primary p-6 text-primary/80 animate-pulse">缓存命中测试工具加载中...</div>}>
             <CacheHitLab
               isOpen={isCacheWorkspace}
               onClose={() => setWorkspace(WORKSPACES.TEXT)}

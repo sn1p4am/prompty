@@ -34,8 +34,8 @@ export default {
           foreground: "#000000",
         },
         muted: {
-          DEFAULT: "#1f521f",
-          foreground: "#33ff00", // Keep it readable
+          DEFAULT: "#7fdc7f", // Readable helper text on black
+          foreground: "#9cff9c",
         },
         accent: {
           DEFAULT: "#33ff00",

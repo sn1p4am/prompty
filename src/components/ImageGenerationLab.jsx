@@ -193,22 +193,22 @@ function ImageTimingDetails({ job, imageLoadDuration }) {
     const secondaryTimings = serverTimings.filter(([key]) => key !== 'inference')
 
     return (
-        <div className="border border-border bg-primary/5 p-2 text-[11px] text-primary/75 space-y-2">
+        <div className="border border-border bg-primary/5 p-2 text-[11px] text-primary/80 space-y-2">
             <div className="flex items-center justify-between gap-3 border-b border-border pb-1">
                 <span className="font-bold text-primary uppercase tracking-widest">耗时</span>
-                <span className="text-primary/55">完成 {formatCompletedAt(job.completedAt)}</span>
+                <span className="text-primary/80">完成 {formatCompletedAt(job.completedAt)}</span>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {primaryTimings.map(item => (
                     <div key={item.label} className="min-w-0">
-                        <div className="text-primary/45">{item.label}</div>
+                        <div className="text-primary/80">{item.label}</div>
                         <div className="text-primary font-bold truncate">{item.value}</div>
                     </div>
                 ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-primary/55">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-primary/80">
                 <div className="flex justify-between gap-2">
                     <span>解析结果</span>
                     <span>{formatMs(job.clientTimings?.parse)}</span>
@@ -224,7 +224,7 @@ function ImageTimingDetails({ job, imageLoadDuration }) {
             </div>
 
             {secondaryTimings.length > 0 && (
-                <div className="border-t border-border pt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-primary/60">
+                <div className="border-t border-border pt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-primary/80">
                     {secondaryTimings.map(([key, value]) => (
                         <div key={key} className="flex justify-between gap-2">
                             <span className="truncate" title={key}>{formatServerTimingLabel(key)}</span>
@@ -316,7 +316,7 @@ function ImagePreviewGrid({ jobs, onToast, onZoom, imageLoadDurations, onImageLo
 
     if (!jobs.length) {
         return (
-            <div className="min-h-[360px] border border-dashed border-border flex items-center justify-center text-primary/50">
+            <div className="min-h-[360px] border border-dashed border-border flex items-center justify-center text-primary/80">
                 <Images className="w-10 h-10" />
             </div>
         )
@@ -353,11 +353,11 @@ function ImagePreviewGrid({ jobs, onToast, onZoom, imageLoadDurations, onImageLo
                                 <span className="text-primary font-bold">
                                     #{String(image.job.index + 1).padStart(2, '0')}.{image.imageIndex + 1}
                                 </span>
-                                <span className="text-primary/60 truncate">
+                                <span className="text-primary/80 truncate">
                                     {image.contentType || image.job.model}
                                 </span>
                             </div>
-                            <div className="grid grid-cols-2 gap-2 text-primary/70">
+                            <div className="grid grid-cols-2 gap-2 text-primary/80">
                                 <span>Seed: {image.job.seed ?? '-'}</span>
                                 <span className="text-right">
                                     {image.width && image.height ? `${image.width}x${image.height}` : '-'}
@@ -416,7 +416,7 @@ function ImagePreviewGrid({ jobs, onToast, onZoom, imageLoadDurations, onImageLo
                                 </span>
                                 <ImageStatusBadge status={job.status} />
                             </div>
-                            <div className="text-xs text-primary/70 break-words">
+                            <div className="text-xs text-primary/80 break-words">
                                 {job.error || (job.status === 'running' ? 'GENERATING_IMAGE_STREAM' : 'QUEUED_FOR_GENERATION')}
                             </div>
                             {job.status === 'running' && (
@@ -715,21 +715,21 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
 
                         <div className="border border-border p-3 space-y-2 text-xs">
                             <div className="flex items-center justify-between">
-                                <span className="text-primary/70">TOTAL</span>
+                                <span className="text-primary/80">TOTAL</span>
                                 <span>{batch.stats.total}</span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-primary/70">预计总张数</span>
+                                <span className="text-primary/80">预计总张数</span>
                                 <span>{estimatedCount.batchCount} 批 x {estimatedCount.numImages} 张 = {estimatedTotalImages}</span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-primary/70">SUCCESS / FAILED / RUNNING</span>
+                                <span className="text-primary/80">SUCCESS / FAILED / RUNNING</span>
                                 <span>{batch.stats.success} / {batch.stats.failed} / {batch.stats.running}</span>
                             </div>
                             <div className="h-3 border border-primary p-0.5">
                                 <div className="h-full bg-primary transition-all" style={{ width: `${batch.progress}%` }} />
                             </div>
-                            <div className="text-right text-primary/70">{batch.progress}%</div>
+                            <div className="text-right text-primary/80">{batch.progress}%</div>
                         </div>
                     </aside>
 
@@ -757,7 +757,7 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                             ))}
                                             <option value="custom">custom - 自定义尺寸</option>
                                         </Select>
-                                        <div className="mt-1 text-[11px] text-primary/50">
+                                        <div className="mt-1 text-[11px] text-primary/80">
                                             {normalizedSettings.imageSizePreset === 'custom'
                                                 ? `${normalizedSettings.customWidth}x${normalizedSettings.customHeight}`
                                                 : getImageSizeLabel(normalizedSettings.imageSizePreset)}
@@ -1070,7 +1070,7 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                             disabled={batch.isRunning}
                                             className="h-9 text-xs font-mono"
                                         />
-                                        <div className="mt-1 text-[11px] text-primary/50">
+                                        <div className="mt-1 text-[11px] text-primary/80">
                                             留空使用默认 llmapi；自定义地址需要目标服务允许当前页面 CORS
                                         </div>
                                     </div>
@@ -1087,7 +1087,7 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                             ))}
                                             <option value="custom">custom - WIDTHxHEIGHT</option>
                                         </Select>
-                                        <div className="mt-1 text-[11px] text-primary/50">
+                                        <div className="mt-1 text-[11px] text-primary/80">
                                             {normalizedSettings.openaiSizePreset === 'custom'
                                                 ? `${normalizedSettings.openaiCustomWidth}x${normalizedSettings.openaiCustomHeight}`
                                                 : getOpenAIImageSizeLabel(normalizedSettings.openaiSizePreset)}

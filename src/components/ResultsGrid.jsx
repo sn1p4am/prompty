@@ -69,7 +69,7 @@ const ResultCard = memo(function ResultCard({ result, onViewFull, onCopy }) {
         <Card className="flex flex-col h-[300px] overflow-hidden group border-dashed hover:border-solid hover:shadow-glow transition-all duration-300">
             <CardHeader className="p-3 border-b border-border bg-primary/5 flex flex-row items-center justify-between space-y-0 text-xs">
                 <div className="flex items-center gap-2 truncate text-primary font-bold">
-                    <span className="font-mono opacity-50">#{String(result.index + 1).padStart(2, '0')}</span>
+                    <span className="font-mono opacity-70">#{String(result.index + 1).padStart(2, '0')}</span>
                     <span className="truncate" title={result.model}>{result.model.toUpperCase()}</span>
                 </div>
                 <StatusBadge status={result.status} />
@@ -125,7 +125,7 @@ const ResultCard = memo(function ResultCard({ result, onViewFull, onCopy }) {
             <CardFooter className="p-2 border-t border-border bg-primary/5 flex flex-col gap-1">
                 {/* Metadata - 2 rows × 3 columns */}
                 {showMeta && (
-                    <div className="w-full text-[10px] text-primary/60 font-mono px-1 mb-1 space-y-0.5">
+                    <div className="w-full text-[10px] text-primary/80 font-mono px-1 mb-1 space-y-0.5">
                         {/* Row 1: Provider | 首字延迟 | 耗时 */}
                         <div className="flex items-center justify-between">
                             <span title="实际供应商" className="truncate flex-1">
@@ -159,14 +159,14 @@ const ResultCard = memo(function ResultCard({ result, onViewFull, onCopy }) {
                                         ${result.metadata.usage.cost.toFixed(6)}
                                     </span>
                                 ) : (
-                                    <span className="flex-1 text-right opacity-30">-</span>
+                                    <span className="flex-1 text-right opacity-60">-</span>
                                 )}
                             </div>
                         )}
                     </div>
                 )}
                 {/* Action Buttons Row */}
-                <div className="w-full flex gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                <div className="w-full flex gap-2 opacity-70 group-hover:opacity-100 transition-opacity">
                     <Button variant="ghost" size="sm" className="h-7 px-2 text-xs flex-1" onClick={() => onViewFull(result)}>
                         展开
                     </Button>
@@ -233,7 +233,7 @@ const HtmlPreviewCard = memo(function HtmlPreviewCard({ result, onViewFull }) {
                 ) : (
                     // Failed or No HTML found
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-destructive gap-4 p-8 text-center bg-red-50">
-                        <AlertTriangle className="w-10 h-10 opacity-50" />
+                        <AlertTriangle className="w-10 h-10 opacity-70" />
                         <div className="space-y-2">
                             <h3 className="font-bold">无法渲染预览</h3>
                             <p className="text-xs opacity-70 font-mono">
