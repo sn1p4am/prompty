@@ -1,5 +1,16 @@
 # Release Notes
 
+## v3.8.13 (2026-05-14)
+
+### 本次更新
+
+- 📊 新增“缓存命中测试”工作区，与文本测试、图像生成测试并列入口
+- 🧮 支持 OpenAI、Claude、Gemini 三种 API 格式，读取各自官方 usage 字段计算命中率
+- 🔁 按串行多轮请求展示总体命中率与预热后命中率，避免第一轮 cache write 拉低判断
+- 🧰 内置长系统规范、代码仓库审查、RAG 文档问答、Few-shot 分类器四类缓存命中预置案例
+- 📚 页面内说明 OpenAI 自动前缀缓存、Claude cache_control 显式缓存、Gemini 隐式/显式 cachedContents 的计算差异
+- 🛡️ Base URL、API Key、Model ID 均可自定义，并提示代理必须原样返回 usage 字段才能计算
+
 ## v3.8.12 (2026-05-14)
 
 ### 本次更新

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, test } from 'vitest'
 import { cleanup, render, waitFor } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import App from './App'
 import { STORAGE_KEYS, PROVIDERS } from './constants/providers'
 
@@ -24,6 +25,16 @@ describe('App provider model selection', () => {
 
     await waitFor(() => {
       expect(window.localStorage.getItem(STORAGE_KEYS.LAST_SELECTED_MODEL)).toBe(JSON.stringify(''))
+    })
+  })
+
+  test('shows the cache hit workspace from the header switcher', async () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByText('缓存命中测试'))
+
+    await waitFor(() => {
+      expect(screen.getByText('// OpenAI / Claude / Gemini Usage Meter')).toBeTruthy()
     })
   })
 })

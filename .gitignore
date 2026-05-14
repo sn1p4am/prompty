@@ -12,6 +12,8 @@ dist
 dist-ssr
 *.local
 .worktrees/
+.codex
+.serena/
 
 # Editor directories and files
 .vscode/*

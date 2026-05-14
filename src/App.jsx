@@ -15,11 +15,12 @@ import { STORAGE_KEYS, DEFAULT_CONFIG, DEFAULT_VERTEX_OPTIONS, DISPLAY_MODES, PR
 import { Button } from "./components/ui/button"
 import { Badge } from "./components/ui/badge"
 // Icons
-import { Monitor, FileCode, Terminal, FileText, Code, Eye, ImagePlus, MessageSquareText } from "lucide-react"
+import { Monitor, FileCode, Terminal, FileText, Code, Eye, ImagePlus, MessageSquareText, DatabaseZap } from "lucide-react"
 
 const WORKSPACES = {
   TEXT: 'text',
   IMAGE: 'image',
+  CACHE: 'cache',
 }
 
 const MarkdownRenderer = lazy(() =>
@@ -28,6 +29,10 @@ const MarkdownRenderer = lazy(() =>
 
 const ImageGenerationLab = lazy(() =>
   import('./components/ImageGenerationLab').then(module => ({ default: module.ImageGenerationLab }))
+)
+
+const CacheHitLab = lazy(() =>
+  import('./components/CacheHitLab').then(module => ({ default: module.CacheHitLab }))
 )
 
 function normalizeVertexModelId(model = '') {
@@ -75,6 +80,7 @@ function App() {
   const [workspace, setWorkspace] = useState(WORKSPACES.TEXT)
   const isTextWorkspace = workspace === WORKSPACES.TEXT
   const isImageWorkspace = workspace === WORKSPACES.IMAGE
+  const isCacheWorkspace = workspace === WORKSPACES.CACHE
   const trimmedSystemPrompt = systemPrompt.trim()
   const trimmedUserPrompt = userPrompt.trim()
   const currentApiKey = apiConfig.getApiKey()
@@ -235,7 +241,7 @@ function App() {
           <div className="flex flex-col justify-between">
             <div>
               <h1 className="text-4xl font-black tracking-tighter text-primary animate-pulse flex items-end gap-3 leading-none">
-                PROMPTY<span className="text-xl opacity-70 mb-1">v3.8.6</span>
+                PROMPTY<span className="text-xl opacity-70 mb-1">v3.8.13</span>
               </h1>
               <p className="text-secondary text-xs uppercase tracking-[0.2em] mt-1">
                                 // 高级提示词测试环境
@@ -261,6 +267,14 @@ function App() {
                 onClick={() => setWorkspace(WORKSPACES.IMAGE)}
               >
                 <ImagePlus className="w-3 h-3 mr-1" /> 图像生成测试
+              </Button>
+              <Button
+                size="sm"
+                variant={isCacheWorkspace ? 'default' : 'outline'}
+                className="h-8 px-2 text-[10px]"
+                onClick={() => setWorkspace(WORKSPACES.CACHE)}
+              >
+                <DatabaseZap className="w-3 h-3 mr-1" /> 缓存命中测试
               </Button>
             </div>
           </div>
@@ -401,10 +415,18 @@ function App() {
               />
             </div>
           </>
-        ) : (
+        ) : isImageWorkspace ? (
           <Suspense fallback={<div className="border border-primary p-6 text-primary/60 animate-pulse">图像生成实验室加载中...</div>}>
             <ImageGenerationLab
               isOpen={isImageWorkspace}
+              onClose={() => setWorkspace(WORKSPACES.TEXT)}
+              onToast={showToast}
+            />
+          </Suspense>
+        ) : (
+          <Suspense fallback={<div className="border border-primary p-6 text-primary/60 animate-pulse">缓存命中测试工具加载中...</div>}>
+            <CacheHitLab
+              isOpen={isCacheWorkspace}
               onClose={() => setWorkspace(WORKSPACES.TEXT)}
               onToast={showToast}
             />

@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.12',
+    version: 'v3.8.13',
     date: '2026-05-14',
     changes: [
-        { emoji: '🌐', label: 'URL 配置恢复', desc: 'OpenAI 生图恢复可选 Base URL，留空默认使用 llmapi' },
-        { emoji: '🧭', label: '地址容错', desc: '自动补齐协议和 /v1，并清理误粘贴的 generations 路径' },
-        { emoji: '🛡️', label: 'CORS 提醒', desc: '提示自定义地址需要在服务端允许当前页面来源' },
-        { emoji: '🧪', label: '配置测试', desc: '覆盖默认 llmapi、自定义代理与同源路径归一化' },
+        { emoji: '📊', label: '缓存命中测试', desc: '新增 OpenAI / Claude / Gemini 三种格式的缓存命中率工作区' },
+        { emoji: '🧮', label: '统一口径', desc: '按 cached read tokens / input tokens 展示总体与预热后命中率' },
+        { emoji: '🧰', label: '预置场景', desc: '内置长规范、代码审查、RAG 问答与 few-shot 分类缓存案例' },
+        { emoji: '📚', label: '官方说明', desc: '页面内标注三家 usage 字段、显式缓存差异与计算方法' },
     ]
 }
 
