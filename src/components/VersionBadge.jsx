@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.13',
+    version: 'v3.8.14',
     date: '2026-05-14',
     changes: [
-        { emoji: '📊', label: '缓存命中测试', desc: '新增 OpenAI / Claude / Gemini 三种格式的缓存命中率工作区' },
-        { emoji: '🧮', label: '统一口径', desc: '按 cached read tokens / input tokens 展示总体与预热后命中率' },
-        { emoji: '🧰', label: '预置场景', desc: '内置长规范、代码审查、RAG 问答与 few-shot 分类缓存案例' },
-        { emoji: '📚', label: '官方说明', desc: '页面内标注三家 usage 字段、显式缓存差异与计算方法' },
+        { emoji: '🧾', label: 'Claude User ID', desc: '缓存测试支持 Claude metadata.user_id 透传' },
+        { emoji: '🛡️', label: '隐私提示', desc: '提醒 user_id 应使用 opaque 标识，避免姓名、邮箱或手机号' },
+        { emoji: '📌', label: '口径说明', desc: '明确 user_id 不是官方缓存命中保证，适合验证代理请求亲和' },
+        { emoji: '🧪', label: '测试覆盖', desc: '补充 Claude metadata 请求体断言' },
     ]
 }
 

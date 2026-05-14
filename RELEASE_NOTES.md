@@ -1,5 +1,14 @@
 # Release Notes
 
+## v3.8.14 (2026-05-14)
+
+### 本次更新
+
+- 🧾 缓存命中测试的 Claude 格式新增 `metadata.user_id` 可选输入
+- 🛡️ 页面提示 `user_id` 应使用 UUID、hash 等 opaque 标识，不要填写姓名、邮箱、手机号等身份信息
+- 📌 明确 `metadata.user_id` 不属于 Claude 官方 prompt cache 命中保证；它更适合用于验证代理/网关是否按用户做请求亲和
+- 🧪 补充 Claude 请求体测试，确保显式缓存与 `metadata.user_id` 可以同时透传
+
 ## v3.8.13 (2026-05-14)
 
 ### 本次更新

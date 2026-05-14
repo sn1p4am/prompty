@@ -397,6 +397,21 @@ export function CacheHitLab({ isOpen, onClose, onToast }) {
                             />
                         </div>
 
+                        {settings.apiFormat === CACHE_API_FORMATS.CLAUDE && (
+                            <div>
+                                <Label>Claude metadata.user_id</Label>
+                                <Input
+                                    value={settings.claudeUserId || ''}
+                                    onChange={(event) => setField('claudeUserId', event.target.value)}
+                                    placeholder="opaque-user-hash"
+                                    disabled={cacheTest.isRunning}
+                                />
+                                <div className="mt-2 text-[11px] text-muted leading-relaxed">
+                                    官方说明该字段用于请求关联用户与滥用检测，不应包含姓名、邮箱或手机号；它不属于 Claude prompt cache 命中保证，可用于验证代理/网关是否按用户做请求亲和。
+                                </div>
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <Label>轮数</Label>

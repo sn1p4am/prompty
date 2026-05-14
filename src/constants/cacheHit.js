@@ -238,6 +238,7 @@ export const DEFAULT_CACHE_HIT_SETTINGS = {
     interval: 1200,
     maxTokens: 128,
     temperature: 0,
+    claudeUserId: '',
     presetCaseId: 'long-policy',
     caseSize: 'steady',
     staticPrefix: buildCacheCasePrompt('long-policy', 'steady').staticPrefix,

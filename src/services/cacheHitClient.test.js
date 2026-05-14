@@ -114,10 +114,12 @@ describe('runCacheHitTest provider usage parsing', () => {
       interval: 0,
       maxTokens: 64,
       temperature: 0,
+      claudeUserId: 'anon-user-hash',
     })
 
     const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body)
     expect(requestBody.system[0].cache_control).toEqual({ type: 'ephemeral' })
+    expect(requestBody.metadata).toEqual({ user_id: 'anon-user-hash' })
     expect(results[0].usage.inputTokens).toBe(1020)
     expect(results[0].usage.cacheCreationTokens).toBe(900)
   })

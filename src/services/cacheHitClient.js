@@ -258,7 +258,8 @@ function buildOpenAiRequest({ model, staticPrefix, dynamicPrompt, roundIndex, ma
     }
 }
 
-function buildClaudeRequest({ model, staticPrefix, dynamicPrompt, roundIndex, maxTokens, temperature, cacheMode }) {
+function buildClaudeRequest({ model, staticPrefix, dynamicPrompt, roundIndex, maxTokens, temperature, cacheMode, claudeUserId }) {
+    const normalizedUserId = String(claudeUserId || '').trim()
     const systemBlock = {
         type: 'text',
         text: staticPrefix,
@@ -269,6 +270,11 @@ function buildClaudeRequest({ model, staticPrefix, dynamicPrompt, roundIndex, ma
 
     return {
         model,
+        ...(normalizedUserId && {
+            metadata: {
+                user_id: normalizedUserId,
+            },
+        }),
         ...(cacheMode === CACHE_MODES.AUTO && {
             cache_control: { type: 'ephemeral' },
         }),
@@ -459,6 +465,7 @@ export function normalizeCacheHitSettings(settings) {
         interval: clampInteger(settings.interval, 1200, 0, 30000),
         maxTokens,
         temperature: Number.isFinite(Number(settings.temperature)) ? Number(settings.temperature) : 0,
+        claudeUserId: String(settings.claudeUserId || '').trim(),
     }
 }
 
