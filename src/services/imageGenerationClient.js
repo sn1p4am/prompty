@@ -41,6 +41,53 @@ function normalizeOpenAIModel(model) {
     return String(model || '').trim()
 }
 
+function normalizeOpenAIPathname(pathname) {
+    let normalizedPathname = String(pathname || '')
+        .split(/[?#]/)[0]
+        .replace(/\/+$/, '')
+        .replace(/\/(?:images\/generations|images\/edits|responses|chat\/completions)$/, '')
+        .replace(/\/+$/, '')
+
+    if (!normalizedPathname || normalizedPathname === '/') {
+        normalizedPathname = '/v1'
+    }
+
+    if (!/\/v1$/.test(normalizedPathname)) {
+        normalizedPathname = `${normalizedPathname}/v1`
+    }
+
+    return normalizedPathname
+}
+
+function normalizeOpenAIBaseUrl(baseUrl, fallbackBaseUrl = IMAGE_GENERATION_PROVIDER_INFO[IMAGE_GENERATION_PROVIDERS.OPENAI].baseUrl) {
+    const rawBaseUrl = String(baseUrl || '').trim()
+
+    if (!rawBaseUrl) {
+        return fallbackBaseUrl
+    }
+
+    if (rawBaseUrl.startsWith('/')) {
+        return normalizeOpenAIPathname(rawBaseUrl)
+    }
+
+    const withProtocol = /^[a-z][a-z\d+\-.]*:\/\//i.test(rawBaseUrl)
+        ? rawBaseUrl
+        : `https://${rawBaseUrl}`
+
+    let parsedUrl
+    try {
+        parsedUrl = new URL(withProtocol)
+    } catch {
+        throw new Error('OpenAI Base URL 格式不正确')
+    }
+
+    parsedUrl.pathname = normalizeOpenAIPathname(parsedUrl.pathname)
+    parsedUrl.search = ''
+    parsedUrl.hash = ''
+
+    return parsedUrl.toString().replace(/\/$/, '')
+}
+
 function buildOpenAINetworkError(error, requestUrl) {
     const origin = globalThis.location?.origin
     const originHint = origin ? `当前页面来源：${origin}。` : ''
@@ -49,7 +96,7 @@ function buildOpenAINetworkError(error, requestUrl) {
     return new Error(
         `OpenAI 图像请求无法从浏览器直连 ${requestUrl}。${originHint}` +
         '如果控制台提示 CORS 或 preflight，说明目标服务没有返回 Access-Control-Allow-Origin；' +
-        '请在目标服务开启 CORS，或通过同源后端/边缘代理转发固定 llmapi 请求。' +
+        '请在目标服务开启 CORS，或改用已允许当前页面来源的 OpenAI-compatible Base URL。' +
         `原始错误：${originalMessage}`
     )
 }
@@ -464,7 +511,7 @@ async function generateOpenAIImage({ apiKey, model, settings, signal }) {
     }
 
     const requestStartTime = now()
-    const baseUrl = IMAGE_GENERATION_PROVIDER_INFO[IMAGE_GENERATION_PROVIDERS.OPENAI].baseUrl
+    const baseUrl = normalizeOpenAIBaseUrl(settings.openaiBaseUrl)
     const requestUrl = `${baseUrl}/images/generations`
     let response
     try {

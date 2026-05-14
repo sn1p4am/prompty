@@ -1,5 +1,14 @@
 # Release Notes
 
+## v3.8.12 (2026-05-14)
+
+### 本次更新
+
+- 🌐 OpenAI 生图恢复可选 Base URL 配置，留空默认使用 `https://llmapi.devart.ai/v1`
+- 🧭 请求前自动归一化 Base URL：补齐 `https://`、补齐 `/v1`，并清理误粘贴的 `/images/generations`
+- 🛡️ 在配置区提示自定义 OpenAI-compatible 地址需要服务端允许当前页面 CORS
+- 🧪 恢复并更新 Base URL 测试，覆盖默认 llmapi、自定义代理路径与同源相对路径
+
 ## v3.8.11 (2026-05-14)
 
 ### 本次更新

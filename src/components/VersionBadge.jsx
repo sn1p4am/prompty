@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.11',
+    version: 'v3.8.12',
     date: '2026-05-14',
     changes: [
-        { emoji: '🔒', label: '固定接口', desc: 'OpenAI 生图固定走 https://llmapi.devart.ai/v1' },
-        { emoji: '🧹', label: '移除配置项', desc: '去掉 OpenAI 生图 Base URL 输入，避免错误切换接口地址' },
-        { emoji: '🧪', label: '真实验证', desc: '使用测试 Key 验证 llmapi Image2 生图返回 200 和 b64_json 图像' },
-        { emoji: '🖼️', label: '兼容旧设置', desc: '旧缓存中的 openaiBaseUrl 会被忽略，不影响固定接口请求' },
+        { emoji: '🌐', label: 'URL 配置恢复', desc: 'OpenAI 生图恢复可选 Base URL，留空默认使用 llmapi' },
+        { emoji: '🧭', label: '地址容错', desc: '自动补齐协议和 /v1，并清理误粘贴的 generations 路径' },
+        { emoji: '🛡️', label: 'CORS 提醒', desc: '提示自定义地址需要在服务端允许当前页面来源' },
+        { emoji: '🧪', label: '配置测试', desc: '覆盖默认 llmapi、自定义代理与同源路径归一化' },
     ]
 }
 

@@ -1060,6 +1060,21 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
 
                             {normalizedSettings.provider === IMAGE_GENERATION_PROVIDERS.OPENAI && (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4 p-4">
+                                    <div className="sm:col-span-2 lg:col-span-4">
+                                        <Label className={FIELD_LABEL_CLASS}>Base URL</Label>
+                                        <Input
+                                            type="text"
+                                            value={normalizedSettings.openaiBaseUrl}
+                                            placeholder={providerInfo?.baseUrl || 'https://llmapi.devart.ai/v1'}
+                                            onChange={(event) => setField('openaiBaseUrl', event.target.value)}
+                                            disabled={batch.isRunning}
+                                            className="h-9 text-xs font-mono"
+                                        />
+                                        <div className="mt-1 text-[11px] text-primary/50">
+                                            留空使用默认 llmapi；自定义地址需要目标服务允许当前页面 CORS
+                                        </div>
+                                    </div>
+
                                     <div>
                                         <Label className={FIELD_LABEL_CLASS}>图像尺寸</Label>
                                         <Select
