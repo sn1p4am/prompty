@@ -26,6 +26,7 @@ import {
     IMAGE_GENERATION_PROVIDER_INFO,
     IMAGE_GENERATION_PROVIDERS,
     IMAGE_GENERATION_STORAGE_KEYS,
+    OPENAI_IMAGE_SIZE_PRESETS,
     TOGETHER_ASPECT_RATIO_PRESETS,
 } from '../constants/imageGeneration'
 
@@ -114,7 +115,16 @@ function getImageSizeLabel(value) {
     return preset?.label || value
 }
 
+function getOpenAIImageSizeLabel(value) {
+    const preset = OPENAI_IMAGE_SIZE_PRESETS.find(item => item.value === value)
+    return preset?.label || value
+}
+
 function getProviderParameterTitle(provider) {
+    if (provider === IMAGE_GENERATION_PROVIDERS.OPENAI) {
+        return 'OPENAI.IMAGE2.PARAMETERS'
+    }
+
     if (provider === IMAGE_GENERATION_PROVIDERS.TOGETHER) {
         return 'TOGETHER.PARAMETERS'
     }
@@ -123,6 +133,10 @@ function getProviderParameterTitle(provider) {
 }
 
 function getProviderImageCount(settings) {
+    if (settings.provider === IMAGE_GENERATION_PROVIDERS.OPENAI) {
+        return settings.openaiNumImages
+    }
+
     if (settings.provider === IMAGE_GENERATION_PROVIDERS.TOGETHER) {
         return settings.togetherNumImages
     }
@@ -1039,6 +1053,179 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                             disabled={batch.isRunning}
                                             className="min-h-[88px] leading-relaxed"
                                             placeholder="blurry, low quality, distorted, watermark"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {normalizedSettings.provider === IMAGE_GENERATION_PROVIDERS.OPENAI && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4 p-4">
+                                    <div>
+                                        <Label className={FIELD_LABEL_CLASS}>图像尺寸</Label>
+                                        <Select
+                                            value={normalizedSettings.openaiSizePreset}
+                                            onChange={(event) => setField('openaiSizePreset', event.target.value)}
+                                            disabled={batch.isRunning}
+                                        >
+                                            {OPENAI_IMAGE_SIZE_PRESETS.map(size => (
+                                                <option key={size.value} value={size.value}>{size.label}</option>
+                                            ))}
+                                            <option value="custom">custom - WIDTHxHEIGHT</option>
+                                        </Select>
+                                        <div className="mt-1 text-[11px] text-primary/50">
+                                            {normalizedSettings.openaiSizePreset === 'custom'
+                                                ? `${normalizedSettings.openaiCustomWidth}x${normalizedSettings.openaiCustomHeight}`
+                                                : getOpenAIImageSizeLabel(normalizedSettings.openaiSizePreset)}
+                                        </div>
+                                    </div>
+
+                                    {normalizedSettings.openaiSizePreset === 'custom' && (
+                                        <>
+                                            <div>
+                                                <Label className={FIELD_LABEL_CLASS}>宽度</Label>
+                                                <Input
+                                                    type="number"
+                                                    min="16"
+                                                    max="3840"
+                                                    step="16"
+                                                    value={normalizedSettings.openaiCustomWidth}
+                                                    onChange={(event) => setField('openaiCustomWidth', event.target.value)}
+                                                    disabled={batch.isRunning}
+                                                    className={NUMBER_INPUT_CLASS}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className={FIELD_LABEL_CLASS}>高度</Label>
+                                                <Input
+                                                    type="number"
+                                                    min="16"
+                                                    max="3840"
+                                                    step="16"
+                                                    value={normalizedSettings.openaiCustomHeight}
+                                                    onChange={(event) => setField('openaiCustomHeight', event.target.value)}
+                                                    disabled={batch.isRunning}
+                                                    className={NUMBER_INPUT_CLASS}
+                                                />
+                                            </div>
+                                        </>
+                                    )}
+
+                                    <div>
+                                        <Label className={FIELD_LABEL_CLASS}>Quality</Label>
+                                        <Select
+                                            value={normalizedSettings.openaiQuality}
+                                            onChange={(event) => setField('openaiQuality', event.target.value)}
+                                            disabled={batch.isRunning}
+                                        >
+                                            <option value="auto">auto</option>
+                                            <option value="low">low</option>
+                                            <option value="medium">medium</option>
+                                            <option value="high">high</option>
+                                        </Select>
+                                    </div>
+
+                                    <div>
+                                        <Label className={FIELD_LABEL_CLASS}>每批张数</Label>
+                                        <Select
+                                            value={normalizedSettings.openaiNumImages}
+                                            onChange={(event) => setField('openaiNumImages', event.target.value)}
+                                            disabled={batch.isRunning}
+                                        >
+                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(value => (
+                                                <option key={value} value={value}>{value}</option>
+                                            ))}
+                                        </Select>
+                                    </div>
+
+                                    <div>
+                                        <Label className={FIELD_LABEL_CLASS}>格式</Label>
+                                        <Select
+                                            value={normalizedSettings.openaiOutputFormat}
+                                            onChange={(event) => setField('openaiOutputFormat', event.target.value)}
+                                            disabled={batch.isRunning}
+                                        >
+                                            <option value="png">png</option>
+                                            <option value="jpeg">jpeg</option>
+                                            <option value="webp">webp</option>
+                                        </Select>
+                                    </div>
+
+                                    {(normalizedSettings.openaiOutputFormat === 'jpeg' || normalizedSettings.openaiOutputFormat === 'webp') && (
+                                        <div>
+                                            <Label className={FIELD_LABEL_CLASS}>压缩 0-100</Label>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                value={normalizedSettings.openaiOutputCompression}
+                                                onChange={(event) => setField('openaiOutputCompression', event.target.value)}
+                                                disabled={batch.isRunning}
+                                                className={NUMBER_INPUT_CLASS}
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <Label className={FIELD_LABEL_CLASS}>背景</Label>
+                                        <Select
+                                            value={normalizedSettings.openaiBackground}
+                                            onChange={(event) => setField('openaiBackground', event.target.value)}
+                                            disabled={batch.isRunning}
+                                        >
+                                            <option value="auto">auto</option>
+                                            <option value="opaque">opaque</option>
+                                            <option value="transparent">transparent</option>
+                                        </Select>
+                                    </div>
+
+                                    <div>
+                                        <Label className={FIELD_LABEL_CLASS}>Moderation</Label>
+                                        <Select
+                                            value={normalizedSettings.openaiModeration}
+                                            onChange={(event) => setField('openaiModeration', event.target.value)}
+                                            disabled={batch.isRunning}
+                                        >
+                                            <option value="auto">auto</option>
+                                            <option value="low">low</option>
+                                        </Select>
+                                    </div>
+
+                                    <div>
+                                        <Label className={FIELD_LABEL_CLASS}>Streaming</Label>
+                                        <Select
+                                            value={normalizedSettings.openaiStream ? 'true' : 'false'}
+                                            onChange={(event) => setField('openaiStream', event.target.value === 'true')}
+                                            disabled={batch.isRunning}
+                                        >
+                                            <option value="false">false</option>
+                                            <option value="true">true</option>
+                                        </Select>
+                                    </div>
+
+                                    {normalizedSettings.openaiStream && (
+                                        <div>
+                                            <Label className={FIELD_LABEL_CLASS}>Partial Images</Label>
+                                            <Select
+                                                value={normalizedSettings.openaiPartialImages}
+                                                onChange={(event) => setField('openaiPartialImages', event.target.value)}
+                                                disabled={batch.isRunning}
+                                            >
+                                                {[0, 1, 2, 3].map(value => (
+                                                    <option key={value} value={value}>{value}</option>
+                                                ))}
+                                            </Select>
+                                        </div>
+                                    )}
+
+                                    <div className="sm:col-span-2 lg:col-span-4">
+                                        <Label className={FIELD_LABEL_CLASS}>User ID</Label>
+                                        <Input
+                                            type="text"
+                                            value={normalizedSettings.openaiUser}
+                                            placeholder="optional end-user id"
+                                            onChange={(event) => setField('openaiUser', event.target.value)}
+                                            disabled={batch.isRunning}
+                                            className={NUMBER_INPUT_CLASS}
                                         />
                                     </div>
                                 </div>

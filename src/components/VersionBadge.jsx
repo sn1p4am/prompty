@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.6',
-    date: '2026-05-12',
+    version: 'v3.8.7',
+    date: '2026-05-14',
     changes: [
-        { emoji: '📱', label: '移动端密钥布局', desc: 'API Key 区域在小屏改为纵向排布，避免标签和按钮挤压变形' },
-        { emoji: '🧭', label: '运行前状态提示', desc: '运行按钮会直接提示缺少模型、Prompt、访问令牌或渠道配置' },
-        { emoji: '⚙️', label: '高级参数摘要', desc: '折叠状态下展示 batch、并发、模式、采样和 Max Token 摘要' },
-        { emoji: '🧹', label: '首屏分割优化', desc: '移动端 Header 配置区改用横向分隔，界面层次更稳' },
+        { emoji: '🖼️', label: 'OpenAI Image2', desc: '图像生成实验室新增 OpenAI / gpt-image-2 生图测试渠道' },
+        { emoji: '⚙️', label: '全量参数面板', desc: '支持 size、quality、format、compression、background、moderation、stream、partial images 与 user' },
+        { emoji: '🧪', label: '请求测试覆盖', desc: '新增 Image2 payload、鉴权、base64 结果和流式完成事件单测' },
+        { emoji: '📏', label: '尺寸约束校验', desc: '自定义尺寸按 gpt-image-2 规则校验 16 倍数、比例和像素范围' },
     ]
 }
 

@@ -37,6 +37,10 @@ function normalizeTogetherModel(model) {
     return String(model || '').trim()
 }
 
+function normalizeOpenAIModel(model) {
+    return String(model || '').trim()
+}
+
 function now() {
     return globalThis.performance?.now ? globalThis.performance.now() : Date.now()
 }
@@ -166,6 +170,93 @@ export function buildTogetherImageGenerationPayload(settings, model) {
     return payload
 }
 
+function assertOpenAISizeConstraints(width, height) {
+    if (width % 16 !== 0 || height % 16 !== 0) {
+        throw new Error('OpenAI 自定义尺寸的宽高必须是 16 的倍数')
+    }
+
+    if (Math.max(width, height) > 3840) {
+        throw new Error('OpenAI 自定义尺寸的最长边不能超过 3840px')
+    }
+
+    const longEdge = Math.max(width, height)
+    const shortEdge = Math.min(width, height)
+    if (longEdge / shortEdge > 3) {
+        throw new Error('OpenAI 自定义尺寸的长短边比例不能超过 3:1')
+    }
+
+    const pixels = width * height
+    if (pixels < 655360 || pixels > 8294400) {
+        throw new Error('OpenAI 自定义尺寸总像素必须在 655360 到 8294400 之间')
+    }
+}
+
+export function buildOpenAIImageGenerationPayload(settings, model) {
+    const prompt = String(settings.prompt || '').trim()
+    const normalizedModel = normalizeOpenAIModel(model || settings.model)
+
+    if (!prompt) {
+        throw new Error('请填写图像提示词')
+    }
+
+    if (!normalizedModel) {
+        throw new Error('请填写 OpenAI 模型 ID')
+    }
+
+    const numImages = parseNumber(settings.openaiNumImages, '单次出图数量', {
+        min: 1,
+        max: 10,
+        integer: true,
+    })
+    const outputCompression = parseNumber(settings.openaiOutputCompression, '输出压缩', {
+        min: 0,
+        max: 100,
+        integer: true,
+    })
+    const partialImages = parseNumber(settings.openaiPartialImages, 'Partial Images', {
+        min: 0,
+        max: 3,
+        integer: true,
+    })
+
+    let size = settings.openaiSizePreset || 'auto'
+    if (size === 'custom') {
+        const width = parseNumber(settings.openaiCustomWidth, 'OpenAI 自定义宽度', {
+            min: 16,
+            max: 3840,
+            integer: true,
+        })
+        const height = parseNumber(settings.openaiCustomHeight, 'OpenAI 自定义高度', {
+            min: 16,
+            max: 3840,
+            integer: true,
+        })
+        assertOpenAISizeConstraints(width, height)
+        size = `${width}x${height}`
+    }
+
+    const outputFormat = settings.openaiOutputFormat || 'png'
+    const stream = Boolean(settings.openaiStream)
+    const user = String(settings.openaiUser || '').trim()
+
+    return {
+        model: normalizedModel,
+        prompt,
+        ...(numImages !== null && { n: numImages }),
+        quality: settings.openaiQuality || 'auto',
+        output_format: outputFormat,
+        ...((outputFormat === 'jpeg' || outputFormat === 'webp') && outputCompression !== null && {
+            output_compression: outputCompression,
+        }),
+        stream,
+        ...(stream && partialImages !== null && { partial_images: partialImages }),
+        size,
+        moderation: settings.openaiModeration || 'auto',
+        background: settings.openaiBackground || 'auto',
+        ...(user && { user }),
+    }
+}
+
 export function normalizeImageGenerationError(response, errorText, provider = IMAGE_GENERATION_PROVIDERS.FAL) {
     let message = `HTTP ${response.status}`
 
@@ -182,7 +273,7 @@ export function normalizeImageGenerationError(response, errorText, provider = IM
         message = errorText || response.statusText || message
     }
 
-    const providerName = provider === IMAGE_GENERATION_PROVIDERS.TOGETHER ? 'Together.ai' : 'fal.ai'
+    const providerName = IMAGE_GENERATION_PROVIDER_INFO[provider]?.name || '图像生成服务'
 
     if (response.status === 401 || response.status === 403) {
         return `${providerName} API Key 无效或无权访问该模型`
@@ -197,6 +288,29 @@ export function normalizeImageGenerationError(response, errorText, provider = IM
     }
 
     return message
+}
+
+function parseServerSentEvents(text) {
+    return String(text || '')
+        .split(/\r?\n\r?\n/)
+        .flatMap(block => {
+            const data = block
+                .split(/\r?\n/)
+                .filter(line => line.startsWith('data:'))
+                .map(line => line.slice(5).trimStart())
+                .join('\n')
+                .trim()
+
+            if (!data || data === '[DONE]') {
+                return []
+            }
+
+            try {
+                return [JSON.parse(data)]
+            } catch {
+                return []
+            }
+        })
 }
 
 function buildImageResult({ data, index, fallbackModel, defaultContentType = '' }) {
@@ -330,6 +444,70 @@ async function generateTogetherImage({ apiKey, model, settings, signal }) {
     }
 }
 
+async function generateOpenAIImage({ apiKey, model, settings, signal }) {
+    const normalizedModel = normalizeOpenAIModel(model)
+    if (!normalizedModel) {
+        throw new Error('请填写 OpenAI 模型 ID')
+    }
+
+    const requestStartTime = now()
+    const response = await fetch(`${IMAGE_GENERATION_PROVIDER_INFO[IMAGE_GENERATION_PROVIDERS.OPENAI].baseUrl}/images/generations`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(buildOpenAIImageGenerationPayload(settings, normalizedModel)),
+        signal,
+    })
+    const responseReceivedTime = now()
+
+    if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(normalizeImageGenerationError(response, errorText, IMAGE_GENERATION_PROVIDERS.OPENAI))
+    }
+
+    const responseText = await response.text()
+    const responseBodyReadTime = now()
+    const data = settings.openaiStream
+        ? { events: parseServerSentEvents(responseText) }
+        : JSON.parse(responseText)
+    const responseParsedTime = now()
+    const completedAt = new Date().toISOString()
+    const clientTimings = {
+        response: roundDuration(responseReceivedTime - requestStartTime),
+        download: roundDuration(responseBodyReadTime - responseReceivedTime),
+        parse: roundDuration(responseParsedTime - responseBodyReadTime),
+        total: roundDuration(responseParsedTime - requestStartTime),
+    }
+    const eventImages = settings.openaiStream
+        ? data.events.filter(event => event.type === 'image_generation.completed' && event.b64_json)
+        : []
+    const images = settings.openaiStream ? eventImages : (Array.isArray(data.data) ? data.data : [])
+    const completedEvent = eventImages[eventImages.length - 1] || null
+
+    return {
+        provider: IMAGE_GENERATION_PROVIDERS.OPENAI,
+        model: normalizedModel,
+        prompt: settings.prompt,
+        seed: null,
+        images: images.map((image, index) => buildImageResult({
+            data: image,
+            index,
+            fallbackModel: normalizedModel,
+            defaultContentType: `image/${settings.openaiOutputFormat || 'png'}`,
+        })).filter(image => image.url),
+        hasNsfwConcepts: [],
+        timings: null,
+        clientTimings,
+        completedAt,
+        requestId: response.headers?.get?.('x-request-id') || data.id || null,
+        duration: clientTimings.total,
+        raw: data,
+        usage: data.usage || completedEvent?.usage || null,
+    }
+}
+
 export async function generateImage(params) {
     const { provider, apiKey } = params
 
@@ -343,6 +521,10 @@ export async function generateImage(params) {
 
     if (provider === IMAGE_GENERATION_PROVIDERS.TOGETHER) {
         return generateTogetherImage(params)
+    }
+
+    if (provider === IMAGE_GENERATION_PROVIDERS.OPENAI) {
+        return generateOpenAIImage(params)
     }
 
     throw new Error('暂未支持该图像生成供应商')

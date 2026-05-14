@@ -1,6 +1,7 @@
 export const IMAGE_GENERATION_PROVIDERS = {
     FAL: 'fal',
     TOGETHER: 'together',
+    OPENAI: 'openai',
 }
 
 export const IMAGE_GENERATION_PROVIDER_INFO = {
@@ -49,9 +50,23 @@ export const IMAGE_GENERATION_PROVIDER_INFO = {
             'stabilityai/stable-diffusion-xl-base-1.0',
         ],
     },
+    [IMAGE_GENERATION_PROVIDERS.OPENAI]: {
+        name: 'OpenAI',
+        baseUrl: 'https://api.openai.com/v1',
+        keyLabel: 'OPENAI_API_KEY',
+        keyStorageKey: 'openai_image_generation_api_key',
+        defaultModel: 'gpt-image-2',
+        models: [
+            'gpt-image-2',
+            'gpt-image-2-2026-04-21',
+            'gpt-image-1.5',
+            'gpt-image-1',
+            'gpt-image-1-mini',
+        ],
+    },
 }
 
-export const IMAGE_GENERATION_SETTINGS_VERSION = 3
+export const IMAGE_GENERATION_SETTINGS_VERSION = 4
 
 export const FAL_IMAGE_SIZE_PRESETS = [
     { value: 'square_hd', label: 'square_hd - 1024x1024', width: 1024, height: 1024 },
@@ -71,6 +86,17 @@ export const TOGETHER_ASPECT_RATIO_PRESETS = [
     { value: '3:2', label: '3:2 - landscape' },
     { value: '2:3', label: '2:3 - portrait' },
     { value: '21:9', label: '21:9 - ultrawide' },
+]
+
+export const OPENAI_IMAGE_SIZE_PRESETS = [
+    { value: 'auto', label: 'auto - model selected' },
+    { value: '1024x1024', label: '1024x1024 - square' },
+    { value: '1536x1024', label: '1536x1024 - landscape' },
+    { value: '1024x1536', label: '1024x1536 - portrait' },
+    { value: '2048x2048', label: '2048x2048 - 2K square' },
+    { value: '2048x1152', label: '2048x1152 - 2K landscape' },
+    { value: '3840x2160', label: '3840x2160 - 4K landscape' },
+    { value: '2160x3840', label: '2160x3840 - 4K portrait' },
 ]
 
 export const DEFAULT_IMAGE_GENERATION_SETTINGS = {
@@ -104,6 +130,18 @@ export const DEFAULT_IMAGE_GENERATION_SETTINGS = {
     togetherResponseFormat: 'url',
     togetherOutputFormat: 'jpeg',
     togetherDisableSafetyChecker: false,
+    openaiSizePreset: 'auto',
+    openaiCustomWidth: 1536,
+    openaiCustomHeight: 864,
+    openaiQuality: 'auto',
+    openaiNumImages: 1,
+    openaiOutputFormat: 'png',
+    openaiOutputCompression: 100,
+    openaiBackground: 'auto',
+    openaiModeration: 'auto',
+    openaiStream: false,
+    openaiPartialImages: 0,
+    openaiUser: '',
 }
 
 export const IMAGE_GENERATION_STORAGE_KEYS = {

@@ -1,5 +1,15 @@
 # Release Notes
 
+## v3.8.7 (2026-05-14)
+
+### 本次更新
+
+- 🖼️ 图像生成实验室新增 OpenAI Image API 渠道，内置 `gpt-image-2`、`gpt-image-2-2026-04-21` 与 GPT Image 系列模型
+- ⚙️ 新增 Image2 全量生成参数面板：`n`、`size`、`quality`、`output_format`、`output_compression`、`background`、`moderation`、`stream`、`partial_images`、`user`
+- 🧪 新增 OpenAI Image2 请求测试，覆盖全量 payload、Bearer 鉴权、base64 图像归一化与流式完成事件
+- 📏 自定义尺寸按官方 `gpt-image-2` 约束进行前置校验，避免无效宽高、比例或像素范围请求
+- 📝 按官方文档保留 GPT Image 默认 base64 返回行为，未向 `gpt-image-2` 请求注入 DALL-E 专用的 `response_format` / `style`
+
 ## v3.8.6 (2026-05-12)
 
 ### 本次更新
