@@ -1,5 +1,14 @@
 # Release Notes
 
+## v3.8.9 (2026-05-14)
+
+### 本次更新
+
+- 🧱 OpenAI 图像请求遇到浏览器 CORS / preflight 拦截时，显示更明确的中文诊断与处理建议
+- 🔁 Base URL 支持同源相对路径，例如 `/api/openai` 会归一化为 `/api/openai/v1`，方便接入自有后端或边缘代理
+- 🧪 新增 CORS/Failed to fetch 错误提示测试，以及相对路径代理归一化测试
+- 🌐 保持跨域 OpenAI-compatible Base URL 的协议、`/v1`、尾斜杠和完整接口路径容错处理
+
 ## v3.8.8 (2026-05-14)
 
 ### 本次更新

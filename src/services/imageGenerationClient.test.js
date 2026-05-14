@@ -396,6 +396,7 @@ describe('OpenAI image generation client', () => {
       ['https://proxy.example.com/v1/', 'https://proxy.example.com/v1/images/generations'],
       ['https://proxy.example.com/openai', 'https://proxy.example.com/openai/v1/images/generations'],
       ['https://proxy.example.com/v1/images/generations?debug=1', 'https://proxy.example.com/v1/images/generations'],
+      ['/api/openai', '/api/openai/v1/images/generations'],
     ]
 
     for (const [openaiBaseUrl, expectedUrl] of cases) {
@@ -434,6 +435,30 @@ describe('OpenAI image generation client', () => {
 
       expect(fetchMock.mock.calls[0][0]).toBe(expectedUrl)
     }
+  })
+
+  test('explains browser CORS or network failures for custom OpenAI base URLs', async () => {
+    globalThis.fetch = vi.fn(async () => {
+      throw new TypeError('Failed to fetch')
+    })
+
+    await expect(generateImage({
+      provider: IMAGE_GENERATION_PROVIDERS.OPENAI,
+      apiKey: 'openai-test-key',
+      model: 'gpt-image-2',
+      settings: {
+        prompt: 'A blocked browser request',
+        openaiBaseUrl: 'https://llmapi.devart.ai/v1',
+        openaiSizePreset: '1024x1024',
+        openaiQuality: 'medium',
+        openaiNumImages: 1,
+        openaiOutputFormat: 'png',
+        openaiBackground: 'auto',
+        openaiModeration: 'auto',
+        openaiStream: false,
+        openaiPartialImages: 0,
+      },
+    })).rejects.toThrow('目标服务没有返回 Access-Control-Allow-Origin')
   })
 
   test('normalizes streamed OpenAI final image events', async () => {

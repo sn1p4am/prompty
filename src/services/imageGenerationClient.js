@@ -41,11 +41,33 @@ function normalizeOpenAIModel(model) {
     return String(model || '').trim()
 }
 
+function normalizeOpenAIPathname(pathname) {
+    let normalizedPathname = String(pathname || '')
+        .split(/[?#]/)[0]
+        .replace(/\/+$/, '')
+        .replace(/\/(?:images\/generations|images\/edits|responses|chat\/completions)$/, '')
+        .replace(/\/+$/, '')
+
+    if (!normalizedPathname || normalizedPathname === '/') {
+        normalizedPathname = '/v1'
+    }
+
+    if (!/\/v1$/.test(normalizedPathname)) {
+        normalizedPathname = `${normalizedPathname}/v1`
+    }
+
+    return normalizedPathname
+}
+
 function normalizeOpenAIBaseUrl(baseUrl, fallbackBaseUrl = IMAGE_GENERATION_PROVIDER_INFO[IMAGE_GENERATION_PROVIDERS.OPENAI].baseUrl) {
     const rawBaseUrl = String(baseUrl || '').trim()
 
     if (!rawBaseUrl) {
         return fallbackBaseUrl
+    }
+
+    if (rawBaseUrl.startsWith('/')) {
+        return normalizeOpenAIPathname(rawBaseUrl)
     }
 
     const withProtocol = /^[a-z][a-z\d+\-.]*:\/\//i.test(rawBaseUrl)
@@ -59,23 +81,24 @@ function normalizeOpenAIBaseUrl(baseUrl, fallbackBaseUrl = IMAGE_GENERATION_PROV
         throw new Error('OpenAI Base URL 格式不正确')
     }
 
-    parsedUrl.pathname = parsedUrl.pathname
-        .replace(/\/+$/, '')
-        .replace(/\/(?:images\/generations|images\/edits|responses|chat\/completions)$/, '')
-        .replace(/\/+$/, '')
-
-    if (!parsedUrl.pathname || parsedUrl.pathname === '/') {
-        parsedUrl.pathname = '/v1'
-    }
-
-    if (!/\/v1$/.test(parsedUrl.pathname)) {
-        parsedUrl.pathname = `${parsedUrl.pathname}/v1`
-    }
-
+    parsedUrl.pathname = normalizeOpenAIPathname(parsedUrl.pathname)
     parsedUrl.search = ''
     parsedUrl.hash = ''
 
     return parsedUrl.toString().replace(/\/$/, '')
+}
+
+function buildOpenAINetworkError(error, requestUrl) {
+    const origin = globalThis.location?.origin
+    const originHint = origin ? `当前页面来源：${origin}。` : ''
+    const originalMessage = error?.message || 'Failed to fetch'
+
+    return new Error(
+        `OpenAI 图像请求无法从浏览器直连 ${requestUrl}。${originHint}` +
+        '如果控制台提示 CORS 或 preflight，说明目标服务没有返回 Access-Control-Allow-Origin；' +
+        '请在目标服务开启 CORS，或改用同源后端/边缘代理后把 Base URL 填成代理地址。' +
+        `原始错误：${originalMessage}`
+    )
 }
 
 function now() {
@@ -489,15 +512,25 @@ async function generateOpenAIImage({ apiKey, model, settings, signal }) {
 
     const requestStartTime = now()
     const baseUrl = normalizeOpenAIBaseUrl(settings.openaiBaseUrl)
-    const response = await fetch(`${baseUrl}/images/generations`, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(buildOpenAIImageGenerationPayload(settings, normalizedModel)),
-        signal,
-    })
+    const requestUrl = `${baseUrl}/images/generations`
+    let response
+    try {
+        response = await fetch(requestUrl, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(buildOpenAIImageGenerationPayload(settings, normalizedModel)),
+            signal,
+        })
+    } catch (error) {
+        if (error?.name === 'AbortError') {
+            throw error
+        }
+
+        throw buildOpenAINetworkError(error, requestUrl)
+    }
     const responseReceivedTime = now()
 
     if (!response.ok) {

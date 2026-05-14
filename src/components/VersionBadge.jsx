@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.8',
+    version: 'v3.8.9',
     date: '2026-05-14',
     changes: [
-        { emoji: '🌐', label: 'OpenAI Base URL', desc: '图像生成实验室的 OpenAI 渠道支持自定义 API Base URL' },
-        { emoji: '🧭', label: 'URL 容错处理', desc: '自动补齐协议和 /v1，清理尾斜杠、查询参数和误粘贴的接口路径' },
-        { emoji: '🧪', label: '代理地址测试', desc: '新增裸域名、代理子路径、/v1 和完整 generations 路径的归一化测试' },
-        { emoji: '🖼️', label: 'Image2 保持兼容', desc: '空 Base URL 仍走官方 https://api.openai.com/v1 默认地址' },
+        { emoji: '🧱', label: 'CORS 诊断', desc: 'OpenAI 图像请求遇到浏览器跨域拦截时显示可操作错误提示' },
+        { emoji: '🔁', label: '同源代理路径', desc: 'Base URL 支持 /api/openai 这类相对路径，方便接入后端或边缘代理' },
+        { emoji: '🧪', label: '网络失败测试', desc: '补充 CORS/Failed to fetch 与相对路径归一化测试' },
+        { emoji: '🌐', label: '代理地址兼容', desc: '继续支持自定义 OpenAI-compatible Base URL 的容错清理' },
     ]
 }
 
