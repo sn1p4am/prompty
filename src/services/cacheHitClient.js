@@ -136,7 +136,23 @@ function normalizeGeminiModelId(model = '') {
 
 function buildProviderError(providerName, response, responseText, parsedError) {
     const message = parsedError?.error?.message || parsedError?.message || parsedError?.error || responseText || response.statusText
-    return new Error(`${providerName} 请求失败：HTTP ${response.status} ${message}`)
+    const error = new Error(`${providerName} 请求失败：HTTP ${response.status} ${message}`)
+    error.status = response.status
+    error.providerName = providerName
+    error.payload = parsedError
+    return error
+}
+
+function isUnsupportedGeminiCachedContentsError(error) {
+    const message = String(error?.message || '').toLowerCase()
+
+    return error?.status === 404
+        && message.includes('cachedcontents')
+        && (
+            message.includes('unsupported')
+            || message.includes('not found')
+            || message.includes('available endpoints')
+        )
 }
 
 function sleep(ms, signal) {
@@ -724,16 +740,26 @@ export async function runCacheHitTest(settings, callbacks = {}) {
     }
 
     let cachedContentName = null
+    let effectiveCacheMode = cacheMode
 
     if (apiFormat === CACHE_API_FORMATS.GEMINI && cacheMode === CACHE_MODES.EXPLICIT) {
-        cachedContentName = await createGeminiCachedContent({
-            apiKey,
-            baseUrl,
-            model,
-            staticPrefix,
-            signal,
-        })
-        callbacks.onCacheCreated?.(cachedContentName)
+        try {
+            cachedContentName = await createGeminiCachedContent({
+                apiKey,
+                baseUrl,
+                model,
+                staticPrefix,
+                signal,
+            })
+            callbacks.onCacheCreated?.(cachedContentName)
+        } catch (error) {
+            if (!isUnsupportedGeminiCachedContentsError(error)) {
+                throw error
+            }
+
+            effectiveCacheMode = CACHE_MODES.AUTO
+            callbacks.onCacheFallback?.('当前 Gemini Base URL 不支持 cachedContents 显式缓存端点，已自动降级为 generateContent 隐式缓存测试。')
+        }
     }
 
     const results = []
@@ -750,6 +776,7 @@ export async function runCacheHitTest(settings, callbacks = {}) {
 
             const roundParams = {
                 ...normalizedSettings,
+                cacheMode: effectiveCacheMode,
                 staticPrefix,
                 dynamicPrompt,
                 roundIndex: index,

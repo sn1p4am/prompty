@@ -6,6 +6,7 @@ export function useCacheHitTest({ onToast } = {}) {
     const [isRunning, setIsRunning] = useState(false)
     const [progress, setProgress] = useState(0)
     const [cacheResource, setCacheResource] = useState('')
+    const [cacheNotice, setCacheNotice] = useState('')
     const [error, setError] = useState('')
     const abortControllerRef = useRef(null)
 
@@ -23,6 +24,7 @@ export function useCacheHitTest({ onToast } = {}) {
         setProgress(0)
         setError('')
         setCacheResource('')
+        setCacheNotice('')
         setIsRunning(true)
         const normalizedSettings = normalizeCacheHitSettings(settings)
 
@@ -35,6 +37,10 @@ export function useCacheHitTest({ onToast } = {}) {
                 {
                     onCacheCreated: (resourceName) => {
                         setCacheResource(resourceName)
+                    },
+                    onCacheFallback: (message) => {
+                        setCacheNotice(message)
+                        onToast?.(message)
                     },
                     onRoundStart: (index, dynamicPrompt) => {
                         setResults(prev => [
@@ -90,6 +96,7 @@ export function useCacheHitTest({ onToast } = {}) {
         setProgress(0)
         setError('')
         setCacheResource('')
+        setCacheNotice('')
     }, [])
 
     return {
@@ -98,6 +105,7 @@ export function useCacheHitTest({ onToast } = {}) {
         isRunning,
         progress,
         cacheResource,
+        cacheNotice,
         error,
         start,
         stop,

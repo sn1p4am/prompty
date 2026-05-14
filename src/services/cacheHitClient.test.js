@@ -417,4 +417,58 @@ describe('runCacheHitTest provider usage parsing', () => {
     expect(JSON.parse(fetchMock.mock.calls[1][1].body).cachedContent).toBe('cachedContents/cache-123')
     expect(results[0].usage.cachedReadTokens).toBe(1000)
   })
+
+  test('falls back to Gemini implicit caching when cachedContents is unsupported', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({
+        error: {
+          message: 'Unsupported Gemini API endpoint. Please refer to https://docs.ofox.ai/api for available endpoints.',
+        },
+      }, false, 404))
+      .mockResolvedValueOnce(jsonResponse({
+        candidates: [{ content: { parts: [{ text: 'ok' }] } }],
+        usageMetadata: {
+          promptTokenCount: 1400,
+          cachedContentTokenCount: 0,
+          candidatesTokenCount: 16,
+          totalTokenCount: 1416,
+        },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        candidates: [{ content: { parts: [{ text: 'ok again' }] } }],
+        usageMetadata: {
+          promptTokenCount: 1400,
+          cachedContentTokenCount: 1000,
+          candidatesTokenCount: 16,
+          totalTokenCount: 1416,
+        },
+      }))
+    globalThis.fetch = fetchMock
+    const onCacheFallback = vi.fn()
+
+    const { results, summary } = await runCacheHitTest({
+      apiFormat: CACHE_API_FORMATS.GEMINI,
+      cacheMode: CACHE_MODES.EXPLICIT,
+      apiKey: 'test-key',
+      baseUrl: 'https://api.ofox.ai/gemini',
+      model: 'google/gemini-3-flash-preview',
+      staticPrefix: 'static '.repeat(800),
+      dynamicPromptsText: 'question',
+      rounds: 2,
+      interval: 0,
+      maxTokens: 64,
+      temperature: 0,
+    }, {
+      onCacheFallback,
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.ofox.ai/gemini/v1beta/cachedContents')
+    expect(fetchMock.mock.calls[1][0]).toBe('https://api.ofox.ai/gemini/v1beta/models/gemini-3-flash-preview:generateContent')
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).cachedContent).toBeUndefined()
+    expect(onCacheFallback).toHaveBeenCalledWith('当前 Gemini Base URL 不支持 cachedContents 显式缓存端点，已自动降级为 generateContent 隐式缓存测试。')
+    expect(results[1].usage.cachedReadTokens).toBe(1000)
+    expect(summary.warmHitRate).toBeCloseTo(1000 / 1400)
+  })
 })

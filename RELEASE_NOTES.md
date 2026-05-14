@@ -1,5 +1,15 @@
 # Release Notes
 
+## v3.8.19 (2026-05-14)
+
+### 本次更新
+
+- 🧭 识别 ofox 等 Gemini 代理不支持 `cachedContents` 显式缓存端点时返回的 404 unsupported 响应
+- 🔁 Gemini 显式缓存创建失败且确认端点不支持时，自动降级为 `generateContent` 隐式缓存测试
+- 💬 降级后在缓存测试面板展示提示，说明当前实际使用隐式缓存模式
+- 📚 Gemini 说明同步标注部分代理只开放 `generateContent` / `streamGenerateContent`
+- 🧪 补充 Gemini cachedContents 不支持时的自动回退单元测试
+
 ## v3.8.18 (2026-05-14)
 
 ### 本次更新

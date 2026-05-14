@@ -634,6 +634,12 @@ export function CacheHitLab({ isOpen, onClose, onToast }) {
                         </div>
                     )}
 
+                    {cacheTest.cacheNotice && (
+                        <div className="border border-secondary bg-secondary/10 p-3 text-xs text-secondary leading-relaxed">
+                            {cacheTest.cacheNotice}
+                        </div>
+                    )}
+
                     <ProviderGuide apiFormat={settings.apiFormat} cacheMode={settings.cacheMode} />
 
                     <section className="space-y-4">
