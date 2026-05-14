@@ -32,6 +32,7 @@ describe('normalizeCacheBaseUrl', () => {
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.CLAUDE, 'https://proxy.test/anthropic/v1/messages')).toBe('https://proxy.test/anthropic/v1')
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.GEMINI, 'https://proxy.test/google/v1beta')).toBe('https://proxy.test/google/v1beta')
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.GEMINI, 'https://proxy.test/google/v1beta/cachedContents')).toBe('https://proxy.test/google/v1beta')
+    expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.GEMINI, 'https://api.ofox.ai/gemini')).toBe('https://api.ofox.ai/gemini/v1beta')
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.OPENAI, '/api/openai')).toBe('/api/openai')
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.OPENAI, '/api/openai/chat/completions')).toBe('/api/openai')
   })
@@ -287,6 +288,87 @@ describe('runCacheHitTest provider usage parsing', () => {
     expect(requestBody.system[0].cache_control).toBeUndefined()
   })
 
+  test('uses Bearer auth for custom Gemini proxies', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({
+      candidates: [{ content: { parts: [{ text: 'ok' }] } }],
+      usageMetadata: {
+        promptTokenCount: 1400,
+        cachedContentTokenCount: 1000,
+        candidatesTokenCount: 16,
+        totalTokenCount: 1416,
+      },
+    }))
+    globalThis.fetch = fetchMock
+
+    const { results } = await runCacheHitTest({
+      apiFormat: CACHE_API_FORMATS.GEMINI,
+      cacheMode: CACHE_MODES.AUTO,
+      apiKey: 'test-key',
+      baseUrl: 'https://api.ofox.ai/gemini',
+      model: 'google/gemini-3-flash-preview',
+      staticPrefix: 'static '.repeat(800),
+      dynamicPromptsText: 'question',
+      rounds: 2,
+      interval: 0,
+      maxTokens: 64,
+      temperature: 0,
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.ofox.ai/gemini/v1beta/models/gemini-3-flash-preview:generateContent')
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer test-key')
+    expect(fetchMock.mock.calls[0][1].headers['x-goog-api-key']).toBeUndefined()
+    expect(results[0].usage.cachedReadTokens).toBe(1000)
+  })
+
+  test('falls back to Bearer auth when a Gemini proxy rejects API key auth', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({
+        error: {
+          message: 'You need to provide your API key in an Authorization header using Bearer auth.',
+        },
+      }, false, 401))
+      .mockResolvedValueOnce(jsonResponse({
+        candidates: [{ content: { parts: [{ text: 'ok' }] } }],
+        usageMetadata: {
+          promptTokenCount: 1400,
+          cachedContentTokenCount: 1000,
+          candidatesTokenCount: 16,
+          totalTokenCount: 1416,
+        },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        candidates: [{ content: { parts: [{ text: 'ok again' }] } }],
+        usageMetadata: {
+          promptTokenCount: 1400,
+          cachedContentTokenCount: 1000,
+          candidatesTokenCount: 16,
+          totalTokenCount: 1416,
+        },
+      }))
+    globalThis.fetch = fetchMock
+
+    const { results } = await runCacheHitTest({
+      apiFormat: CACHE_API_FORMATS.GEMINI,
+      cacheMode: CACHE_MODES.AUTO,
+      apiKey: 'test-key',
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+      model: 'gemini-2.5-flash',
+      staticPrefix: 'static '.repeat(800),
+      dynamicPromptsText: 'question',
+      rounds: 2,
+      interval: 0,
+      maxTokens: 64,
+      temperature: 0,
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock.mock.calls[0][1].headers['x-goog-api-key']).toBe('test-key')
+    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer test-key')
+    expect(results[0].usage.cachedReadTokens).toBe(1000)
+  })
+
   test('creates and deletes Gemini explicit cachedContents', async () => {
     const fetchMock = vi
       .fn()
@@ -327,9 +409,11 @@ describe('runCacheHitTest provider usage parsing', () => {
     })
 
     expect(fetchMock).toHaveBeenCalledTimes(4)
-    expect(fetchMock.mock.calls[0][0]).toBe('https://generativelanguage.googleapis.com/v1beta/cachedContents?key=test-key')
-    expect(fetchMock.mock.calls[1][0]).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=test-key')
-    expect(fetchMock.mock.calls[3][0]).toBe('https://generativelanguage.googleapis.com/v1beta/cachedContents/cache-123?key=test-key')
+    expect(fetchMock.mock.calls[0][0]).toBe('https://generativelanguage.googleapis.com/v1beta/cachedContents')
+    expect(fetchMock.mock.calls[0][1].headers['x-goog-api-key']).toBe('test-key')
+    expect(fetchMock.mock.calls[1][0]).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent')
+    expect(fetchMock.mock.calls[1][1].headers['x-goog-api-key']).toBe('test-key')
+    expect(fetchMock.mock.calls[3][0]).toBe('https://generativelanguage.googleapis.com/v1beta/cachedContents/cache-123')
     expect(JSON.parse(fetchMock.mock.calls[1][1].body).cachedContent).toBe('cachedContents/cache-123')
     expect(results[0].usage.cachedReadTokens).toBe(1000)
   })

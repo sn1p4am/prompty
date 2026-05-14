@@ -5,6 +5,11 @@ import {
 } from '../constants/cacheHit'
 
 const DEFAULT_GEMINI_CACHE_TTL = '3600s'
+const GEMINI_AUTH_MODES = {
+    API_KEY_HEADER: 'apiKeyHeader',
+    QUERY_KEY: 'queryKey',
+    BEARER: 'bearer',
+}
 
 function trimTrailingSlash(value = '') {
     return String(value).trim().replace(/\/+$/, '')
@@ -59,6 +64,81 @@ function appendPath(baseUrl, path) {
     return `${normalizedBase}${path}`
 }
 
+function appendQueryParam(url, key, value) {
+    const separator = url.includes('?') ? '&' : '?'
+    return `${url}${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+}
+
+function isOfficialGeminiBaseUrl(baseUrl) {
+    try {
+        const parsedUrl = new URL(baseUrl)
+        return parsedUrl.hostname === 'generativelanguage.googleapis.com'
+    } catch {
+        return false
+    }
+}
+
+function getGeminiAuthModeOrder(baseUrl) {
+    return isOfficialGeminiBaseUrl(baseUrl)
+        ? [GEMINI_AUTH_MODES.API_KEY_HEADER, GEMINI_AUTH_MODES.BEARER, GEMINI_AUTH_MODES.QUERY_KEY]
+        : [GEMINI_AUTH_MODES.BEARER, GEMINI_AUTH_MODES.API_KEY_HEADER, GEMINI_AUTH_MODES.QUERY_KEY]
+}
+
+function buildGeminiRequest(baseUrl, path, apiKey, authMode) {
+    const baseRequestUrl = appendPath(baseUrl, path)
+    const headers = {
+        'Content-Type': 'application/json',
+    }
+
+    if (authMode === GEMINI_AUTH_MODES.API_KEY_HEADER) {
+        headers['x-goog-api-key'] = apiKey
+    }
+
+    if (authMode === GEMINI_AUTH_MODES.BEARER) {
+        headers.Authorization = `Bearer ${apiKey}`
+    }
+
+    return {
+        url: authMode === GEMINI_AUTH_MODES.QUERY_KEY
+            ? appendQueryParam(baseRequestUrl, 'key', apiKey)
+            : baseRequestUrl,
+        headers,
+    }
+}
+
+function shouldRetryGeminiAuth(response, parsedError, responseText) {
+    if (response.status !== 401 && response.status !== 403) {
+        return false
+    }
+
+    const message = String(
+        parsedError?.error?.message
+        || parsedError?.message
+        || parsedError?.error
+        || responseText
+        || response.statusText
+        || ''
+    ).toLowerCase()
+
+    return message.includes('api key')
+        || message.includes('authorization')
+        || message.includes('bearer')
+        || message.includes('auth')
+        || response.status === 401
+}
+
+function normalizeGeminiModelId(model = '') {
+    return String(model)
+        .trim()
+        .replace(/^models\//, '')
+        .replace(/^google\//, '')
+}
+
+function buildProviderError(providerName, response, responseText, parsedError) {
+    const message = parsedError?.error?.message || parsedError?.message || parsedError?.error || responseText || response.statusText
+    return new Error(`${providerName} 请求失败：HTTP ${response.status} ${message}`)
+}
+
 function sleep(ms, signal) {
     if (!ms) {
         return Promise.resolve()
@@ -107,8 +187,7 @@ async function parseJsonResponse(response, providerName) {
     const parsed = safeParseErrorPayload(responseText)
 
     if (!response.ok) {
-        const message = parsed?.error?.message || parsed?.message || parsed?.error || responseText || response.statusText
-        throw new Error(`${providerName} 请求失败：HTTP ${response.status} ${message}`)
+        throw buildProviderError(providerName, response, responseText, parsed)
     }
 
     if (!parsed) {
@@ -390,6 +469,50 @@ function buildGeminiGenerateRequest({ staticPrefix, dynamicPrompt, roundIndex, m
     }
 }
 
+async function fetchGeminiJson({
+    apiKey,
+    baseUrl,
+    path,
+    body,
+    method = 'POST',
+    signal,
+    providerName = 'Gemini',
+}) {
+    const authModes = getGeminiAuthModeOrder(baseUrl)
+    let lastError = null
+
+    for (const authMode of authModes) {
+        const request = buildGeminiRequest(baseUrl, path, apiKey, authMode)
+        const response = await fetch(request.url, {
+            method,
+            headers: request.headers,
+            ...(body && { body: JSON.stringify(body) }),
+            signal,
+        })
+        const responseText = await response.text()
+        const parsed = safeParseErrorPayload(responseText)
+
+        if (response.ok) {
+            if (!parsed) {
+                throw new Error(`${providerName} 返回内容不是合法 JSON`)
+            }
+
+            return {
+                data: parsed,
+                authMode,
+            }
+        }
+
+        lastError = buildProviderError(providerName, response, responseText, parsed)
+
+        if (!shouldRetryGeminiAuth(response, parsed, responseText)) {
+            throw lastError
+        }
+    }
+
+    throw lastError || new Error(`${providerName} 请求失败`)
+}
+
 async function createGeminiCachedContent({
     apiKey,
     baseUrl,
@@ -397,13 +520,12 @@ async function createGeminiCachedContent({
     staticPrefix,
     signal,
 }) {
-    const response = await fetch(`${appendPath(baseUrl, '/cachedContents')}?key=${encodeURIComponent(apiKey)}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            model: `models/${model.replace(/^models\//, '')}`,
+    const { data } = await fetchGeminiJson({
+        apiKey,
+        baseUrl,
+        path: '/cachedContents',
+        body: {
+            model: `models/${normalizeGeminiModelId(model)}`,
             contents: [
                 {
                     role: 'user',
@@ -415,11 +537,11 @@ async function createGeminiCachedContent({
                 },
             ],
             ttl: DEFAULT_GEMINI_CACHE_TTL,
-        }),
+        },
         signal,
+        providerName: 'Gemini cachedContents',
     })
 
-    const data = await parseJsonResponse(response, 'Gemini cachedContents')
     return data.name
 }
 
@@ -429,7 +551,10 @@ async function deleteGeminiCachedContent({ apiKey, baseUrl, cachedContentName, s
     }
 
     try {
-        await fetch(`${appendPath(baseUrl, `/${cachedContentName}`)}?key=${encodeURIComponent(apiKey)}`, {
+        await fetchGeminiJson({
+            apiKey,
+            baseUrl,
+            path: `/${cachedContentName}`,
             method: 'DELETE',
             signal,
         })
@@ -524,21 +649,23 @@ async function runGeminiRound(params) {
         model,
         signal,
     } = params
-    const normalizedModel = model.replace(/^models\//, '')
-    const response = await fetch(`${appendPath(baseUrl, `/models/${normalizedModel}:generateContent`)}?key=${encodeURIComponent(apiKey)}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(buildGeminiGenerateRequest(params)),
+    const normalizedModel = normalizeGeminiModelId(model)
+    const { data, authMode } = await fetchGeminiJson({
+        apiKey,
+        baseUrl,
+        path: `/models/${normalizedModel}:generateContent`,
+        body: buildGeminiGenerateRequest(params),
         signal,
+        providerName: 'Gemini',
     })
-    const data = await parseJsonResponse(response, 'Gemini')
 
     return {
         content: data.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('\n') || '',
         usage: normalizeGeminiUsage(data.usageMetadata),
-        rawResponse: data,
+        rawResponse: {
+            ...data,
+            authMode,
+        },
     }
 }
 

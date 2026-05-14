@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.17',
+    version: 'v3.8.18',
     date: '2026-05-14',
     changes: [
-        { emoji: '🌊', label: '流式 Usage', desc: 'OpenAI 缓存测试优先使用 stream_options.include_usage 采集最终 usage' },
-        { emoji: '🔌', label: '代理兼容', desc: '修复 ofox 等代理非流式响应不返回缓存明细时无法显示命中的问题' },
-        { emoji: '🧯', label: '字段兼容', desc: '兼容 cached_tokens、input cached_tokens 与 cached_read_tokens' },
-        { emoji: '🧪', label: '测试覆盖', desc: '补充 SSE usage 解析与非流式回退测试' },
+        { emoji: '🔑', label: 'Gemini 鉴权', desc: '官方地址优先 x-goog-api-key，自定义代理优先 Bearer' },
+        { emoji: '🔁', label: '自动回退', desc: '401/403 鉴权错误时自动尝试另一种 Gemini API Key 传法' },
+        { emoji: '🧭', label: '代理路径', desc: '兼容 api.ofox.ai/gemini 这类 Gemini 代理 Base URL' },
+        { emoji: '🧪', label: '测试覆盖', desc: '补充 Gemini Bearer 代理与鉴权回退单元测试' },
     ]
 }
 

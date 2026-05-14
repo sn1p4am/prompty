@@ -1,5 +1,15 @@
 # Release Notes
 
+## v3.8.18 (2026-05-14)
+
+### 本次更新
+
+- 🔑 Gemini 缓存测试支持两类 API Key 传法：官方地址优先 `x-goog-api-key`，自定义代理优先 `Authorization: Bearer`
+- 🔁 当 Gemini 返回 401/403 且提示鉴权方式不匹配时，自动尝试另一种鉴权方式
+- 🧭 兼容 `https://api.ofox.ai/gemini` 这类 Gemini 代理 Base URL，并自动清理 `google/` 模型前缀
+- 📚 页面说明同步补充 Gemini 代理鉴权差异
+- 🧪 补充 Gemini Bearer 代理与鉴权回退单元测试
+
 ## v3.8.17 (2026-05-14)
 
 ### 本次更新

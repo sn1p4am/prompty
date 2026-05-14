@@ -38,7 +38,7 @@ export const CACHE_API_FORMAT_INFO = {
         usagePath: 'usageMetadata.cachedContentTokenCount',
         docsUrl: 'https://ai.google.dev/gemini-api/docs/caching',
         docsLabel: 'Gemini Context Caching',
-        note: 'Gemini 2.5+ 支持隐式缓存；显式缓存会先创建 cachedContents，再在 generateContent 里引用，默认 TTL 为 1 小时。',
+        note: 'Gemini 2.5+ 支持隐式缓存；显式缓存会先创建 cachedContents，再在 generateContent 里引用，默认 TTL 为 1 小时。官方地址优先使用 x-goog-api-key；自定义代理地址优先使用 Authorization: Bearer，并会在鉴权错误时自动回退。',
     },
 }
 
@@ -70,7 +70,7 @@ The text test workspace sends repeated chat-completion requests with configurabl
 Provider behavior summary:
 OpenAI prompt caching is automatic for long prompts. The usage object exposes cached_tokens under prompt_tokens_details for Chat-style responses, while Responses-style payloads may expose input_tokens_details.cached_tokens. The tester requests stream_options.include_usage for streaming-compatible gateways because some proxies only include cache usage in the final stream event. Cache hits require identical prompt prefixes, and static content should be placed before dynamic user content.
 Claude prompt caching can be explicit with cache_control breakpoints. The usage object exposes input_tokens, cache_creation_input_tokens, and cache_read_input_tokens. The first request often creates the cache and later requests read from it.
-Gemini context caching can be implicit on supported models or explicit with cachedContents. The usage metadata exposes promptTokenCount and cachedContentTokenCount. Explicit cached content has a TTL and may have storage-related billing implications.
+Gemini context caching can be implicit on supported models or explicit with cachedContents. The usage metadata exposes promptTokenCount and cachedContentTokenCount. Explicit cached content has a TTL and may have storage-related billing implications. Official Gemini endpoints use x-goog-api-key first, while custom proxy endpoints use Bearer auth first and retry alternate auth when the gateway reports an auth mismatch.
 
 Testing protocol:
 The recommended test uses one long static prefix and several short dynamic questions. A good first run uses four serial rounds with an interval of at least one second. The first round warms the cache. Rounds two through four provide the meaningful cache-read signal. A stable test should keep tools, images, schemas, system prompts, and static content byte-identical between rounds.
