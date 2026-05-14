@@ -1060,6 +1060,18 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
 
                             {normalizedSettings.provider === IMAGE_GENERATION_PROVIDERS.OPENAI && (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4 p-4">
+                                    <div className="sm:col-span-2 lg:col-span-4">
+                                        <Label className={FIELD_LABEL_CLASS}>Base URL</Label>
+                                        <Input
+                                            type="text"
+                                            value={normalizedSettings.openaiBaseUrl}
+                                            placeholder={providerInfo?.baseUrl || 'https://api.openai.com/v1'}
+                                            onChange={(event) => setField('openaiBaseUrl', event.target.value)}
+                                            disabled={batch.isRunning}
+                                            className="h-9 text-xs font-mono"
+                                        />
+                                    </div>
+
                                     <div>
                                         <Label className={FIELD_LABEL_CLASS}>图像尺寸</Label>
                                         <Select

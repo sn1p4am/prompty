@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.7',
+    version: 'v3.8.8',
     date: '2026-05-14',
     changes: [
-        { emoji: '🖼️', label: 'OpenAI Image2', desc: '图像生成实验室新增 OpenAI / gpt-image-2 生图测试渠道' },
-        { emoji: '⚙️', label: '全量参数面板', desc: '支持 size、quality、format、compression、background、moderation、stream、partial images 与 user' },
-        { emoji: '🧪', label: '请求测试覆盖', desc: '新增 Image2 payload、鉴权、base64 结果和流式完成事件单测' },
-        { emoji: '📏', label: '尺寸约束校验', desc: '自定义尺寸按 gpt-image-2 规则校验 16 倍数、比例和像素范围' },
+        { emoji: '🌐', label: 'OpenAI Base URL', desc: '图像生成实验室的 OpenAI 渠道支持自定义 API Base URL' },
+        { emoji: '🧭', label: 'URL 容错处理', desc: '自动补齐协议和 /v1，清理尾斜杠、查询参数和误粘贴的接口路径' },
+        { emoji: '🧪', label: '代理地址测试', desc: '新增裸域名、代理子路径、/v1 和完整 generations 路径的归一化测试' },
+        { emoji: '🖼️', label: 'Image2 保持兼容', desc: '空 Base URL 仍走官方 https://api.openai.com/v1 默认地址' },
     ]
 }
 

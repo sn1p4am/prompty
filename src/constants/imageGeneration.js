@@ -66,7 +66,7 @@ export const IMAGE_GENERATION_PROVIDER_INFO = {
     },
 }
 
-export const IMAGE_GENERATION_SETTINGS_VERSION = 4
+export const IMAGE_GENERATION_SETTINGS_VERSION = 5
 
 export const FAL_IMAGE_SIZE_PRESETS = [
     { value: 'square_hd', label: 'square_hd - 1024x1024', width: 1024, height: 1024 },
@@ -130,6 +130,7 @@ export const DEFAULT_IMAGE_GENERATION_SETTINGS = {
     togetherResponseFormat: 'url',
     togetherOutputFormat: 'jpeg',
     togetherDisableSafetyChecker: false,
+    openaiBaseUrl: '',
     openaiSizePreset: 'auto',
     openaiCustomWidth: 1536,
     openaiCustomHeight: 864,

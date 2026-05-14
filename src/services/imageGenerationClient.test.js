@@ -389,6 +389,53 @@ describe('OpenAI image generation client', () => {
     expect(result.usage.total_tokens).toBe(100)
   })
 
+  test('normalizes custom OpenAI base URLs before calling image generations', async () => {
+    const cases = [
+      ['proxy.example.com', 'https://proxy.example.com/v1/images/generations'],
+      ['https://proxy.example.com/', 'https://proxy.example.com/v1/images/generations'],
+      ['https://proxy.example.com/v1/', 'https://proxy.example.com/v1/images/generations'],
+      ['https://proxy.example.com/openai', 'https://proxy.example.com/openai/v1/images/generations'],
+      ['https://proxy.example.com/v1/images/generations?debug=1', 'https://proxy.example.com/v1/images/generations'],
+    ]
+
+    for (const [openaiBaseUrl, expectedUrl] of cases) {
+      const fetchMock = vi.fn(async () => ({
+        ok: true,
+        headers: {
+          get: vi.fn(() => null),
+        },
+        text: async () => JSON.stringify({
+          data: [
+            {
+              b64_json: 'base64-image',
+            },
+          ],
+        }),
+      }))
+      globalThis.fetch = fetchMock
+
+      await generateImage({
+        provider: IMAGE_GENERATION_PROVIDERS.OPENAI,
+        apiKey: 'openai-test-key',
+        model: 'gpt-image-2',
+        settings: {
+          prompt: 'A custom base url request',
+          openaiBaseUrl,
+          openaiSizePreset: '1024x1024',
+          openaiQuality: 'medium',
+          openaiNumImages: 1,
+          openaiOutputFormat: 'png',
+          openaiBackground: 'auto',
+          openaiModeration: 'auto',
+          openaiStream: false,
+          openaiPartialImages: 0,
+        },
+      })
+
+      expect(fetchMock.mock.calls[0][0]).toBe(expectedUrl)
+    }
+  })
+
   test('normalizes streamed OpenAI final image events', async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,

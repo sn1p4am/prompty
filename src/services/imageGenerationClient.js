@@ -41,6 +41,43 @@ function normalizeOpenAIModel(model) {
     return String(model || '').trim()
 }
 
+function normalizeOpenAIBaseUrl(baseUrl, fallbackBaseUrl = IMAGE_GENERATION_PROVIDER_INFO[IMAGE_GENERATION_PROVIDERS.OPENAI].baseUrl) {
+    const rawBaseUrl = String(baseUrl || '').trim()
+
+    if (!rawBaseUrl) {
+        return fallbackBaseUrl
+    }
+
+    const withProtocol = /^[a-z][a-z\d+\-.]*:\/\//i.test(rawBaseUrl)
+        ? rawBaseUrl
+        : `https://${rawBaseUrl}`
+
+    let parsedUrl
+    try {
+        parsedUrl = new URL(withProtocol)
+    } catch {
+        throw new Error('OpenAI Base URL 格式不正确')
+    }
+
+    parsedUrl.pathname = parsedUrl.pathname
+        .replace(/\/+$/, '')
+        .replace(/\/(?:images\/generations|images\/edits|responses|chat\/completions)$/, '')
+        .replace(/\/+$/, '')
+
+    if (!parsedUrl.pathname || parsedUrl.pathname === '/') {
+        parsedUrl.pathname = '/v1'
+    }
+
+    if (!/\/v1$/.test(parsedUrl.pathname)) {
+        parsedUrl.pathname = `${parsedUrl.pathname}/v1`
+    }
+
+    parsedUrl.search = ''
+    parsedUrl.hash = ''
+
+    return parsedUrl.toString().replace(/\/$/, '')
+}
+
 function now() {
     return globalThis.performance?.now ? globalThis.performance.now() : Date.now()
 }
@@ -451,7 +488,8 @@ async function generateOpenAIImage({ apiKey, model, settings, signal }) {
     }
 
     const requestStartTime = now()
-    const response = await fetch(`${IMAGE_GENERATION_PROVIDER_INFO[IMAGE_GENERATION_PROVIDERS.OPENAI].baseUrl}/images/generations`, {
+    const baseUrl = normalizeOpenAIBaseUrl(settings.openaiBaseUrl)
+    const response = await fetch(`${baseUrl}/images/generations`, {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${apiKey}`,

@@ -1,5 +1,14 @@
 # Release Notes
 
+## v3.8.8 (2026-05-14)
+
+### 本次更新
+
+- 🌐 OpenAI 图像生成渠道新增 Base URL 设置，支持直连官方地址或自定义 OpenAI-compatible 代理地址
+- 🧭 请求前自动归一化 Base URL：补齐 `https://`、补齐 `/v1`、移除尾斜杠、查询参数和误粘贴的 `/images/generations` 等接口路径
+- 🧪 新增 Base URL 容错测试，覆盖裸域名、代理子路径、已带 `/v1`、完整 generations 路径等输入
+- 🖼️ Base URL 留空时仍使用官方默认 `https://api.openai.com/v1`
+
 ## v3.8.7 (2026-05-14)
 
 ### 本次更新
