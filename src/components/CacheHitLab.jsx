@@ -113,7 +113,7 @@ function ProviderGuide({ apiFormat, cacheMode }) {
     const modeLabel = cacheMode === CACHE_MODES.EXPLICIT ? '显式缓存' : '自动缓存'
 
     const providerFormula = {
-        [CACHE_API_FORMATS.OPENAI]: 'cached_tokens / prompt_tokens',
+        [CACHE_API_FORMATS.OPENAI]: 'cached_tokens / prompt_tokens (兼容 cached_read_tokens)',
         [CACHE_API_FORMATS.CLAUDE]: 'cache_read_input_tokens / (input_tokens + cache_creation_input_tokens + cache_read_input_tokens)',
         [CACHE_API_FORMATS.GEMINI]: 'cachedContentTokenCount / promptTokenCount',
     }[apiFormat]

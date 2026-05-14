@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.16',
+    version: 'v3.8.17',
     date: '2026-05-14',
     changes: [
-        { emoji: '📊', label: 'OpenAI 缓存字段', desc: '兼容 prompt_tokens_details 与 input_tokens_details 两种 cached_tokens' },
-        { emoji: '🔌', label: '代理兼容', desc: '修复部分 OpenAI-compatible 代理命中缓存但 UI 显示为 0 的问题' },
-        { emoji: '📚', label: '字段说明', desc: '缓存计算方法同步标注 Chat 与 Responses usage 差异' },
-        { emoji: '🧪', label: '测试覆盖', desc: '补充 Responses 风格 usage 的缓存命中断言' },
+        { emoji: '🌊', label: '流式 Usage', desc: 'OpenAI 缓存测试优先使用 stream_options.include_usage 采集最终 usage' },
+        { emoji: '🔌', label: '代理兼容', desc: '修复 ofox 等代理非流式响应不返回缓存明细时无法显示命中的问题' },
+        { emoji: '🧯', label: '字段兼容', desc: '兼容 cached_tokens、input cached_tokens 与 cached_read_tokens' },
+        { emoji: '🧪', label: '测试覆盖', desc: '补充 SSE usage 解析与非流式回退测试' },
     ]
 }
 

@@ -15,6 +15,15 @@ function jsonResponse(body, ok = true, status = 200) {
   }
 }
 
+function sseResponse(events, ok = true, status = 200) {
+  return {
+    ok,
+    status,
+    statusText: ok ? 'OK' : 'Bad Request',
+    text: async () => `${events.map(event => `data: ${JSON.stringify(event)}`).join('\n\n')}\n\ndata: [DONE]\n\n`,
+  }
+}
+
 describe('normalizeCacheBaseUrl', () => {
   test('normalizes provider defaults and custom paths', () => {
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.OPENAI, 'api.openai.com')).toBe('https://api.openai.com/v1')
@@ -57,6 +66,96 @@ describe('calculateCacheSummary', () => {
 
 describe('runCacheHitTest provider usage parsing', () => {
   test('reads OpenAI cached_tokens from prompt token details', async () => {
+    const fetchMock = vi.fn(async () => sseResponse([
+      { choices: [{ delta: { content: 'ok' } }] },
+      {
+        choices: [],
+        usage: {
+          prompt_tokens: 1200,
+          completion_tokens: 12,
+          total_tokens: 1212,
+          prompt_tokens_details: {
+            cached_read_tokens: 1024,
+          },
+        },
+      },
+    ]))
+    globalThis.fetch = fetchMock
+
+    const { results, summary } = await runCacheHitTest({
+      apiFormat: CACHE_API_FORMATS.OPENAI,
+      cacheMode: CACHE_MODES.AUTO,
+      apiKey: 'test-key',
+      baseUrl: 'https://api.openai.com/v1',
+      model: 'gpt-4.1',
+      staticPrefix: 'static '.repeat(300),
+      dynamicPromptsText: 'question',
+      rounds: 2,
+      interval: 0,
+      maxTokens: 32,
+      temperature: 0,
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.openai.com/v1/chat/completions')
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.stream).toBe(true)
+    expect(body.stream_options).toEqual({ include_usage: true })
+    expect(results[0].content).toBe('ok')
+    expect(results[0].usage.cachedReadTokens).toBe(1024)
+    expect(summary.hitRate).toBeCloseTo(1024 / 1200)
+  })
+
+  test('falls back to non-stream OpenAI usage when streaming usage is unavailable', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(sseResponse([{ choices: [{ delta: { content: 'ok' } }] }]))
+      .mockResolvedValueOnce(jsonResponse({
+        choices: [{ message: { content: 'fallback ok' } }],
+        usage: {
+          prompt_tokens: 1200,
+          completion_tokens: 12,
+          total_tokens: 1212,
+          prompt_tokens_details: {
+            cached_tokens: 1024,
+          },
+        },
+      }))
+      .mockResolvedValueOnce(sseResponse([{ choices: [{ delta: { content: 'ok' } }] }]))
+      .mockResolvedValueOnce(jsonResponse({
+        choices: [{ message: { content: 'fallback ok' } }],
+        usage: {
+          prompt_tokens: 1200,
+          completion_tokens: 12,
+          total_tokens: 1212,
+          prompt_tokens_details: {
+            cached_tokens: 1024,
+          },
+        },
+      }))
+    globalThis.fetch = fetchMock
+
+    const { results } = await runCacheHitTest({
+      apiFormat: CACHE_API_FORMATS.OPENAI,
+      cacheMode: CACHE_MODES.AUTO,
+      apiKey: 'test-key',
+      baseUrl: 'https://api.openai.com/v1',
+      model: 'gpt-4.1',
+      staticPrefix: 'static '.repeat(300),
+      dynamicPromptsText: 'question',
+      rounds: 2,
+      interval: 0,
+      maxTokens: 32,
+      temperature: 0,
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(results[0].content).toBe('fallback ok')
+    expect(results[0].usage.cachedReadTokens).toBe(1024)
+  })
+
+  test('reads non-stream OpenAI cached_tokens from prompt token details', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({
       choices: [{ message: { content: 'ok' } }],
       usage: {
@@ -84,8 +183,7 @@ describe('runCacheHitTest provider usage parsing', () => {
       temperature: 0,
     })
 
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(fetchMock.mock.calls[0][0]).toBe('https://api.openai.com/v1/chat/completions')
+    expect(fetchMock).toHaveBeenCalledTimes(4)
     expect(results[0].usage.cachedReadTokens).toBe(1024)
     expect(summary.hitRate).toBeCloseTo(1024 / 1200)
   })

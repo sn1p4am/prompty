@@ -1,5 +1,15 @@
 # Release Notes
 
+## v3.8.17 (2026-05-14)
+
+### 本次更新
+
+- 🌊 OpenAI 缓存命中测试优先使用 `stream_options.include_usage` 采集最终 usage
+- 🔌 修复 ofox 等 OpenAI-compatible 代理非流式响应不返回缓存明细时，实际命中却显示为 0 的问题
+- 🧯 兼容 `cached_tokens`、`input_tokens_details.cached_tokens` 与部分代理返回的 `cached_read_tokens`
+- 🔁 当流式 usage 不可用时，自动回退原有非流式 JSON usage 解析
+- 🧪 补充 SSE usage 解析与非流式回退单元测试
+
 ## v3.8.16 (2026-05-14)
 
 ### 本次更新

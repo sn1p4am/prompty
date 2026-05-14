@@ -154,7 +154,9 @@ function normalizeOpenAiUsage(usage = {}) {
     const inputTokens = safeNumber(usage.prompt_tokens ?? usage.input_tokens)
     const cachedReadTokens = safeNumber(
         usage.prompt_tokens_details?.cached_tokens
+        ?? usage.prompt_tokens_details?.cached_read_tokens
         ?? usage.input_tokens_details?.cached_tokens
+        ?? usage.input_tokens_details?.cached_read_tokens
     )
     const outputTokens = safeNumber(usage.completion_tokens ?? usage.output_tokens)
 
@@ -258,6 +260,67 @@ function buildOpenAiRequest({ model, staticPrefix, dynamicPrompt, roundIndex, ma
         temperature,
         max_tokens: maxTokens,
         stream: false,
+    }
+}
+
+function buildOpenAiStreamingRequest(params) {
+    return {
+        ...buildOpenAiRequest(params),
+        stream: true,
+        stream_options: {
+            include_usage: true,
+        },
+    }
+}
+
+function parseServerSentEvents(text) {
+    const events = []
+
+    for (const block of String(text || '').split(/\n\n+/)) {
+        const dataLines = block
+            .split('\n')
+            .filter(line => line.trim().startsWith('data:'))
+
+        for (const line of dataLines) {
+            const data = line.replace(/^data:\s*/, '').trim()
+
+            if (!data || data === '[DONE]') {
+                continue
+            }
+
+            const parsed = safeParseErrorPayload(data)
+            if (parsed) {
+                events.push(parsed)
+            }
+        }
+    }
+
+    return events
+}
+
+function extractOpenAiStreamingResult(responseText) {
+    const events = parseServerSentEvents(responseText)
+    const content = []
+    let usage = null
+
+    for (const event of events) {
+        const deltaContent = event.choices?.[0]?.delta?.content
+        if (deltaContent) {
+            content.push(deltaContent)
+        }
+
+        if (event.usage) {
+            usage = event.usage
+        }
+    }
+
+    return {
+        content: content.join(''),
+        usage,
+        rawResponse: {
+            events,
+            usage,
+        },
     }
 }
 
@@ -381,12 +444,42 @@ async function runOpenAiRound(params) {
         baseUrl,
         signal,
     } = params
-    const response = await fetch(appendPath(baseUrl, '/chat/completions'), {
+    const requestUrl = appendPath(baseUrl, '/chat/completions')
+    const headers = {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+    }
+    const streamingResponse = await fetch(requestUrl, {
         method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-        },
+        headers,
+        body: JSON.stringify(buildOpenAiStreamingRequest(params)),
+        signal,
+    })
+    const streamingText = await streamingResponse.text()
+
+    if (streamingResponse.ok) {
+        const streamingResult = extractOpenAiStreamingResult(streamingText)
+        if (streamingResult.usage) {
+            return {
+                content: streamingResult.content,
+                usage: normalizeOpenAiUsage(streamingResult.usage),
+                rawResponse: streamingResult.rawResponse,
+            }
+        }
+    }
+
+    if (!streamingResponse.ok) {
+        const errorPayload = safeParseErrorPayload(streamingText)
+        const errorMessage = errorPayload?.error?.message || errorPayload?.message || streamingText || streamingResponse.statusText
+
+        if (streamingResponse.status !== 400 && streamingResponse.status !== 422) {
+            throw new Error(`OpenAI 请求失败：HTTP ${streamingResponse.status} ${errorMessage}`)
+        }
+    }
+
+    const response = await fetch(requestUrl, {
+        method: 'POST',
+        headers,
         body: JSON.stringify(buildOpenAiRequest(params)),
         signal,
     })
