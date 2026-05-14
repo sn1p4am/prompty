@@ -1,13 +1,13 @@
 # Release Notes
 
-## v3.8.10 (2026-05-14)
+## v3.8.11 (2026-05-14)
 
 ### 本次更新
 
-- 🛑 OpenAI Base URL 会识别 `llmapi.devart.ai` 这类已确认拒绝浏览器 CORS preflight 的地址，并在请求前拦截
-- 🧭 Base URL 输入框下方直接显示 CORS 原因与可执行处理方式，避免继续看到 `net::ERR_FAILED`
-- 🔁 明确 `/api/openai` 这类相对路径必须配合真实同源后端或边缘代理使用
-- 🧪 新增已知 CORS 阻断地址不触发 `fetch` 的测试覆盖
+- 🔒 OpenAI 生图固定使用 `https://llmapi.devart.ai/v1`，不再暴露 Base URL 配置项
+- 🧹 移除图像生成实验室中的 OpenAI Base URL 输入框，避免旧配置或手动切换影响请求地址
+- 🧪 使用测试 Key 验证 `https://llmapi.devart.ai/v1/images/generations` 可返回 200、`b64_json` 图像结果和 request id
+- 🖼️ 旧缓存中的 `openaiBaseUrl` 会被忽略，OpenAI Image2 请求始终走固定 llmapi endpoint
 
 ## v3.8.9 (2026-05-14)
 

@@ -41,88 +41,6 @@ function normalizeOpenAIModel(model) {
     return String(model || '').trim()
 }
 
-const OPENAI_BROWSER_BLOCKED_HOSTS = new Set([
-    'llmapi.devart.ai',
-])
-
-function normalizeOpenAIPathname(pathname) {
-    let normalizedPathname = String(pathname || '')
-        .split(/[?#]/)[0]
-        .replace(/\/+$/, '')
-        .replace(/\/(?:images\/generations|images\/edits|responses|chat\/completions)$/, '')
-        .replace(/\/+$/, '')
-
-    if (!normalizedPathname || normalizedPathname === '/') {
-        normalizedPathname = '/v1'
-    }
-
-    if (!/\/v1$/.test(normalizedPathname)) {
-        normalizedPathname = `${normalizedPathname}/v1`
-    }
-
-    return normalizedPathname
-}
-
-function normalizeOpenAIBaseUrl(baseUrl, fallbackBaseUrl = IMAGE_GENERATION_PROVIDER_INFO[IMAGE_GENERATION_PROVIDERS.OPENAI].baseUrl) {
-    const rawBaseUrl = String(baseUrl || '').trim()
-
-    if (!rawBaseUrl) {
-        return fallbackBaseUrl
-    }
-
-    if (rawBaseUrl.startsWith('/')) {
-        return normalizeOpenAIPathname(rawBaseUrl)
-    }
-
-    const withProtocol = /^[a-z][a-z\d+\-.]*:\/\//i.test(rawBaseUrl)
-        ? rawBaseUrl
-        : `https://${rawBaseUrl}`
-
-    let parsedUrl
-    try {
-        parsedUrl = new URL(withProtocol)
-    } catch {
-        throw new Error('OpenAI Base URL 格式不正确')
-    }
-
-    parsedUrl.pathname = normalizeOpenAIPathname(parsedUrl.pathname)
-    parsedUrl.search = ''
-    parsedUrl.hash = ''
-
-    return parsedUrl.toString().replace(/\/$/, '')
-}
-
-export function getOpenAIBaseUrlBrowserIssue(baseUrl, pageOrigin = globalThis.location?.origin) {
-    const rawBaseUrl = String(baseUrl || '').trim()
-
-    if (!rawBaseUrl || rawBaseUrl.startsWith('/')) {
-        return ''
-    }
-
-    let normalizedBaseUrl
-    try {
-        normalizedBaseUrl = normalizeOpenAIBaseUrl(rawBaseUrl)
-    } catch {
-        return ''
-    }
-
-    let parsedUrl
-    try {
-        parsedUrl = new URL(normalizedBaseUrl)
-    } catch {
-        return ''
-    }
-
-    if (!OPENAI_BROWSER_BLOCKED_HOSTS.has(parsedUrl.hostname.toLowerCase())) {
-        return ''
-    }
-
-    const originHint = pageOrigin ? `当前页面来源是 ${pageOrigin}，` : ''
-    return `${originHint}${parsedUrl.hostname} 的浏览器预检请求没有返回 Access-Control-Allow-Origin。` +
-        '请让该服务放行 OPTIONS/POST 以及 Authorization、Content-Type，或改填带 CORS 的代理 Base URL；' +
-        '只有实际部署了后端路由时才可使用 /api/openai。'
-}
-
 function buildOpenAINetworkError(error, requestUrl) {
     const origin = globalThis.location?.origin
     const originHint = origin ? `当前页面来源：${origin}。` : ''
@@ -131,7 +49,7 @@ function buildOpenAINetworkError(error, requestUrl) {
     return new Error(
         `OpenAI 图像请求无法从浏览器直连 ${requestUrl}。${originHint}` +
         '如果控制台提示 CORS 或 preflight，说明目标服务没有返回 Access-Control-Allow-Origin；' +
-        '请在目标服务开启 CORS，或改用同源后端/边缘代理后把 Base URL 填成代理地址。' +
+        '请在目标服务开启 CORS，或通过同源后端/边缘代理转发固定 llmapi 请求。' +
         `原始错误：${originalMessage}`
     )
 }
@@ -546,13 +464,8 @@ async function generateOpenAIImage({ apiKey, model, settings, signal }) {
     }
 
     const requestStartTime = now()
-    const baseUrl = normalizeOpenAIBaseUrl(settings.openaiBaseUrl)
+    const baseUrl = IMAGE_GENERATION_PROVIDER_INFO[IMAGE_GENERATION_PROVIDERS.OPENAI].baseUrl
     const requestUrl = `${baseUrl}/images/generations`
-    const browserIssue = getOpenAIBaseUrlBrowserIssue(baseUrl)
-    if (browserIssue) {
-        throw new Error(`OpenAI Base URL 无法在浏览器直连。${browserIssue}`)
-    }
-
     let response
     try {
         response = await fetch(requestUrl, {

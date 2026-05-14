@@ -52,7 +52,7 @@ export const IMAGE_GENERATION_PROVIDER_INFO = {
     },
     [IMAGE_GENERATION_PROVIDERS.OPENAI]: {
         name: 'OpenAI',
-        baseUrl: 'https://api.openai.com/v1',
+        baseUrl: 'https://llmapi.devart.ai/v1',
         keyLabel: 'OPENAI_API_KEY',
         keyStorageKey: 'openai_image_generation_api_key',
         defaultModel: 'gpt-image-2',

@@ -5,7 +5,6 @@ import {
   buildOpenAIImageGenerationPayload,
   buildTogetherImageGenerationPayload,
   generateImage,
-  getOpenAIBaseUrlBrowserIssue,
 } from './imageGenerationClient'
 
 describe('fal.ai image generation client', () => {
@@ -372,7 +371,7 @@ describe('OpenAI image generation client', () => {
     })
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(fetchMock.mock.calls[0][0]).toBe('https://api.openai.com/v1/images/generations')
+    expect(fetchMock.mock.calls[0][0]).toBe('https://llmapi.devart.ai/v1/images/generations')
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer openai-test-key')
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
       model: 'gpt-image-2',
@@ -390,55 +389,44 @@ describe('OpenAI image generation client', () => {
     expect(result.usage.total_tokens).toBe(100)
   })
 
-  test('normalizes custom OpenAI base URLs before calling image generations', async () => {
-    const cases = [
-      ['proxy.example.com', 'https://proxy.example.com/v1/images/generations'],
-      ['https://proxy.example.com/', 'https://proxy.example.com/v1/images/generations'],
-      ['https://proxy.example.com/v1/', 'https://proxy.example.com/v1/images/generations'],
-      ['https://proxy.example.com/openai', 'https://proxy.example.com/openai/v1/images/generations'],
-      ['https://proxy.example.com/v1/images/generations?debug=1', 'https://proxy.example.com/v1/images/generations'],
-      ['/api/openai', '/api/openai/v1/images/generations'],
-    ]
+  test('ignores legacy OpenAI base URL settings and uses the fixed llmapi endpoint', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      headers: {
+        get: vi.fn(() => null),
+      },
+      text: async () => JSON.stringify({
+        data: [
+          {
+            b64_json: 'base64-image',
+          },
+        ],
+      }),
+    }))
+    globalThis.fetch = fetchMock
 
-    for (const [openaiBaseUrl, expectedUrl] of cases) {
-      const fetchMock = vi.fn(async () => ({
-        ok: true,
-        headers: {
-          get: vi.fn(() => null),
-        },
-        text: async () => JSON.stringify({
-          data: [
-            {
-              b64_json: 'base64-image',
-            },
-          ],
-        }),
-      }))
-      globalThis.fetch = fetchMock
+    await generateImage({
+      provider: IMAGE_GENERATION_PROVIDERS.OPENAI,
+      apiKey: 'openai-test-key',
+      model: 'gpt-image-2',
+      settings: {
+        prompt: 'A fixed base url request',
+        openaiBaseUrl: 'https://api.openai.com/v1',
+        openaiSizePreset: '1024x1024',
+        openaiQuality: 'medium',
+        openaiNumImages: 1,
+        openaiOutputFormat: 'png',
+        openaiBackground: 'auto',
+        openaiModeration: 'auto',
+        openaiStream: false,
+        openaiPartialImages: 0,
+      },
+    })
 
-      await generateImage({
-        provider: IMAGE_GENERATION_PROVIDERS.OPENAI,
-        apiKey: 'openai-test-key',
-        model: 'gpt-image-2',
-        settings: {
-          prompt: 'A custom base url request',
-          openaiBaseUrl,
-          openaiSizePreset: '1024x1024',
-          openaiQuality: 'medium',
-          openaiNumImages: 1,
-          openaiOutputFormat: 'png',
-          openaiBackground: 'auto',
-          openaiModeration: 'auto',
-          openaiStream: false,
-          openaiPartialImages: 0,
-        },
-      })
-
-      expect(fetchMock.mock.calls[0][0]).toBe(expectedUrl)
-    }
+    expect(fetchMock.mock.calls[0][0]).toBe('https://llmapi.devart.ai/v1/images/generations')
   })
 
-  test('explains browser CORS or network failures for custom OpenAI base URLs', async () => {
+  test('explains browser CORS or network failures for the fixed OpenAI endpoint', async () => {
     globalThis.fetch = vi.fn(async () => {
       throw new TypeError('Failed to fetch')
     })
@@ -449,7 +437,6 @@ describe('OpenAI image generation client', () => {
       model: 'gpt-image-2',
       settings: {
         prompt: 'A blocked browser request',
-        openaiBaseUrl: 'https://proxy.example.com/v1',
         openaiSizePreset: '1024x1024',
         openaiQuality: 'medium',
         openaiNumImages: 1,
@@ -460,40 +447,6 @@ describe('OpenAI image generation client', () => {
         openaiPartialImages: 0,
       },
     })).rejects.toThrow('目标服务没有返回 Access-Control-Allow-Origin')
-  })
-
-  test('blocks known OpenAI-compatible hosts that reject browser CORS preflight', async () => {
-    const fetchMock = vi.fn()
-    globalThis.fetch = fetchMock
-
-    const issue = getOpenAIBaseUrlBrowserIssue(
-      'https://llmapi.devart.ai/v1',
-      'https://sn1p4am.github.io'
-    )
-
-    expect(issue).toContain('llmapi.devart.ai')
-    expect(issue).toContain('Access-Control-Allow-Origin')
-    expect(getOpenAIBaseUrlBrowserIssue('/api/openai')).toBe('')
-    expect(getOpenAIBaseUrlBrowserIssue('https://api.openai.com/v1')).toBe('')
-
-    await expect(generateImage({
-      provider: IMAGE_GENERATION_PROVIDERS.OPENAI,
-      apiKey: 'openai-test-key',
-      model: 'gpt-image-2',
-      settings: {
-        prompt: 'A blocked host request',
-        openaiBaseUrl: 'https://llmapi.devart.ai/v1',
-        openaiSizePreset: '1024x1024',
-        openaiQuality: 'medium',
-        openaiNumImages: 1,
-        openaiOutputFormat: 'png',
-        openaiBackground: 'auto',
-        openaiModeration: 'auto',
-        openaiStream: false,
-        openaiPartialImages: 0,
-      },
-    })).rejects.toThrow('OpenAI Base URL 无法在浏览器直连')
-    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   test('normalizes streamed OpenAI final image events', async () => {
