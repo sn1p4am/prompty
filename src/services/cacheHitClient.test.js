@@ -6,20 +6,22 @@ import {
   runCacheHitTest,
 } from './cacheHitClient'
 
-function jsonResponse(body, ok = true, status = 200) {
+function jsonResponse(body, ok = true, status = 200, headers = {}) {
   return {
     ok,
     status,
     statusText: ok ? 'OK' : 'Bad Request',
+    headers: new Headers(headers),
     text: async () => JSON.stringify(body),
   }
 }
 
-function sseResponse(events, ok = true, status = 200) {
+function sseResponse(events, ok = true, status = 200, headers = {}) {
   return {
     ok,
     status,
     statusText: ok ? 'OK' : 'Bad Request',
+    headers: new Headers(headers),
     text: async () => `${events.map(event => `data: ${JSON.stringify(event)}`).join('\n\n')}\n\ndata: [DONE]\n\n`,
   }
 }
@@ -299,6 +301,9 @@ describe('runCacheHitTest provider usage parsing', () => {
         candidatesTokenCount: 16,
         totalTokenCount: 1416,
       },
+    }, true, 200, {
+      'x-request-id': 'req-gemini-round',
+      'x-cloud-trace-context': 'trace-id/123;o=1',
     }))
     globalThis.fetch = fetchMock
 
@@ -321,6 +326,8 @@ describe('runCacheHitTest provider usage parsing', () => {
     expect(fetchMock.mock.calls[0][1].headers['x-goog-api-key']).toBe('test-key')
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined()
     expect(results[0].usage.cachedReadTokens).toBe(1000)
+    expect(results[0].debug.responseHeaders['x-request-id']).toBe('req-gemini-round')
+    expect(results[0].debug.responseHeaders['x-cloud-trace-context']).toBe('trace-id/123;o=1')
   })
 
   test('falls back to Bearer auth when a Gemini native proxy rejects API key auth', async () => {
@@ -428,7 +435,10 @@ describe('runCacheHitTest provider usage parsing', () => {
         error: {
           message: 'Unsupported Gemini API endpoint. Please refer to https://docs.ofox.ai/api for available endpoints.',
         },
-      }, false, 404))
+      }, false, 404, {
+        'x-request-id': 'req-cache-create',
+        'x-cloud-trace-context': 'cache-trace/456;o=1',
+      }))
       .mockResolvedValueOnce(jsonResponse({
         candidates: [{ content: { parts: [{ text: 'ok' }] } }],
         usageMetadata: {
@@ -472,6 +482,9 @@ describe('runCacheHitTest provider usage parsing', () => {
     expect(fetchMock.mock.calls[1][0]).toBe('https://api.ofox.ai/gemini/v1beta/models/google/gemini-3-flash-preview:generateContent')
     expect(JSON.parse(fetchMock.mock.calls[1][1].body).cachedContent).toBeUndefined()
     expect(onCacheFallback).toHaveBeenCalledWith('当前 Gemini Base URL 的 cachedContents 创建请求返回 unsupported，已自动降级为 generateContent 隐式缓存测试。')
+    expect(results[0].debug.cacheCreate.httpStatus).toBe(404)
+    expect(results[0].debug.cacheCreate.responseHeaders['x-request-id']).toBe('req-cache-create')
+    expect(results[0].debug.cacheCreate.responseHeaders['x-cloud-trace-context']).toBe('cache-trace/456;o=1')
     expect(results[1].usage.cachedReadTokens).toBe(1000)
     expect(summary.warmHitRate).toBeCloseTo(1000 / 1400)
   })

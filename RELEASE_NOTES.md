@@ -1,5 +1,14 @@
 # Release Notes
 
+## v3.8.22 (2026-05-14)
+
+### 本次更新
+
+- 🧾 缓存测试每轮结果新增 Response Headers 调试信息，代理暴露的 `x-request-id`、`x-cloud-trace-context` 等头会随结果保存
+- 🕵️ Gemini 显式缓存创建失败并降级时，也会保留 `cachedContents` 创建请求的响应头，方便 OfoxAI/GCP 日志溯源
+- 📋 缓存测试面板新增“复制调试信息”，可一次性复制 usage、响应头和显式缓存创建调试信息
+- 🧪 补充 Gemini 响应头采集与 cachedContents 失败响应头保留的单元测试
+
 ## v3.8.21 (2026-05-14)
 
 ### 本次更新

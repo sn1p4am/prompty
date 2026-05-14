@@ -155,6 +155,7 @@ function buildProviderError(providerName, response, responseText, parsedError) {
     error.status = response.status
     error.providerName = providerName
     error.payload = parsedError
+    error.responseHeaders = collectResponseHeaders(response)
     return error
 }
 
@@ -213,9 +214,24 @@ function safeParseErrorPayload(text) {
     }
 }
 
+function collectResponseHeaders(response) {
+    const headers = {}
+
+    try {
+        response?.headers?.forEach?.((value, key) => {
+            headers[key] = value
+        })
+    } catch {
+        return {}
+    }
+
+    return headers
+}
+
 async function parseJsonResponse(response, providerName) {
     const responseText = await response.text()
     const parsed = safeParseErrorPayload(responseText)
+    const responseHeaders = collectResponseHeaders(response)
 
     if (!response.ok) {
         throw buildProviderError(providerName, response, responseText, parsed)
@@ -225,7 +241,10 @@ async function parseJsonResponse(response, providerName) {
         throw new Error(`${providerName} 返回内容不是合法 JSON`)
     }
 
-    return parsed
+    return {
+        data: parsed,
+        responseHeaders,
+    }
 }
 
 function parseDynamicPrompts(text) {
@@ -528,6 +547,7 @@ async function fetchGeminiJson({
         })
         const responseText = await response.text()
         const parsed = safeParseErrorPayload(responseText)
+        const responseHeaders = collectResponseHeaders(response)
 
         if (response.ok) {
             if (!parsed) {
@@ -537,6 +557,7 @@ async function fetchGeminiJson({
             return {
                 data: parsed,
                 authMode,
+                responseHeaders,
             }
         }
 
@@ -559,7 +580,7 @@ async function createGeminiCachedContent({
     staticPrefix,
     signal,
 }) {
-    const { data } = await fetchGeminiJson({
+    const { data, responseHeaders } = await fetchGeminiJson({
         apiKey,
         baseUrl,
         path: '/cachedContents',
@@ -581,7 +602,10 @@ async function createGeminiCachedContent({
         providerName: 'Gemini cachedContents',
     })
 
-    return data.name
+    return {
+        name: data.name,
+        responseHeaders,
+    }
 }
 
 async function deleteGeminiCachedContent({ apiKey, baseUrl, cachedContentName, signal }) {
@@ -620,6 +644,7 @@ async function runOpenAiRound(params) {
         signal,
     })
     const streamingText = await streamingResponse.text()
+    const streamingResponseHeaders = collectResponseHeaders(streamingResponse)
 
     if (streamingResponse.ok) {
         const streamingResult = extractOpenAiStreamingResult(streamingText)
@@ -628,6 +653,7 @@ async function runOpenAiRound(params) {
                 content: streamingResult.content,
                 usage: normalizeOpenAiUsage(streamingResult.usage),
                 rawResponse: streamingResult.rawResponse,
+                responseHeaders: streamingResponseHeaders,
             }
         }
     }
@@ -647,12 +673,13 @@ async function runOpenAiRound(params) {
         body: JSON.stringify(buildOpenAiRequest(params)),
         signal,
     })
-    const data = await parseJsonResponse(response, 'OpenAI')
+    const { data, responseHeaders } = await parseJsonResponse(response, 'OpenAI')
 
     return {
         content: data.choices?.[0]?.message?.content || '',
         usage: normalizeOpenAiUsage(data.usage),
         rawResponse: data,
+        responseHeaders,
     }
 }
 
@@ -672,12 +699,13 @@ async function runClaudeRound(params) {
         body: JSON.stringify(buildClaudeRequest(params)),
         signal,
     })
-    const data = await parseJsonResponse(response, 'Claude')
+    const { data, responseHeaders } = await parseJsonResponse(response, 'Claude')
 
     return {
         content: data.content?.map(block => block.text || '').join('\n') || '',
         usage: normalizeClaudeUsage(data.usage),
         rawResponse: data,
+        responseHeaders,
     }
 }
 
@@ -689,7 +717,7 @@ async function runGeminiRound(params) {
         signal,
     } = params
     const normalizedModel = normalizeGeminiModelId(model)
-    const { data, authMode } = await fetchGeminiJson({
+    const { data, authMode, responseHeaders } = await fetchGeminiJson({
         apiKey,
         baseUrl,
         path: `/models/${normalizedModel}:generateContent`,
@@ -705,6 +733,7 @@ async function runGeminiRound(params) {
             ...data,
             authMode,
         },
+        responseHeaders,
     }
 }
 
@@ -763,23 +792,38 @@ export async function runCacheHitTest(settings, callbacks = {}) {
     }
 
     let cachedContentName = null
+    let cacheCreateDebug = null
     let effectiveCacheMode = cacheMode
 
     if (apiFormat === CACHE_API_FORMATS.GEMINI && cacheMode === CACHE_MODES.EXPLICIT) {
         try {
-            cachedContentName = await createGeminiCachedContent({
+            const cachedContent = await createGeminiCachedContent({
                 apiKey,
                 baseUrl,
                 model,
                 staticPrefix,
                 signal,
             })
+            cachedContentName = cachedContent.name
+            cacheCreateDebug = {
+                type: 'Gemini cachedContents create',
+                status: 'success',
+                resourceName: cachedContentName,
+                responseHeaders: cachedContent.responseHeaders,
+            }
             callbacks.onCacheCreated?.(cachedContentName)
         } catch (error) {
             if (!isUnsupportedGeminiCachedContentsError(error)) {
                 throw error
             }
 
+            cacheCreateDebug = {
+                type: 'Gemini cachedContents create',
+                status: 'failed',
+                httpStatus: error.status,
+                message: error.message,
+                responseHeaders: error.responseHeaders || {},
+            }
             effectiveCacheMode = CACHE_MODES.AUTO
             callbacks.onCacheFallback?.('当前 Gemini Base URL 的 cachedContents 创建请求返回 unsupported，已自动降级为 generateContent 隐式缓存测试。')
         }
@@ -822,6 +866,10 @@ export async function runCacheHitTest(settings, callbacks = {}) {
                 dynamicPrompt,
                 durationMs: Date.now() - startedAt,
                 ...roundResult,
+                debug: {
+                    cacheCreate: index === 0 ? cacheCreateDebug : null,
+                    responseHeaders: roundResult.responseHeaders || {},
+                },
             }
 
             results.push(result)

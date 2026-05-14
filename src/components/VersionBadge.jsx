@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.21',
+    version: 'v3.8.22',
     date: '2026-05-14',
     changes: [
-        { emoji: '🧩', label: '模型 ID', desc: 'Gemini 保留 google/ 等 provider 前缀' },
-        { emoji: '📦', label: '显式缓存', desc: 'cachedContents 请求体对齐 Google GenAI SDK' },
-        { emoji: '🧭', label: '端点清理', desc: 'Base URL 可清理 streamGenerateContent 路径' },
-        { emoji: '📚', label: '说明更新', desc: '页面标注 SDK 风格的显式缓存创建流程' },
+        { emoji: '🧾', label: '响应头', desc: '缓存测试结果保留 Response Headers' },
+        { emoji: '🕵️', label: 'GCP 溯源', desc: '展示 request id / trace header 便于排查' },
+        { emoji: '📋', label: '复制调试', desc: '一键复制 usage 与调试元数据' },
+        { emoji: '🧪', label: '测试覆盖', desc: '补充响应头采集单元测试' },
     ]
 }
 

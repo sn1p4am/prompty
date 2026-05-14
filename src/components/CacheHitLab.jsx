@@ -2,6 +2,7 @@ import { createElement, useMemo } from 'react'
 import {
     BookOpen,
     Calculator,
+    Clipboard,
     DatabaseZap,
     Gauge,
     KeyRound,
@@ -165,20 +166,44 @@ function ProviderGuide({ apiFormat, cacheMode }) {
 }
 
 function RawUsageBlock({ result }) {
-    if (!result.usage?.rawUsage) {
+    const debugPayload = {
+        responseHeaders: result.debug?.responseHeaders || {},
+        cacheCreate: result.debug?.cacheCreate || undefined,
+    }
+    const hasRawUsage = Boolean(result.usage?.rawUsage)
+    const hasDebugHeaders = Object.keys(debugPayload.responseHeaders).length > 0
+        || Object.keys(debugPayload.cacheCreate?.responseHeaders || {}).length > 0
+
+    if (!hasRawUsage && !hasDebugHeaders) {
         return null
     }
 
     return (
         <details className="mt-3 border border-dashed border-border">
             <summary className="cursor-pointer px-3 py-2 text-[10px] uppercase tracking-widest text-secondary">
-                Raw Usage JSON
+                Raw Usage / Debug Headers
             </summary>
             <pre className="max-h-56 overflow-auto border-t border-dashed border-border p-3 text-[11px] text-muted">
-                {JSON.stringify(result.usage.rawUsage, null, 2)}
+                {JSON.stringify({
+                    rawUsage: result.usage?.rawUsage,
+                    debug: debugPayload,
+                }, null, 2)}
             </pre>
         </details>
     )
+}
+
+function buildSupportPayload(results) {
+    return results.map(result => ({
+        round: result.round,
+        status: result.status,
+        error: result.error,
+        usage: result.usage?.rawUsage,
+        debug: {
+            responseHeaders: result.debug?.responseHeaders || {},
+            cacheCreate: result.debug?.cacheCreate || undefined,
+        },
+    }))
 }
 
 function ResultsTable({ results }) {
@@ -304,6 +329,16 @@ export function CacheHitLab({ isOpen, onClose, onToast }) {
             ...settings,
             baseUrl: normalizedBaseUrl,
         })
+    }
+
+    const handleCopySupportPayload = async () => {
+        const payload = buildSupportPayload(cacheTest.results)
+        try {
+            await navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
+            onToast?.('调试信息已复制')
+        } catch {
+            onToast?.('复制失败，请展开 Raw Usage / Debug Headers 手动复制')
+        }
     }
 
     const canStart = Boolean(settings.apiKey && settings.model && normalizedBaseUrl && settings.staticPrefix) && !cacheTest.isRunning
@@ -514,6 +549,18 @@ export function CacheHitLab({ isOpen, onClose, onToast }) {
                                 >
                                     <RefreshCw className="w-3 h-3 mr-2" />
                                     清空结果
+                                </Button>
+                            )}
+
+                            {!cacheTest.isRunning && cacheTest.results.length > 0 && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full"
+                                    onClick={handleCopySupportPayload}
+                                >
+                                    <Clipboard className="w-3 h-3 mr-2" />
+                                    复制调试信息
                                 </Button>
                             )}
                         </div>
