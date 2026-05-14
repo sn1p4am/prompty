@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.20',
+    version: 'v3.8.21',
     date: '2026-05-14',
     changes: [
-        { emoji: '🔑', label: 'Gemini 鉴权', desc: 'Gemini Native 代理优先使用 x-goog-api-key' },
-        { emoji: '🔁', label: 'Bearer 回退', desc: '代理明确要求 Bearer 时再自动切换' },
-        { emoji: '📚', label: '文档对齐', desc: 'OfoxAI Gemini 说明改为 x-goog-api-key 优先' },
-        { emoji: '🧪', label: '测试覆盖', desc: '更新自定义 Gemini 代理鉴权断言' },
+        { emoji: '🧩', label: '模型 ID', desc: 'Gemini 保留 google/ 等 provider 前缀' },
+        { emoji: '📦', label: '显式缓存', desc: 'cachedContents 请求体对齐 Google GenAI SDK' },
+        { emoji: '🧭', label: '端点清理', desc: 'Base URL 可清理 streamGenerateContent 路径' },
+        { emoji: '📚', label: '说明更新', desc: '页面标注 SDK 风格的显式缓存创建流程' },
     ]
 }
 

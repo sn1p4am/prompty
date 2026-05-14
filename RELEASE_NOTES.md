@@ -1,5 +1,15 @@
 # Release Notes
 
+## v3.8.21 (2026-05-14)
+
+### 本次更新
+
+- 🧩 Gemini 模型 ID 不再剥离 `google/` 等 provider 前缀，OfoxAI 这类模型列表返回 `models/google/...` 的网关会按原始模型族请求
+- 📦 Gemini 显式缓存创建请求与 Google GenAI SDK 对齐：`POST /cachedContents`，body 使用 `model: "models/..."`、`contents`、`ttl`
+- 🧭 Base URL 归一化新增清理 `streamGenerateContent` 端点，避免用户粘贴完整流式地址时路径重复
+- 💬 cachedContents 返回 unsupported 时的页面提示更精确，说明是当前创建请求被端点拒绝，并自动降级隐式缓存测试
+- 🧪 补充 Gemini provider 前缀与显式缓存 body 的单元测试断言
+
 ## v3.8.20 (2026-05-14)
 
 ### 本次更新

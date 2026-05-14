@@ -21,7 +21,7 @@ function cleanKnownEndpointPath(pathname = '') {
         .replace(/\/responses$/i, '')
         .replace(/\/messages$/i, '')
         .replace(/\/cachedContents$/i, '')
-        .replace(/\/models\/[^/]+:generateContent$/i, '')
+        .replace(/\/models\/.+:(streamGenerateContent|generateContent)$/i, '')
 }
 
 export function normalizeCacheBaseUrl(apiFormat, baseUrl) {
@@ -147,7 +147,6 @@ function normalizeGeminiModelId(model = '') {
     return String(model)
         .trim()
         .replace(/^models\//, '')
-        .replace(/^google\//, '')
 }
 
 function buildProviderError(providerName, response, responseText, parsedError) {
@@ -782,7 +781,7 @@ export async function runCacheHitTest(settings, callbacks = {}) {
             }
 
             effectiveCacheMode = CACHE_MODES.AUTO
-            callbacks.onCacheFallback?.('当前 Gemini Base URL 不支持 cachedContents 显式缓存端点，已自动降级为 generateContent 隐式缓存测试。')
+            callbacks.onCacheFallback?.('当前 Gemini Base URL 的 cachedContents 创建请求返回 unsupported，已自动降级为 generateContent 隐式缓存测试。')
         }
     }
 

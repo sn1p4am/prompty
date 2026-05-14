@@ -38,7 +38,7 @@ export const CACHE_API_FORMAT_INFO = {
         usagePath: 'usageMetadata.cachedContentTokenCount',
         docsUrl: 'https://ai.google.dev/gemini-api/docs/caching',
         docsLabel: 'Gemini Context Caching',
-        note: 'Gemini 2.5+ 支持隐式缓存；显式缓存会先创建 cachedContents，再在 generateContent 里引用，默认 TTL 为 1 小时。Gemini Native 格式优先使用 x-goog-api-key；若代理要求 Bearer，会在鉴权错误时自动回退。部分代理不开放 cachedContents 端点，工具会自动降级为隐式缓存测试。',
+        note: 'Gemini 2.5+ 支持隐式缓存；显式缓存会按 Google GenAI SDK 形态先 POST /cachedContents，再在 generateContent 里引用，默认 TTL 为 1 小时。Gemini Native 格式优先使用 x-goog-api-key；若代理要求 Bearer，会在鉴权错误时自动回退。若 cachedContents 创建请求被当前端点返回 unsupported，工具会自动降级为隐式缓存测试。',
     },
 }
 
@@ -70,7 +70,7 @@ The text test workspace sends repeated chat-completion requests with configurabl
 Provider behavior summary:
 OpenAI prompt caching is automatic for long prompts. The usage object exposes cached_tokens under prompt_tokens_details for Chat-style responses, while Responses-style payloads may expose input_tokens_details.cached_tokens. The tester requests stream_options.include_usage for streaming-compatible gateways because some proxies only include cache usage in the final stream event. Cache hits require identical prompt prefixes, and static content should be placed before dynamic user content.
 Claude prompt caching can be explicit with cache_control breakpoints. The usage object exposes input_tokens, cache_creation_input_tokens, and cache_read_input_tokens. The first request often creates the cache and later requests read from it.
-Gemini context caching can be implicit on supported models or explicit with cachedContents. The usage metadata exposes promptTokenCount and cachedContentTokenCount. Explicit cached content has a TTL and may have storage-related billing implications. Gemini Native endpoints use x-goog-api-key first and retry Bearer auth when the gateway reports an auth mismatch. Some proxies expose generateContent but not cachedContents; the tester falls back to implicit caching when the explicit cache endpoint is reported as unsupported.
+Gemini context caching can be implicit on supported models or explicit with cachedContents. The usage metadata exposes promptTokenCount and cachedContentTokenCount. Explicit cached content has a TTL and may have storage-related billing implications. Gemini Native endpoints use x-goog-api-key first and retry Bearer auth when the gateway reports an auth mismatch. Explicit cache creation follows the Google GenAI SDK shape: POST /cachedContents with model names such as models/google/gemini-3-flash-preview when a gateway lists provider-prefixed model IDs. If the current endpoint reports cachedContents as unsupported, the tester falls back to implicit generateContent caching.
 
 Testing protocol:
 The recommended test uses one long static prefix and several short dynamic questions. A good first run uses four serial rounds with an interval of at least one second. The first round warms the cache. Rounds two through four provide the meaningful cache-read signal. A stable test should keep tools, images, schemas, system prompts, and static content byte-identical between rounds.

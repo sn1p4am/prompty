@@ -111,6 +111,7 @@ function MetricPanel({ icon: MetricIcon, label, value, detail }) {
 function ProviderGuide({ apiFormat, cacheMode }) {
     const info = CACHE_API_FORMAT_INFO[apiFormat]
     const modeLabel = cacheMode === CACHE_MODES.EXPLICIT ? '显式缓存' : '自动缓存'
+    const explicitGeminiNotice = apiFormat === CACHE_API_FORMATS.GEMINI && cacheMode === CACHE_MODES.EXPLICIT
 
     const providerFormula = {
         [CACHE_API_FORMATS.OPENAI]: 'cached_tokens / prompt_tokens (兼容 cached_read_tokens)',
@@ -152,6 +153,11 @@ function ProviderGuide({ apiFormat, cacheMode }) {
                 <div className="bg-black p-4">
                     <div className="text-[10px] text-muted uppercase tracking-widest">Notes</div>
                     <div className="mt-2 text-xs text-muted leading-relaxed">{info.note}</div>
+                    {explicitGeminiNotice && (
+                        <div className="mt-3 border border-dashed border-primary/60 bg-primary/5 p-3 text-xs text-foreground/90 leading-relaxed">
+                            显式缓存请求与 Google GenAI SDK 对齐：先发 <span className="font-mono text-primary">POST /cachedContents</span>，body 使用 <span className="font-mono text-primary">model: "models/..."</span>、<span className="font-mono text-primary">contents</span> 和 <span className="font-mono text-primary">ttl</span>；随后在 <span className="font-mono text-primary">generateContent</span> 中引用返回的缓存名。
+                        </div>
+                    )}
                 </div>
             </div>
         </section>
