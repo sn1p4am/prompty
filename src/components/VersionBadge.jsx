@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.19',
+    version: 'v3.8.20',
     date: '2026-05-14',
     changes: [
-        { emoji: '🧭', label: 'Gemini 代理', desc: '识别 cachedContents 端点不支持的代理响应' },
-        { emoji: '🔁', label: '自动降级', desc: '显式缓存 404 unsupported 时改跑隐式 generateContent 测试' },
-        { emoji: '💬', label: '页面提示', desc: '降级后在面板展示当前实际测试方式' },
-        { emoji: '🧪', label: '测试覆盖', desc: '补充 Gemini cachedContents 不支持时的回退测试' },
+        { emoji: '🔑', label: 'Gemini 鉴权', desc: 'Gemini Native 代理优先使用 x-goog-api-key' },
+        { emoji: '🔁', label: 'Bearer 回退', desc: '代理明确要求 Bearer 时再自动切换' },
+        { emoji: '📚', label: '文档对齐', desc: 'OfoxAI Gemini 说明改为 x-goog-api-key 优先' },
+        { emoji: '🧪', label: '测试覆盖', desc: '更新自定义 Gemini 代理鉴权断言' },
     ]
 }
 

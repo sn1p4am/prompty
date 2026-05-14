@@ -80,8 +80,8 @@ function isOfficialGeminiBaseUrl(baseUrl) {
 
 function getGeminiAuthModeOrder(baseUrl) {
     return isOfficialGeminiBaseUrl(baseUrl)
-        ? [GEMINI_AUTH_MODES.API_KEY_HEADER, GEMINI_AUTH_MODES.BEARER, GEMINI_AUTH_MODES.QUERY_KEY]
-        : [GEMINI_AUTH_MODES.BEARER, GEMINI_AUTH_MODES.API_KEY_HEADER, GEMINI_AUTH_MODES.QUERY_KEY]
+        ? [GEMINI_AUTH_MODES.API_KEY_HEADER, GEMINI_AUTH_MODES.QUERY_KEY, GEMINI_AUTH_MODES.BEARER]
+        : [GEMINI_AUTH_MODES.API_KEY_HEADER, GEMINI_AUTH_MODES.BEARER, GEMINI_AUTH_MODES.QUERY_KEY]
 }
 
 function buildGeminiRequest(baseUrl, path, apiKey, authMode) {
@@ -125,6 +125,22 @@ function shouldRetryGeminiAuth(response, parsedError, responseText) {
         || message.includes('bearer')
         || message.includes('auth')
         || response.status === 401
+}
+
+function getGeminiAuthRetryModes(baseUrl, failedAuthMode, parsedError, responseText) {
+    const message = String(
+        parsedError?.error?.message
+        || parsedError?.message
+        || parsedError?.error
+        || responseText
+        || ''
+    ).toLowerCase()
+
+    if (failedAuthMode === GEMINI_AUTH_MODES.API_KEY_HEADER && message.includes('bearer')) {
+        return [GEMINI_AUTH_MODES.BEARER]
+    }
+
+    return getGeminiAuthModeOrder(baseUrl).filter(authMode => authMode !== failedAuthMode)
 }
 
 function normalizeGeminiModelId(model = '') {
@@ -494,10 +510,16 @@ async function fetchGeminiJson({
     signal,
     providerName = 'Gemini',
 }) {
-    const authModes = getGeminiAuthModeOrder(baseUrl)
+    let authModes = getGeminiAuthModeOrder(baseUrl)
+    const attemptedAuthModes = new Set()
     let lastError = null
 
-    for (const authMode of authModes) {
+    while (authModes.length > 0) {
+        const authMode = authModes.shift()
+        if (attemptedAuthModes.has(authMode)) {
+            continue
+        }
+        attemptedAuthModes.add(authMode)
         const request = buildGeminiRequest(baseUrl, path, apiKey, authMode)
         const response = await fetch(request.url, {
             method,
@@ -524,6 +546,8 @@ async function fetchGeminiJson({
         if (!shouldRetryGeminiAuth(response, parsed, responseText)) {
             throw lastError
         }
+
+        authModes = getGeminiAuthRetryModes(baseUrl, authMode, parsed, responseText)
     }
 
     throw lastError || new Error(`${providerName} 请求失败`)

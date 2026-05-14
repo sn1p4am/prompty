@@ -1,5 +1,14 @@
 # Release Notes
 
+## v3.8.20 (2026-05-14)
+
+### 本次更新
+
+- 🔑 Gemini Native 自定义代理也优先使用 `x-goog-api-key`，与 OfoxAI 文档保持一致
+- 🔁 当代理明确返回鉴权不匹配时，再自动回退 `Authorization: Bearer`
+- 📚 修正文案：OfoxAI Gemini 不是只能 Bearer，Bearer 只是兼容回退路径
+- 🧪 更新自定义 Gemini 代理鉴权单元测试，确保先发 `x-goog-api-key`
+
 ## v3.8.19 (2026-05-14)
 
 ### 本次更新

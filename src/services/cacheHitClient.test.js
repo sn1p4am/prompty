@@ -288,7 +288,7 @@ describe('runCacheHitTest provider usage parsing', () => {
     expect(requestBody.system[0].cache_control).toBeUndefined()
   })
 
-  test('uses Bearer auth for custom Gemini proxies', async () => {
+  test('uses x-goog-api-key auth for custom Gemini native proxies', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({
       candidates: [{ content: { parts: [{ text: 'ok' }] } }],
       usageMetadata: {
@@ -316,12 +316,12 @@ describe('runCacheHitTest provider usage parsing', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(fetchMock.mock.calls[0][0]).toBe('https://api.ofox.ai/gemini/v1beta/models/gemini-3-flash-preview:generateContent')
-    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer test-key')
-    expect(fetchMock.mock.calls[0][1].headers['x-goog-api-key']).toBeUndefined()
+    expect(fetchMock.mock.calls[0][1].headers['x-goog-api-key']).toBe('test-key')
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined()
     expect(results[0].usage.cachedReadTokens).toBe(1000)
   })
 
-  test('falls back to Bearer auth when a Gemini proxy rejects API key auth', async () => {
+  test('falls back to Bearer auth when a Gemini native proxy rejects API key auth', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({
