@@ -1,5 +1,14 @@
 # Release Notes
 
+## v3.8.16 (2026-05-14)
+
+### 本次更新
+
+- 📊 OpenAI 缓存命中统计兼容 `usage.prompt_tokens_details.cached_tokens` 与 `usage.input_tokens_details.cached_tokens`
+- 🔌 修复部分 OpenAI-compatible 代理实际返回缓存命中字段，但 UI 仍显示为 0 的问题
+- 📚 缓存计算方法说明同步标注 Chat Completions 与 Responses 风格 usage 差异
+- 🧪 补充 Responses 风格 OpenAI usage 的缓存命中单元测试
+
 ## v3.8.15 (2026-05-14)
 
 ### 本次更新

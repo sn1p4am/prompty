@@ -151,16 +151,19 @@ function buildRoundPrompt(staticPrefix, dynamicPrompt, roundIndex) {
 }
 
 function normalizeOpenAiUsage(usage = {}) {
-    const promptTokens = safeNumber(usage.prompt_tokens)
-    const cachedReadTokens = safeNumber(usage.prompt_tokens_details?.cached_tokens)
-    const outputTokens = safeNumber(usage.completion_tokens)
+    const inputTokens = safeNumber(usage.prompt_tokens ?? usage.input_tokens)
+    const cachedReadTokens = safeNumber(
+        usage.prompt_tokens_details?.cached_tokens
+        ?? usage.input_tokens_details?.cached_tokens
+    )
+    const outputTokens = safeNumber(usage.completion_tokens ?? usage.output_tokens)
 
     return {
-        inputTokens: promptTokens,
+        inputTokens,
         cachedReadTokens,
         cacheCreationTokens: 0,
         outputTokens,
-        totalTokens: safeNumber(usage.total_tokens) || promptTokens + outputTokens,
+        totalTokens: safeNumber(usage.total_tokens) || inputTokens + outputTokens,
         rawUsage: usage,
     }
 }

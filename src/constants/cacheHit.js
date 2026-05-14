@@ -15,10 +15,10 @@ export const CACHE_API_FORMAT_INFO = {
         defaultBaseUrl: 'https://api.openai.com/v1',
         defaultModel: 'gpt-4.1',
         supportedModes: [CACHE_MODES.AUTO],
-        usagePath: 'usage.prompt_tokens_details.cached_tokens',
+        usagePath: 'usage.prompt_tokens_details.cached_tokens / usage.input_tokens_details.cached_tokens',
         docsUrl: 'https://developers.openai.com/api/docs/guides/prompt-caching',
         docsLabel: 'OpenAI Prompt Caching',
-        note: 'OpenAI 对 1024 tokens 以上的提示词自动启用前缀缓存；相同静态内容放在开头，变量放在末尾。可用 cached_tokens / prompt_tokens 估算命中率。',
+        note: 'OpenAI 对 1024 tokens 以上的提示词自动启用前缀缓存；Chat Completions 通常返回 prompt_tokens_details.cached_tokens，Responses 或部分代理可能返回 input_tokens_details.cached_tokens。',
     },
     [CACHE_API_FORMATS.CLAUDE]: {
         name: 'Claude',
@@ -68,7 +68,7 @@ Architecture notes:
 The text test workspace sends repeated chat-completion requests with configurable provider, model, sampling settings, concurrency, interval, and stream mode. The image workspace sends batch image generation jobs and normalizes provider-specific outputs into a common result grid. The cache hit workspace should issue serial requests so that the previous request has time to create or refresh a provider-side cache entry.
 
 Provider behavior summary:
-OpenAI prompt caching is automatic for long prompts. The usage object exposes prompt_tokens and prompt_tokens_details.cached_tokens. Cache hits require identical prompt prefixes, and static content should be placed before dynamic user content.
+OpenAI prompt caching is automatic for long prompts. The usage object exposes cached_tokens under prompt_tokens_details for Chat-style responses, while Responses-style payloads may expose input_tokens_details.cached_tokens. Cache hits require identical prompt prefixes, and static content should be placed before dynamic user content.
 Claude prompt caching can be explicit with cache_control breakpoints. The usage object exposes input_tokens, cache_creation_input_tokens, and cache_read_input_tokens. The first request often creates the cache and later requests read from it.
 Gemini context caching can be implicit on supported models or explicit with cachedContents. The usage metadata exposes promptTokenCount and cachedContentTokenCount. Explicit cached content has a TTL and may have storage-related billing implications.
 

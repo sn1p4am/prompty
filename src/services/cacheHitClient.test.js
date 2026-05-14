@@ -90,6 +90,40 @@ describe('runCacheHitTest provider usage parsing', () => {
     expect(summary.hitRate).toBeCloseTo(1024 / 1200)
   })
 
+  test('reads OpenAI-compatible Responses-style cached tokens', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({
+      choices: [{ message: { content: 'ok' } }],
+      usage: {
+        input_tokens: 1200,
+        output_tokens: 12,
+        total_tokens: 1212,
+        input_tokens_details: {
+          cached_tokens: 960,
+        },
+      },
+    }))
+    globalThis.fetch = fetchMock
+
+    const { results, summary } = await runCacheHitTest({
+      apiFormat: CACHE_API_FORMATS.OPENAI,
+      cacheMode: CACHE_MODES.AUTO,
+      apiKey: 'test-key',
+      baseUrl: 'https://api.openai.com/v1',
+      model: 'gpt-5.5',
+      staticPrefix: 'static '.repeat(300),
+      dynamicPromptsText: 'question',
+      rounds: 2,
+      interval: 0,
+      maxTokens: 32,
+      temperature: 0,
+    })
+
+    expect(results[0].usage.inputTokens).toBe(1200)
+    expect(results[0].usage.cachedReadTokens).toBe(960)
+    expect(results[0].usage.outputTokens).toBe(12)
+    expect(summary.hitRate).toBeCloseTo(960 / 1200)
+  })
+
   test('reads Claude cache read and creation tokens', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({
       content: [{ type: 'text', text: 'ok' }],
