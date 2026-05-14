@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.9',
+    version: 'v3.8.10',
     date: '2026-05-14',
     changes: [
-        { emoji: '🧱', label: 'CORS 诊断', desc: 'OpenAI 图像请求遇到浏览器跨域拦截时显示可操作错误提示' },
-        { emoji: '🔁', label: '同源代理路径', desc: 'Base URL 支持 /api/openai 这类相对路径，方便接入后端或边缘代理' },
-        { emoji: '🧪', label: '网络失败测试', desc: '补充 CORS/Failed to fetch 与相对路径归一化测试' },
-        { emoji: '🌐', label: '代理地址兼容', desc: '继续支持自定义 OpenAI-compatible Base URL 的容错清理' },
+        { emoji: '🛑', label: 'CORS 前置拦截', desc: '识别 llmapi.devart.ai 这类会拒绝浏览器预检的 Base URL，避免继续发失败请求' },
+        { emoji: '🧭', label: '配置提示', desc: 'Base URL 输入框会直接提示需要启用 CORS 或改用已部署的代理地址' },
+        { emoji: '🔁', label: '代理路径说明', desc: '/api/openai 仅在同源后端或边缘路由真实存在时使用' },
+        { emoji: '🧪', label: '拦截测试', desc: '新增已知 CORS 阻断地址不触发 fetch 的测试覆盖' },
     ]
 }
 

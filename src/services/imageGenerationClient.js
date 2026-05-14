@@ -41,6 +41,10 @@ function normalizeOpenAIModel(model) {
     return String(model || '').trim()
 }
 
+const OPENAI_BROWSER_BLOCKED_HOSTS = new Set([
+    'llmapi.devart.ai',
+])
+
 function normalizeOpenAIPathname(pathname) {
     let normalizedPathname = String(pathname || '')
         .split(/[?#]/)[0]
@@ -86,6 +90,37 @@ function normalizeOpenAIBaseUrl(baseUrl, fallbackBaseUrl = IMAGE_GENERATION_PROV
     parsedUrl.hash = ''
 
     return parsedUrl.toString().replace(/\/$/, '')
+}
+
+export function getOpenAIBaseUrlBrowserIssue(baseUrl, pageOrigin = globalThis.location?.origin) {
+    const rawBaseUrl = String(baseUrl || '').trim()
+
+    if (!rawBaseUrl || rawBaseUrl.startsWith('/')) {
+        return ''
+    }
+
+    let normalizedBaseUrl
+    try {
+        normalizedBaseUrl = normalizeOpenAIBaseUrl(rawBaseUrl)
+    } catch {
+        return ''
+    }
+
+    let parsedUrl
+    try {
+        parsedUrl = new URL(normalizedBaseUrl)
+    } catch {
+        return ''
+    }
+
+    if (!OPENAI_BROWSER_BLOCKED_HOSTS.has(parsedUrl.hostname.toLowerCase())) {
+        return ''
+    }
+
+    const originHint = pageOrigin ? `当前页面来源是 ${pageOrigin}，` : ''
+    return `${originHint}${parsedUrl.hostname} 的浏览器预检请求没有返回 Access-Control-Allow-Origin。` +
+        '请让该服务放行 OPTIONS/POST 以及 Authorization、Content-Type，或改填带 CORS 的代理 Base URL；' +
+        '只有实际部署了后端路由时才可使用 /api/openai。'
 }
 
 function buildOpenAINetworkError(error, requestUrl) {
@@ -513,6 +548,11 @@ async function generateOpenAIImage({ apiKey, model, settings, signal }) {
     const requestStartTime = now()
     const baseUrl = normalizeOpenAIBaseUrl(settings.openaiBaseUrl)
     const requestUrl = `${baseUrl}/images/generations`
+    const browserIssue = getOpenAIBaseUrlBrowserIssue(baseUrl)
+    if (browserIssue) {
+        throw new Error(`OpenAI Base URL 无法在浏览器直连。${browserIssue}`)
+    }
+
     let response
     try {
         response = await fetch(requestUrl, {

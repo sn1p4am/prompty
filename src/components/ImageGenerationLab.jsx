@@ -19,6 +19,7 @@ import { Textarea } from './ui/textarea'
 import { Badge } from './ui/badge'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { useImageGenerationBatch } from '../hooks/useImageGenerationBatch'
+import { getOpenAIBaseUrlBrowserIssue } from '../services/imageGenerationClient'
 import {
     DEFAULT_IMAGE_GENERATION_SETTINGS,
     FAL_IMAGE_SIZE_PRESETS,
@@ -448,6 +449,9 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
     const estimatedTotalImages = estimatedCount.batchCount * estimatedCount.numImages
     const savedApiKey = apiKeys?.[normalizedSettings.provider] || ''
     const hasApiKey = Boolean(savedApiKey)
+    const openAIBaseUrlIssue = normalizedSettings.provider === IMAGE_GENERATION_PROVIDERS.OPENAI
+        ? getOpenAIBaseUrlBrowserIssue(normalizedSettings.openaiBaseUrl)
+        : ''
 
     const setField = (field, value) => {
         setSettings(prev => updateField(mergeSettings(prev), field, value))
@@ -500,6 +504,11 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
     }
 
     const handleStart = () => {
+        if (openAIBaseUrlIssue) {
+            onToast?.('OpenAI Base URL 当前不能从浏览器直连，请改用已配置 CORS 的代理地址')
+            return
+        }
+
         setImageLoadDurations({})
         batch.startBatch({
             provider: normalizedSettings.provider,
@@ -1070,6 +1079,11 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                             disabled={batch.isRunning}
                                             className="h-9 text-xs font-mono"
                                         />
+                                        {openAIBaseUrlIssue && (
+                                            <div className="mt-2 border border-destructive/60 bg-destructive/10 p-2 text-[11px] leading-relaxed text-destructive">
+                                                {openAIBaseUrlIssue}
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div>

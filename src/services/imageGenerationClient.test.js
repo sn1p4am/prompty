@@ -5,6 +5,7 @@ import {
   buildOpenAIImageGenerationPayload,
   buildTogetherImageGenerationPayload,
   generateImage,
+  getOpenAIBaseUrlBrowserIssue,
 } from './imageGenerationClient'
 
 describe('fal.ai image generation client', () => {
@@ -448,7 +449,7 @@ describe('OpenAI image generation client', () => {
       model: 'gpt-image-2',
       settings: {
         prompt: 'A blocked browser request',
-        openaiBaseUrl: 'https://llmapi.devart.ai/v1',
+        openaiBaseUrl: 'https://proxy.example.com/v1',
         openaiSizePreset: '1024x1024',
         openaiQuality: 'medium',
         openaiNumImages: 1,
@@ -459,6 +460,40 @@ describe('OpenAI image generation client', () => {
         openaiPartialImages: 0,
       },
     })).rejects.toThrow('目标服务没有返回 Access-Control-Allow-Origin')
+  })
+
+  test('blocks known OpenAI-compatible hosts that reject browser CORS preflight', async () => {
+    const fetchMock = vi.fn()
+    globalThis.fetch = fetchMock
+
+    const issue = getOpenAIBaseUrlBrowserIssue(
+      'https://llmapi.devart.ai/v1',
+      'https://sn1p4am.github.io'
+    )
+
+    expect(issue).toContain('llmapi.devart.ai')
+    expect(issue).toContain('Access-Control-Allow-Origin')
+    expect(getOpenAIBaseUrlBrowserIssue('/api/openai')).toBe('')
+    expect(getOpenAIBaseUrlBrowserIssue('https://api.openai.com/v1')).toBe('')
+
+    await expect(generateImage({
+      provider: IMAGE_GENERATION_PROVIDERS.OPENAI,
+      apiKey: 'openai-test-key',
+      model: 'gpt-image-2',
+      settings: {
+        prompt: 'A blocked host request',
+        openaiBaseUrl: 'https://llmapi.devart.ai/v1',
+        openaiSizePreset: '1024x1024',
+        openaiQuality: 'medium',
+        openaiNumImages: 1,
+        openaiOutputFormat: 'png',
+        openaiBackground: 'auto',
+        openaiModeration: 'auto',
+        openaiStream: false,
+        openaiPartialImages: 0,
+      },
+    })).rejects.toThrow('OpenAI Base URL 无法在浏览器直连')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   test('normalizes streamed OpenAI final image events', async () => {
