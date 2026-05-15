@@ -3,6 +3,7 @@ export const IMAGE_GENERATION_PROVIDERS = {
     TOGETHER: 'together',
     DEVART: 'devart',
     CLOUDSWAY: 'cloudsway',
+    OFOX: 'ofox',
 }
 
 export const LEGACY_OPENAI_IMAGE_PROVIDER = 'openai'
@@ -23,6 +24,17 @@ export const CLOUDSWAY_IMAGE_SIZE_PRESETS = [
     { value: '1024x1024', label: '1024x1024 - square' },
     { value: '1536x1024', label: '1536x1024 - landscape' },
     { value: '1024x1536', label: '1024x1536 - portrait' },
+]
+
+export const OFOX_IMAGE_SIZE_PRESETS = [
+    { value: 'auto', label: 'auto - model selected' },
+    { value: '1024x1024', label: '1024x1024 - square' },
+    { value: '1536x1024', label: '1536x1024 - landscape' },
+    { value: '1024x1536', label: '1024x1536 - portrait' },
+    { value: '256x256', label: '256x256 - small square' },
+    { value: '512x512', label: '512x512 - medium square' },
+    { value: '1792x1024', label: '1792x1024 - wide' },
+    { value: '1024x1792', label: '1024x1792 - tall' },
 ]
 
 export const IMAGE_GENERATION_PROVIDER_INFO = {
@@ -88,9 +100,17 @@ export const IMAGE_GENERATION_PROVIDER_INFO = {
             parameterTitle: 'DEVART.IMAGE.PARAMETERS',
             sizePresets: OPENAI_IMAGE_SIZE_PRESETS,
             defaultSize: 'auto',
+            qualityOptions: ['auto', 'low', 'medium', 'high'],
+            defaultQuality: 'auto',
+            outputFormats: ['png', 'jpeg', 'webp'],
             allowCustomSize: true,
             backgroundOptions: ['auto', 'opaque', 'transparent'],
+            moderationOptions: ['auto', 'low'],
             maxImages: 10,
+            supportsOutputCompression: true,
+            supportsModeration: true,
+            supportsPartialImages: true,
+            supportsUser: true,
         },
     },
     [IMAGE_GENERATION_PROVIDERS.CLOUDSWAY]: {
@@ -107,14 +127,48 @@ export const IMAGE_GENERATION_PROVIDER_INFO = {
             parameterTitle: 'CLOUDSWAY.IMAGE2.PARAMETERS',
             sizePresets: CLOUDSWAY_IMAGE_SIZE_PRESETS,
             defaultSize: 'auto',
+            qualityOptions: ['auto', 'low', 'medium', 'high'],
+            defaultQuality: 'auto',
+            outputFormats: ['png', 'jpeg', 'webp'],
             allowCustomSize: false,
             backgroundOptions: ['auto', 'opaque'],
+            moderationOptions: ['auto', 'low'],
             maxImages: 10,
+            supportsOutputCompression: true,
+            supportsModeration: true,
+            supportsPartialImages: true,
+            supportsUser: true,
+        },
+    },
+    [IMAGE_GENERATION_PROVIDERS.OFOX]: {
+        name: 'OfoxAI',
+        baseUrl: 'https://api.ofox.ai/v1',
+        keyLabel: 'OFOX_API_KEY',
+        keyStorageKey: 'ofox_image_generation_api_key',
+        defaultModel: 'openai/gpt-image-2',
+        models: [
+            'openai/gpt-image-2',
+        ],
+        modelLocked: true,
+        openaiCompatible: {
+            parameterTitle: 'OFOX.IMAGE.PARAMETERS',
+            sizePresets: OFOX_IMAGE_SIZE_PRESETS,
+            defaultSize: '1024x1024',
+            qualityOptions: ['auto', 'low', 'medium', 'high', 'standard', 'hd'],
+            defaultQuality: 'low',
+            outputFormats: ['png', 'jpeg', 'webp'],
+            allowCustomSize: false,
+            backgroundOptions: ['auto', 'opaque', 'transparent'],
+            maxImages: 10,
+            supportsOutputCompression: false,
+            supportsModeration: false,
+            supportsPartialImages: false,
+            supportsUser: false,
         },
     },
 }
 
-export const IMAGE_GENERATION_SETTINGS_VERSION = 6
+export const IMAGE_GENERATION_SETTINGS_VERSION = 7
 
 export const FAL_IMAGE_SIZE_PRESETS = [
     { value: 'square_hd', label: 'square_hd - 1024x1024', width: 1024, height: 1024 },

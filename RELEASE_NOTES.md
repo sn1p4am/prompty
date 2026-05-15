@@ -1,5 +1,15 @@
 # Release Notes
 
+## v3.8.24 (2026-05-15)
+
+### 本次更新
+
+- 🦊 图像生成测试新增 OfoxAI 渠道，固定请求 `https://api.ofox.ai/v1/images/generations`
+- 🔒 OfoxAI 模型输入锁定为 `openai/gpt-image-2`，避免误选 Gemini 图像模型触发不同参数约束
+- ⚙️ OfoxAI 生图参数按文档适配：支持 `auto`、`1024x1024`、`1536x1024`、`1024x1536`、`256x256`、`512x512`、`1792x1024`、`1024x1792` 尺寸
+- 🎚️ OfoxAI quality 支持 `auto`、`low`、`medium`、`high`、`standard`、`hd`，并隐藏未声明的压缩、moderation、partial images 与 user 字段
+- 🧪 补充 OfoxAI 固定 endpoint、payload 字段裁剪和参数拦截单元测试
+
 ## v3.8.23 (2026-05-15)
 
 ### 本次更新

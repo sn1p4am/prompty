@@ -488,6 +488,8 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
             model: nextProviderInfo?.defaultModel || '',
             ...(nextOpenAIConfig && {
                 openaiSizePreset: nextOpenAIConfig.defaultSize || 'auto',
+                openaiQuality: nextOpenAIConfig.defaultQuality || 'auto',
+                openaiOutputFormat: nextOpenAIConfig.outputFormats?.[0] || 'png',
                 openaiBackground: nextOpenAIConfig.backgroundOptions?.[0] || 'auto',
             }),
         }))
@@ -1157,10 +1159,9 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                             onChange={(event) => setField('openaiQuality', event.target.value)}
                                             disabled={batch.isRunning}
                                         >
-                                            <option value="auto">auto</option>
-                                            <option value="low">low</option>
-                                            <option value="medium">medium</option>
-                                            <option value="high">high</option>
+                                            {openAICompatibleConfig.qualityOptions.map(value => (
+                                                <option key={value} value={value}>{value}</option>
+                                            ))}
                                         </Select>
                                     </div>
 
@@ -1184,13 +1185,13 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                             onChange={(event) => setField('openaiOutputFormat', event.target.value)}
                                             disabled={batch.isRunning}
                                         >
-                                            <option value="png">png</option>
-                                            <option value="jpeg">jpeg</option>
-                                            <option value="webp">webp</option>
+                                            {openAICompatibleConfig.outputFormats.map(value => (
+                                                <option key={value} value={value}>{value}</option>
+                                            ))}
                                         </Select>
                                     </div>
 
-                                    {(normalizedSettings.openaiOutputFormat === 'jpeg' || normalizedSettings.openaiOutputFormat === 'webp') && (
+                                    {openAICompatibleConfig.supportsOutputCompression !== false && (normalizedSettings.openaiOutputFormat === 'jpeg' || normalizedSettings.openaiOutputFormat === 'webp') && (
                                         <div>
                                             <Label className={FIELD_LABEL_CLASS}>压缩 0-100</Label>
                                             <Input
@@ -1218,17 +1219,20 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                         </Select>
                                     </div>
 
-                                    <div>
-                                        <Label className={FIELD_LABEL_CLASS}>Moderation</Label>
-                                        <Select
-                                            value={normalizedSettings.openaiModeration}
-                                            onChange={(event) => setField('openaiModeration', event.target.value)}
-                                            disabled={batch.isRunning}
-                                        >
-                                            <option value="auto">auto</option>
-                                            <option value="low">low</option>
-                                        </Select>
-                                    </div>
+                                    {openAICompatibleConfig.supportsModeration !== false && (
+                                        <div>
+                                            <Label className={FIELD_LABEL_CLASS}>Moderation</Label>
+                                            <Select
+                                                value={normalizedSettings.openaiModeration}
+                                                onChange={(event) => setField('openaiModeration', event.target.value)}
+                                                disabled={batch.isRunning}
+                                            >
+                                                {openAICompatibleConfig.moderationOptions.map(value => (
+                                                    <option key={value} value={value}>{value}</option>
+                                                ))}
+                                            </Select>
+                                        </div>
+                                    )}
 
                                     <div>
                                         <Label className={FIELD_LABEL_CLASS}>Streaming</Label>
@@ -1242,7 +1246,7 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                         </Select>
                                     </div>
 
-                                    {normalizedSettings.openaiStream && (
+                                    {openAICompatibleConfig.supportsPartialImages !== false && normalizedSettings.openaiStream && (
                                         <div>
                                             <Label className={FIELD_LABEL_CLASS}>Partial Images</Label>
                                             <Select
@@ -1257,17 +1261,19 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                         </div>
                                     )}
 
-                                    <div className="sm:col-span-2 lg:col-span-4">
-                                        <Label className={FIELD_LABEL_CLASS}>User ID</Label>
-                                        <Input
-                                            type="text"
-                                            value={normalizedSettings.openaiUser}
-                                            placeholder="optional end-user id"
-                                            onChange={(event) => setField('openaiUser', event.target.value)}
-                                            disabled={batch.isRunning}
-                                            className={NUMBER_INPUT_CLASS}
-                                        />
-                                    </div>
+                                    {openAICompatibleConfig.supportsUser !== false && (
+                                        <div className="sm:col-span-2 lg:col-span-4">
+                                            <Label className={FIELD_LABEL_CLASS}>User ID</Label>
+                                            <Input
+                                                type="text"
+                                                value={normalizedSettings.openaiUser}
+                                                placeholder="optional end-user id"
+                                                onChange={(event) => setField('openaiUser', event.target.value)}
+                                                disabled={batch.isRunning}
+                                                className={NUMBER_INPUT_CLASS}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </section>

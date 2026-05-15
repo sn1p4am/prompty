@@ -232,17 +232,6 @@ export function buildOpenAIImageGenerationPayload(settings, model, provider = IM
         max: providerConfig.maxImages || 10,
         integer: true,
     })
-    const outputCompression = parseNumber(settings.openaiOutputCompression, '输出压缩', {
-        min: 0,
-        max: 100,
-        integer: true,
-    })
-    const partialImages = parseNumber(settings.openaiPartialImages, 'Partial Images', {
-        min: 0,
-        max: 3,
-        integer: true,
-    })
-
     let size = settings.openaiSizePreset || 'auto'
     const isCustomSize = size === 'custom'
     if (size === 'custom') {
@@ -270,7 +259,40 @@ export function buildOpenAIImageGenerationPayload(settings, model, provider = IM
     }
 
     const outputFormat = settings.openaiOutputFormat || 'png'
+    const supportedOutputFormats = providerConfig.outputFormats
+    if (supportedOutputFormats?.length && !supportedOutputFormats.includes(outputFormat)) {
+        throw new Error(`${providerInfo.name || '当前渠道'} 不支持输出格式 ${outputFormat}`)
+    }
+    const supportsOutputCompression = providerConfig.supportsOutputCompression !== false
+    const shouldSendOutputCompression = supportsOutputCompression && (outputFormat === 'jpeg' || outputFormat === 'webp')
+    const outputCompression = shouldSendOutputCompression
+        ? parseNumber(settings.openaiOutputCompression, '输出压缩', {
+            min: 0,
+            max: 100,
+            integer: true,
+        })
+        : null
+
+    const quality = settings.openaiQuality || providerConfig.defaultQuality || 'auto'
+    const supportedQualities = providerConfig.qualityOptions
+    if (supportedQualities?.length && !supportedQualities.includes(quality)) {
+        throw new Error(`${providerInfo.name || '当前渠道'} 不支持质量参数 ${quality}`)
+    }
+
+    const moderation = settings.openaiModeration || 'auto'
+    const supportedModerations = providerConfig.moderationOptions
+    if (providerConfig.supportsModeration !== false && supportedModerations?.length && !supportedModerations.includes(moderation)) {
+        throw new Error(`${providerInfo.name || '当前渠道'} 不支持 Moderation 参数 ${moderation}`)
+    }
+
     const stream = Boolean(settings.openaiStream)
+    const partialImages = providerConfig.supportsPartialImages !== false
+        ? parseNumber(settings.openaiPartialImages, 'Partial Images', {
+            min: 0,
+            max: 3,
+            integer: true,
+        })
+        : null
     const user = String(settings.openaiUser || '').trim()
     const background = settings.openaiBackground || 'auto'
     const supportedBackgrounds = providerConfig.backgroundOptions
@@ -283,17 +305,17 @@ export function buildOpenAIImageGenerationPayload(settings, model, provider = IM
         model: normalizedModel,
         prompt,
         ...(numImages !== null && { n: numImages }),
-        quality: settings.openaiQuality || 'auto',
+        quality,
         output_format: outputFormat,
-        ...((outputFormat === 'jpeg' || outputFormat === 'webp') && outputCompression !== null && {
+        ...(shouldSendOutputCompression && outputCompression !== null && {
             output_compression: outputCompression,
         }),
         stream,
-        ...(stream && partialImages !== null && { partial_images: partialImages }),
+        ...(providerConfig.supportsPartialImages !== false && stream && partialImages !== null && { partial_images: partialImages }),
         size,
-        moderation: settings.openaiModeration || 'auto',
+        ...(providerConfig.supportsModeration !== false && { moderation }),
         background,
-        ...(user && { user }),
+        ...(providerConfig.supportsUser !== false && user && { user }),
     }
 }
 

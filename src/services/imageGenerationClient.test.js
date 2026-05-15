@@ -446,6 +446,72 @@ describe('OpenAI-compatible image generation client', () => {
     expect(result.usage.total_tokens).toBe(234)
   })
 
+  test('posts to the fixed OfoxAI images endpoint and omits unsupported optional fields', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      headers: {
+        get: vi.fn(() => null),
+      },
+      text: async () => JSON.stringify({
+        created: 1777385517,
+        model: 'openai/gpt-image-2',
+        size: '512x512',
+        quality: 'standard',
+        data: [
+          {
+            index: 0,
+            b64_json: 'ofox-image-b64',
+          },
+        ],
+        usage: {
+          total_tokens: 222,
+        },
+      }),
+    }))
+    globalThis.fetch = fetchMock
+
+    const result = await generateImage({
+      provider: IMAGE_GENERATION_PROVIDERS.OFOX,
+      apiKey: 'ofox-test-key',
+      model: 'openai/gpt-image-2',
+      settings: {
+        prompt: 'An OfoxAI image request',
+        openaiSizePreset: '512x512',
+        openaiQuality: 'standard',
+        openaiNumImages: 2,
+        openaiOutputFormat: 'webp',
+        openaiOutputCompression: 66,
+        openaiBackground: 'transparent',
+        openaiModeration: 'low',
+        openaiStream: false,
+        openaiPartialImages: 3,
+        openaiUser: 'user-should-not-send',
+      },
+    })
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.ofox.ai/v1/images/generations')
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer ofox-test-key')
+    expect(body).toMatchObject({
+      model: 'openai/gpt-image-2',
+      prompt: 'An OfoxAI image request',
+      size: '512x512',
+      quality: 'standard',
+      n: 2,
+      output_format: 'webp',
+      background: 'transparent',
+      stream: false,
+    })
+    expect(body.output_compression).toBeUndefined()
+    expect(body.moderation).toBeUndefined()
+    expect(body.partial_images).toBeUndefined()
+    expect(body.user).toBeUndefined()
+    expect(result.provider).toBe(IMAGE_GENERATION_PROVIDERS.OFOX)
+    expect(result.images[0].url).toBe('data:image/webp;base64,ofox-image-b64')
+    expect(result.usage.total_tokens).toBe(222)
+  })
+
   test('rejects Cloudsway-only unsupported generation parameters before sending', () => {
     expect(() => buildOpenAIImageGenerationPayload({
       prompt: 'A custom Cloudsway size',
@@ -472,6 +538,30 @@ describe('OpenAI-compatible image generation client', () => {
       openaiStream: false,
       openaiPartialImages: '0',
     }, 'MaaS_GP_image_2', IMAGE_GENERATION_PROVIDERS.CLOUDSWAY)).toThrow('不支持背景参数 transparent')
+  })
+
+  test('rejects OfoxAI unsupported image generation values before sending', () => {
+    expect(() => buildOpenAIImageGenerationPayload({
+      prompt: 'An unsupported OfoxAI size',
+      openaiSizePreset: '2048x2048',
+      openaiQuality: 'low',
+      openaiNumImages: '1',
+      openaiOutputFormat: 'png',
+      openaiBackground: 'auto',
+      openaiStream: false,
+      openaiPartialImages: '0',
+    }, 'openai/gpt-image-2', IMAGE_GENERATION_PROVIDERS.OFOX)).toThrow('不支持图像尺寸 2048x2048')
+
+    expect(() => buildOpenAIImageGenerationPayload({
+      prompt: 'An unsupported OfoxAI quality',
+      openaiSizePreset: '1024x1024',
+      openaiQuality: 'ultra',
+      openaiNumImages: '1',
+      openaiOutputFormat: 'png',
+      openaiBackground: 'auto',
+      openaiStream: false,
+      openaiPartialImages: '0',
+    }, 'openai/gpt-image-2', IMAGE_GENERATION_PROVIDERS.OFOX)).toThrow('不支持质量参数 ultra')
   })
 
   test('explains browser CORS or network failures for fixed image channels', async () => {

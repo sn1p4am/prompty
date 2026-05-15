@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.23',
+    version: 'v3.8.24',
     date: '2026-05-15',
     changes: [
-        { emoji: '🧭', label: '渠道选择', desc: '图像测试改为 DevArt / Cloudsway 固定渠道' },
-        { emoji: '🔒', label: '固定端点', desc: '移除 Base URL 输入，DevArt 固定 llmapi' },
-        { emoji: '☁️', label: 'Cloudsway', desc: '新增 image-2 endpoint 与 MaaS_GP_image_2 锁定模型' },
-        { emoji: '🧪', label: '参数校验', desc: '按渠道限制尺寸、背景与请求 payload' },
+        { emoji: '🦊', label: 'OfoxAI', desc: '图像测试新增 OfoxAI 生图渠道' },
+        { emoji: '🔒', label: '锁定模型', desc: '固定 openai/gpt-image-2 与 api.ofox.ai' },
+        { emoji: '⚙️', label: '参数适配', desc: '支持 Ofox 尺寸、quality 与输出格式选项' },
+        { emoji: '🧪', label: '测试覆盖', desc: '补充 Ofox payload 与参数拦截测试' },
     ]
 }
 
