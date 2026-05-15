@@ -3,12 +3,12 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.25',
+    version: 'v3.8.26',
     date: '2026-05-15',
     changes: [
-        { emoji: '🦊', label: 'OfoxAI', desc: '补全 image-2 常见高分辨率尺寸' },
-        { emoji: '📐', label: '尺寸选项', desc: '新增 2K/4K square、landscape、portrait' },
-        { emoji: '🧪', label: '测试覆盖', desc: '更新 Ofox 尺寸允许与拦截测试' },
+        { emoji: '🧹', label: '界面精简', desc: '移除 PROMPTY 标题旁的重复版本号' },
+        { emoji: '🏷️', label: '版本入口', desc: '仅保留系统状态右侧版本徽章' },
+        { emoji: '📌', label: '一致性', desc: '避免硬编码旧版本号误导' },
         { emoji: '🚀', label: '发布', desc: '同步 release notes 与版本号' },
     ]
 }
