@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.24',
+    version: 'v3.8.25',
     date: '2026-05-15',
     changes: [
-        { emoji: '🦊', label: 'OfoxAI', desc: '图像测试新增 OfoxAI 生图渠道' },
-        { emoji: '🔒', label: '锁定模型', desc: '固定 openai/gpt-image-2 与 api.ofox.ai' },
-        { emoji: '⚙️', label: '参数适配', desc: '支持 Ofox 尺寸、quality 与输出格式选项' },
-        { emoji: '🧪', label: '测试覆盖', desc: '补充 Ofox payload 与参数拦截测试' },
+        { emoji: '🦊', label: 'OfoxAI', desc: '补全 image-2 常见高分辨率尺寸' },
+        { emoji: '📐', label: '尺寸选项', desc: '新增 2K/4K square、landscape、portrait' },
+        { emoji: '🧪', label: '测试覆盖', desc: '更新 Ofox 尺寸允许与拦截测试' },
+        { emoji: '🚀', label: '发布', desc: '同步 release notes 与版本号' },
     ]
 }
 

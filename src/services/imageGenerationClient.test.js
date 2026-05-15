@@ -540,9 +540,9 @@ describe('OpenAI-compatible image generation client', () => {
     }, 'MaaS_GP_image_2', IMAGE_GENERATION_PROVIDERS.CLOUDSWAY)).toThrow('不支持背景参数 transparent')
   })
 
-  test('rejects OfoxAI unsupported image generation values before sending', () => {
-    expect(() => buildOpenAIImageGenerationPayload({
-      prompt: 'An unsupported OfoxAI size',
+  test('supports extended OfoxAI image-2 sizes', () => {
+    const payload = buildOpenAIImageGenerationPayload({
+      prompt: 'A high resolution OfoxAI square',
       openaiSizePreset: '2048x2048',
       openaiQuality: 'low',
       openaiNumImages: '1',
@@ -550,7 +550,22 @@ describe('OpenAI-compatible image generation client', () => {
       openaiBackground: 'auto',
       openaiStream: false,
       openaiPartialImages: '0',
-    }, 'openai/gpt-image-2', IMAGE_GENERATION_PROVIDERS.OFOX)).toThrow('不支持图像尺寸 2048x2048')
+    }, 'openai/gpt-image-2', IMAGE_GENERATION_PROVIDERS.OFOX)
+
+    expect(payload.size).toBe('2048x2048')
+  })
+
+  test('rejects OfoxAI unsupported image generation values before sending', () => {
+    expect(() => buildOpenAIImageGenerationPayload({
+      prompt: 'An unsupported OfoxAI size',
+      openaiSizePreset: '1280x720',
+      openaiQuality: 'low',
+      openaiNumImages: '1',
+      openaiOutputFormat: 'png',
+      openaiBackground: 'auto',
+      openaiStream: false,
+      openaiPartialImages: '0',
+    }, 'openai/gpt-image-2', IMAGE_GENERATION_PROVIDERS.OFOX)).toThrow('不支持图像尺寸 1280x720')
 
     expect(() => buildOpenAIImageGenerationPayload({
       prompt: 'An unsupported OfoxAI quality',
