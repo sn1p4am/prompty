@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.22',
-    date: '2026-05-14',
+    version: 'v3.8.23',
+    date: '2026-05-15',
     changes: [
-        { emoji: '🧾', label: '响应头', desc: '缓存测试结果保留 Response Headers' },
-        { emoji: '🕵️', label: 'GCP 溯源', desc: '展示 request id / trace header 便于排查' },
-        { emoji: '📋', label: '复制调试', desc: '一键复制 usage 与调试元数据' },
-        { emoji: '🧪', label: '测试覆盖', desc: '补充响应头采集单元测试' },
+        { emoji: '🧭', label: '渠道选择', desc: '图像测试改为 DevArt / Cloudsway 固定渠道' },
+        { emoji: '🔒', label: '固定端点', desc: '移除 Base URL 输入，DevArt 固定 llmapi' },
+        { emoji: '☁️', label: 'Cloudsway', desc: '新增 image-2 endpoint 与 MaaS_GP_image_2 锁定模型' },
+        { emoji: '🧪', label: '参数校验', desc: '按渠道限制尺寸、背景与请求 payload' },
     ]
 }
 

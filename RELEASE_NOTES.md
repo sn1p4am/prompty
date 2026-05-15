@@ -1,5 +1,15 @@
 # Release Notes
 
+## v3.8.23 (2026-05-15)
+
+### 本次更新
+
+- 🧭 图像生成测试取消 Base URL 手动输入，改为 DevArt 与 Cloudsway 两个固定渠道选项
+- 🔒 DevArt 渠道固定走 `https://llmapi.devart.ai/v1/images/generations`，旧版 `openai` 本地配置会自动迁移到 DevArt
+- ☁️ 新增 Cloudsway image-2 渠道，固定端点 `https://genaiapi.cloudsway.net/v1/ai/kGqPeTeUIsCKbUCG/images/generations`
+- 🧷 Cloudsway 模型输入锁定为 `MaaS_GP_image_2`，并按渠道限制尺寸、背景、流式与输出格式参数
+- 🧪 更新图像生成请求测试，覆盖 DevArt 固定 endpoint、Cloudsway payload、参数拦截与流式图像解析
+
 ## v3.8.22 (2026-05-14)
 
 ### 本次更新

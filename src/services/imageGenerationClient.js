@@ -41,62 +41,20 @@ function normalizeOpenAIModel(model) {
     return String(model || '').trim()
 }
 
-function normalizeOpenAIPathname(pathname) {
-    let normalizedPathname = String(pathname || '')
-        .split(/[?#]/)[0]
-        .replace(/\/+$/, '')
-        .replace(/\/(?:images\/generations|images\/edits|responses|chat\/completions)$/, '')
-        .replace(/\/+$/, '')
-
-    if (!normalizedPathname || normalizedPathname === '/') {
-        normalizedPathname = '/v1'
-    }
-
-    if (!/\/v1$/.test(normalizedPathname)) {
-        normalizedPathname = `${normalizedPathname}/v1`
-    }
-
-    return normalizedPathname
+function isOpenAICompatibleProvider(provider) {
+    return Boolean(IMAGE_GENERATION_PROVIDER_INFO[provider]?.openaiCompatible)
 }
 
-function normalizeOpenAIBaseUrl(baseUrl, fallbackBaseUrl = IMAGE_GENERATION_PROVIDER_INFO[IMAGE_GENERATION_PROVIDERS.OPENAI].baseUrl) {
-    const rawBaseUrl = String(baseUrl || '').trim()
-
-    if (!rawBaseUrl) {
-        return fallbackBaseUrl
-    }
-
-    if (rawBaseUrl.startsWith('/')) {
-        return normalizeOpenAIPathname(rawBaseUrl)
-    }
-
-    const withProtocol = /^[a-z][a-z\d+\-.]*:\/\//i.test(rawBaseUrl)
-        ? rawBaseUrl
-        : `https://${rawBaseUrl}`
-
-    let parsedUrl
-    try {
-        parsedUrl = new URL(withProtocol)
-    } catch {
-        throw new Error('OpenAI Base URL 格式不正确')
-    }
-
-    parsedUrl.pathname = normalizeOpenAIPathname(parsedUrl.pathname)
-    parsedUrl.search = ''
-    parsedUrl.hash = ''
-
-    return parsedUrl.toString().replace(/\/$/, '')
-}
-
-function buildOpenAINetworkError(error, requestUrl) {
+function buildOpenAINetworkError(error, requestUrl, provider) {
     const origin = globalThis.location?.origin
     const originHint = origin ? `当前页面来源：${origin}。` : ''
     const originalMessage = error?.message || 'Failed to fetch'
+    const providerName = IMAGE_GENERATION_PROVIDER_INFO[provider]?.name || 'OpenAI-compatible 图像渠道'
 
     return new Error(
-        `OpenAI 图像请求无法从浏览器直连 ${requestUrl}。${originHint}` +
+        `${providerName} 图像请求无法从浏览器直连 ${requestUrl}。${originHint}` +
         '如果控制台提示 CORS 或 preflight，说明目标服务没有返回 Access-Control-Allow-Origin；' +
-        '请在目标服务开启 CORS，或改用已允许当前页面来源的 OpenAI-compatible Base URL。' +
+        '请确认渠道服务允许当前页面来源，或改用已允许当前页面来源的后端代理。' +
         `原始错误：${originalMessage}`
     )
 }
@@ -251,21 +209,27 @@ function assertOpenAISizeConstraints(width, height) {
     }
 }
 
-export function buildOpenAIImageGenerationPayload(settings, model) {
+function getOpenAICompatibleConfig(provider) {
+    return IMAGE_GENERATION_PROVIDER_INFO[provider]?.openaiCompatible || {}
+}
+
+export function buildOpenAIImageGenerationPayload(settings, model, provider = IMAGE_GENERATION_PROVIDERS.DEVART) {
     const prompt = String(settings.prompt || '').trim()
     const normalizedModel = normalizeOpenAIModel(model || settings.model)
+    const providerInfo = IMAGE_GENERATION_PROVIDER_INFO[provider] || IMAGE_GENERATION_PROVIDER_INFO[IMAGE_GENERATION_PROVIDERS.DEVART]
+    const providerConfig = getOpenAICompatibleConfig(provider)
 
     if (!prompt) {
         throw new Error('请填写图像提示词')
     }
 
     if (!normalizedModel) {
-        throw new Error('请填写 OpenAI 模型 ID')
+        throw new Error(`请填写 ${providerInfo.name || '图像渠道'} 模型 ID`)
     }
 
     const numImages = parseNumber(settings.openaiNumImages, '单次出图数量', {
         min: 1,
-        max: 10,
+        max: providerConfig.maxImages || 10,
         integer: true,
     })
     const outputCompression = parseNumber(settings.openaiOutputCompression, '输出压缩', {
@@ -280,7 +244,12 @@ export function buildOpenAIImageGenerationPayload(settings, model) {
     })
 
     let size = settings.openaiSizePreset || 'auto'
+    const isCustomSize = size === 'custom'
     if (size === 'custom') {
+        if (providerConfig.allowCustomSize === false) {
+            throw new Error(`${providerInfo.name || '当前渠道'} 不支持自定义图像尺寸`)
+        }
+
         const width = parseNumber(settings.openaiCustomWidth, 'OpenAI 自定义宽度', {
             min: 16,
             max: 3840,
@@ -295,9 +264,20 @@ export function buildOpenAIImageGenerationPayload(settings, model) {
         size = `${width}x${height}`
     }
 
+    const supportedSizes = providerConfig.sizePresets?.map(item => item.value)
+    if (!isCustomSize && supportedSizes?.length && !supportedSizes.includes(size)) {
+        throw new Error(`${providerInfo.name || '当前渠道'} 不支持图像尺寸 ${size}`)
+    }
+
     const outputFormat = settings.openaiOutputFormat || 'png'
     const stream = Boolean(settings.openaiStream)
     const user = String(settings.openaiUser || '').trim()
+    const background = settings.openaiBackground || 'auto'
+    const supportedBackgrounds = providerConfig.backgroundOptions
+
+    if (supportedBackgrounds?.length && !supportedBackgrounds.includes(background)) {
+        throw new Error(`${providerInfo.name || '当前渠道'} 不支持背景参数 ${background}`)
+    }
 
     return {
         model: normalizedModel,
@@ -312,7 +292,7 @@ export function buildOpenAIImageGenerationPayload(settings, model) {
         ...(stream && partialImages !== null && { partial_images: partialImages }),
         size,
         moderation: settings.openaiModeration || 'auto',
-        background: settings.openaiBackground || 'auto',
+        background,
         ...(user && { user }),
     }
 }
@@ -504,15 +484,19 @@ async function generateTogetherImage({ apiKey, model, settings, signal }) {
     }
 }
 
-async function generateOpenAIImage({ apiKey, model, settings, signal }) {
+async function generateOpenAICompatibleImage({ provider, apiKey, model, settings, signal }) {
+    const providerInfo = IMAGE_GENERATION_PROVIDER_INFO[provider]
+    if (!providerInfo?.baseUrl) {
+        throw new Error('图像生成渠道缺少固定接口地址')
+    }
+
     const normalizedModel = normalizeOpenAIModel(model)
     if (!normalizedModel) {
-        throw new Error('请填写 OpenAI 模型 ID')
+        throw new Error(`请填写 ${providerInfo.name} 模型 ID`)
     }
 
     const requestStartTime = now()
-    const baseUrl = normalizeOpenAIBaseUrl(settings.openaiBaseUrl)
-    const requestUrl = `${baseUrl}/images/generations`
+    const requestUrl = `${providerInfo.baseUrl}/images/generations`
     let response
     try {
         response = await fetch(requestUrl, {
@@ -521,7 +505,7 @@ async function generateOpenAIImage({ apiKey, model, settings, signal }) {
                 Authorization: `Bearer ${apiKey}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(buildOpenAIImageGenerationPayload(settings, normalizedModel)),
+            body: JSON.stringify(buildOpenAIImageGenerationPayload(settings, normalizedModel, provider)),
             signal,
         })
     } catch (error) {
@@ -529,13 +513,13 @@ async function generateOpenAIImage({ apiKey, model, settings, signal }) {
             throw error
         }
 
-        throw buildOpenAINetworkError(error, requestUrl)
+        throw buildOpenAINetworkError(error, requestUrl, provider)
     }
     const responseReceivedTime = now()
 
     if (!response.ok) {
         const errorText = await response.text()
-        throw new Error(normalizeImageGenerationError(response, errorText, IMAGE_GENERATION_PROVIDERS.OPENAI))
+        throw new Error(normalizeImageGenerationError(response, errorText, provider))
     }
 
     const responseText = await response.text()
@@ -552,13 +536,20 @@ async function generateOpenAIImage({ apiKey, model, settings, signal }) {
         total: roundDuration(responseParsedTime - requestStartTime),
     }
     const eventImages = settings.openaiStream
-        ? data.events.filter(event => event.type === 'image_generation.completed' && event.b64_json)
+        ? data.events.filter(event => event.type?.endsWith('.completed') && event.b64_json)
         : []
-    const images = settings.openaiStream ? eventImages : (Array.isArray(data.data) ? data.data : [])
-    const completedEvent = eventImages[eventImages.length - 1] || null
+    const fallbackPartialImages = settings.openaiStream && eventImages.length === 0
+        ? data.events.filter(event => event.type?.endsWith('.partial_image') && event.b64_json)
+        : []
+    const images = settings.openaiStream
+        ? (eventImages.length > 0 ? eventImages : fallbackPartialImages)
+        : (Array.isArray(data.data) ? data.data : [])
+    const completedEvent = settings.openaiStream
+        ? data.events.findLast?.(event => event.type?.endsWith('.completed')) || null
+        : null
 
     return {
-        provider: IMAGE_GENERATION_PROVIDERS.OPENAI,
+        provider,
         model: normalizedModel,
         prompt: settings.prompt,
         seed: null,
@@ -594,8 +585,8 @@ export async function generateImage(params) {
         return generateTogetherImage(params)
     }
 
-    if (provider === IMAGE_GENERATION_PROVIDERS.OPENAI) {
-        return generateOpenAIImage(params)
+    if (isOpenAICompatibleProvider(provider)) {
+        return generateOpenAICompatibleImage(params)
     }
 
     throw new Error('暂未支持该图像生成供应商')

@@ -242,7 +242,7 @@ describe('Together.ai image generation client', () => {
   })
 })
 
-describe('OpenAI image generation client', () => {
+describe('OpenAI-compatible image generation client', () => {
   test('builds a gpt-image-2 payload with every supported generation parameter', () => {
     const payload = buildOpenAIImageGenerationPayload({
       prompt: 'A precise product render of a transparent portable radio',
@@ -258,7 +258,7 @@ describe('OpenAI image generation client', () => {
       openaiStream: true,
       openaiPartialImages: '2',
       openaiUser: 'user-1234',
-    }, 'gpt-image-2')
+    }, 'gpt-image-2', IMAGE_GENERATION_PROVIDERS.DEVART)
 
     expect(payload).toEqual({
       model: 'gpt-image-2',
@@ -291,7 +291,7 @@ describe('OpenAI image generation client', () => {
       openaiStream: false,
       openaiPartialImages: '3',
       openaiUser: '',
-    }, 'gpt-image-2')
+    }, 'gpt-image-2', IMAGE_GENERATION_PROVIDERS.DEVART)
 
     expect(payload).toMatchObject({
       model: 'gpt-image-2',
@@ -323,10 +323,10 @@ describe('OpenAI image generation client', () => {
       openaiModeration: 'auto',
       openaiStream: false,
       openaiPartialImages: '0',
-    }, 'gpt-image-2')).toThrow('长短边比例不能超过 3:1')
+    }, 'gpt-image-2', IMAGE_GENERATION_PROVIDERS.DEVART)).toThrow('长短边比例不能超过 3:1')
   })
 
-  test('posts to the OpenAI images endpoint with Bearer authorization', async () => {
+  test('posts to the DevArt images endpoint with Bearer authorization', async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       headers: {
@@ -353,11 +353,12 @@ describe('OpenAI image generation client', () => {
     globalThis.fetch = fetchMock
 
     const result = await generateImage({
-      provider: IMAGE_GENERATION_PROVIDERS.OPENAI,
-      apiKey: 'openai-test-key',
+      provider: IMAGE_GENERATION_PROVIDERS.DEVART,
+      apiKey: 'devart-test-key',
       model: 'gpt-image-2',
       settings: {
         prompt: 'A luminous green terminal floating in space',
+        openaiBaseUrl: 'https://ignored.example.com/v1',
         openaiSizePreset: '1536x1024',
         openaiQuality: 'medium',
         openaiNumImages: 1,
@@ -372,7 +373,7 @@ describe('OpenAI image generation client', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock.mock.calls[0][0]).toBe('https://llmapi.devart.ai/v1/images/generations')
-    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer openai-test-key')
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer devart-test-key')
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
       model: 'gpt-image-2',
       prompt: 'A luminous green terminal floating in space',
@@ -382,70 +383,105 @@ describe('OpenAI image generation client', () => {
       background: 'opaque',
       moderation: 'auto',
     })
-    expect(result.provider).toBe(IMAGE_GENERATION_PROVIDERS.OPENAI)
+    expect(result.provider).toBe(IMAGE_GENERATION_PROVIDERS.DEVART)
     expect(result.images).toHaveLength(1)
     expect(result.images[0].url).toBe('data:image/jpeg;base64,openai-image-b64')
     expect(result.requestId).toBe('req_openai_image')
     expect(result.usage.total_tokens).toBe(100)
   })
 
-  test('normalizes optional OpenAI base URLs before calling image generations', async () => {
-    const cases = [
-      ['', 'https://llmapi.devart.ai/v1/images/generations'],
-      ['proxy.example.com', 'https://proxy.example.com/v1/images/generations'],
-      ['https://proxy.example.com/', 'https://proxy.example.com/v1/images/generations'],
-      ['https://proxy.example.com/v1/', 'https://proxy.example.com/v1/images/generations'],
-      ['https://proxy.example.com/openai', 'https://proxy.example.com/openai/v1/images/generations'],
-      ['https://proxy.example.com/v1/images/generations?debug=1', 'https://proxy.example.com/v1/images/generations'],
-      ['/api/openai', '/api/openai/v1/images/generations'],
-    ]
-
-    for (const [openaiBaseUrl, expectedUrl] of cases) {
-      const fetchMock = vi.fn(async () => ({
-        ok: true,
-        headers: {
-          get: vi.fn(() => null),
+  test('posts to the fixed Cloudsway image-2 endpoint and locked model', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      headers: {
+        get: vi.fn(() => null),
+      },
+      text: async () => JSON.stringify({
+        created: 1713833628,
+        output_format: 'png',
+        data: [
+          {
+            b64_json: 'cloudsway-image-b64',
+          },
+        ],
+        usage: {
+          total_tokens: 234,
         },
-        text: async () => JSON.stringify({
-          data: [
-            {
-              b64_json: 'base64-image',
-            },
-          ],
-        }),
-      }))
-      globalThis.fetch = fetchMock
+      }),
+    }))
+    globalThis.fetch = fetchMock
 
-      await generateImage({
-        provider: IMAGE_GENERATION_PROVIDERS.OPENAI,
-        apiKey: 'openai-test-key',
-        model: 'gpt-image-2',
-        settings: {
-          prompt: 'A custom base url request',
-          openaiBaseUrl,
-          openaiSizePreset: '1024x1024',
-          openaiQuality: 'medium',
-          openaiNumImages: 1,
-          openaiOutputFormat: 'png',
-          openaiBackground: 'auto',
-          openaiModeration: 'auto',
-          openaiStream: false,
-          openaiPartialImages: 0,
-        },
-      })
+    const result = await generateImage({
+      provider: IMAGE_GENERATION_PROVIDERS.CLOUDSWAY,
+      apiKey: 'cloudsway-test-key',
+      model: 'MaaS_GP_image_2',
+      settings: {
+        prompt: 'A Cloudsway image-2 request',
+        openaiBaseUrl: 'https://ignored.example.com/v1',
+        openaiSizePreset: '1024x1536',
+        openaiQuality: 'high',
+        openaiNumImages: 1,
+        openaiOutputFormat: 'png',
+        openaiBackground: 'opaque',
+        openaiModeration: 'auto',
+        openaiStream: false,
+        openaiPartialImages: 0,
+      },
+    })
 
-      expect(fetchMock.mock.calls[0][0]).toBe(expectedUrl)
-    }
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0][0]).toBe('https://genaiapi.cloudsway.net/v1/ai/kGqPeTeUIsCKbUCG/images/generations')
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer cloudsway-test-key')
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
+      model: 'MaaS_GP_image_2',
+      prompt: 'A Cloudsway image-2 request',
+      size: '1024x1536',
+      quality: 'high',
+      output_format: 'png',
+      background: 'opaque',
+      moderation: 'auto',
+    })
+    expect(result.provider).toBe(IMAGE_GENERATION_PROVIDERS.CLOUDSWAY)
+    expect(result.images[0].url).toBe('data:image/png;base64,cloudsway-image-b64')
+    expect(result.usage.total_tokens).toBe(234)
   })
 
-  test('explains browser CORS or network failures for OpenAI base URLs', async () => {
+  test('rejects Cloudsway-only unsupported generation parameters before sending', () => {
+    expect(() => buildOpenAIImageGenerationPayload({
+      prompt: 'A custom Cloudsway size',
+      openaiSizePreset: 'custom',
+      openaiCustomWidth: '1536',
+      openaiCustomHeight: '864',
+      openaiQuality: 'medium',
+      openaiNumImages: '1',
+      openaiOutputFormat: 'png',
+      openaiBackground: 'auto',
+      openaiModeration: 'auto',
+      openaiStream: false,
+      openaiPartialImages: '0',
+    }, 'MaaS_GP_image_2', IMAGE_GENERATION_PROVIDERS.CLOUDSWAY)).toThrow('不支持自定义图像尺寸')
+
+    expect(() => buildOpenAIImageGenerationPayload({
+      prompt: 'A transparent Cloudsway background',
+      openaiSizePreset: '1024x1024',
+      openaiQuality: 'medium',
+      openaiNumImages: '1',
+      openaiOutputFormat: 'png',
+      openaiBackground: 'transparent',
+      openaiModeration: 'auto',
+      openaiStream: false,
+      openaiPartialImages: '0',
+    }, 'MaaS_GP_image_2', IMAGE_GENERATION_PROVIDERS.CLOUDSWAY)).toThrow('不支持背景参数 transparent')
+  })
+
+  test('explains browser CORS or network failures for fixed image channels', async () => {
     globalThis.fetch = vi.fn(async () => {
       throw new TypeError('Failed to fetch')
     })
 
     await expect(generateImage({
-      provider: IMAGE_GENERATION_PROVIDERS.OPENAI,
-      apiKey: 'openai-test-key',
+      provider: IMAGE_GENERATION_PROVIDERS.DEVART,
+      apiKey: 'devart-test-key',
       model: 'gpt-image-2',
       settings: {
         prompt: 'A blocked browser request',
@@ -479,8 +515,8 @@ describe('OpenAI image generation client', () => {
     globalThis.fetch = fetchMock
 
     const result = await generateImage({
-      provider: IMAGE_GENERATION_PROVIDERS.OPENAI,
-      apiKey: 'openai-test-key',
+      provider: IMAGE_GENERATION_PROVIDERS.DEVART,
+      apiKey: 'devart-test-key',
       model: 'gpt-image-2',
       settings: {
         prompt: 'A streamed river landscape',

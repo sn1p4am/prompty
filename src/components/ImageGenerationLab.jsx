@@ -26,7 +26,7 @@ import {
     IMAGE_GENERATION_PROVIDER_INFO,
     IMAGE_GENERATION_PROVIDERS,
     IMAGE_GENERATION_STORAGE_KEYS,
-    OPENAI_IMAGE_SIZE_PRESETS,
+    LEGACY_OPENAI_IMAGE_PROVIDER,
     TOGETHER_ASPECT_RATIO_PRESETS,
 } from '../constants/imageGeneration'
 
@@ -34,9 +34,18 @@ const NUMBER_INPUT_CLASS = "h-9 text-xs font-mono"
 const FIELD_LABEL_CLASS = "text-[11px] text-muted-foreground"
 
 function mergeSettings(settings) {
+    const normalizedProvider = settings?.provider === LEGACY_OPENAI_IMAGE_PROVIDER
+        ? IMAGE_GENERATION_PROVIDERS.DEVART
+        : settings?.provider
     const mergedSettings = {
         ...DEFAULT_IMAGE_GENERATION_SETTINGS,
         ...(settings || {}),
+        provider: normalizedProvider || DEFAULT_IMAGE_GENERATION_SETTINGS.provider,
+    }
+    const providerInfo = IMAGE_GENERATION_PROVIDER_INFO[mergedSettings.provider]
+
+    if (providerInfo?.modelLocked) {
+        mergedSettings.model = providerInfo.defaultModel
     }
 
     if (!settings?.settingsVersion || settings.settingsVersion < IMAGE_GENERATION_SETTINGS_VERSION) {
@@ -116,13 +125,13 @@ function getImageSizeLabel(value) {
 }
 
 function getOpenAIImageSizeLabel(value) {
-    const preset = OPENAI_IMAGE_SIZE_PRESETS.find(item => item.value === value)
-    return preset?.label || value
+    return value
 }
 
 function getProviderParameterTitle(provider) {
-    if (provider === IMAGE_GENERATION_PROVIDERS.OPENAI) {
-        return 'OPENAI.IMAGE2.PARAMETERS'
+    const providerConfig = IMAGE_GENERATION_PROVIDER_INFO[provider]?.openaiCompatible
+    if (providerConfig?.parameterTitle) {
+        return providerConfig.parameterTitle
     }
 
     if (provider === IMAGE_GENERATION_PROVIDERS.TOGETHER) {
@@ -133,7 +142,7 @@ function getProviderParameterTitle(provider) {
 }
 
 function getProviderImageCount(settings) {
-    if (settings.provider === IMAGE_GENERATION_PROVIDERS.OPENAI) {
+    if (IMAGE_GENERATION_PROVIDER_INFO[settings.provider]?.openaiCompatible) {
         return settings.openaiNumImages
     }
 
@@ -156,6 +165,15 @@ function updateField(settings, field, value) {
         ...settings,
         [field]: value,
     }
+}
+
+function getOpenAICompatibleConfig(provider) {
+    return IMAGE_GENERATION_PROVIDER_INFO[provider]?.openaiCompatible || null
+}
+
+function getOpenAICompatibleSizeLabel(provider, value) {
+    const preset = getOpenAICompatibleConfig(provider)?.sizePresets?.find(item => item.value === value)
+    return preset?.label || getOpenAIImageSizeLabel(value)
 }
 
 function ImageStatusBadge({ status }) {
@@ -441,12 +459,19 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
     const normalizedSettings = mergeSettings(settings)
     const batch = useImageGenerationBatch({ onToast })
     const providerInfo = IMAGE_GENERATION_PROVIDER_INFO[normalizedSettings.provider]
+    const openAICompatibleConfig = getOpenAICompatibleConfig(normalizedSettings.provider)
+    const isOpenAICompatibleProvider = Boolean(openAICompatibleConfig)
+    const isModelLocked = Boolean(providerInfo?.modelLocked)
     const [draftApiKey, setDraftApiKey] = useState('')
     const [zoomImage, setZoomImage] = useState(null)
     const [imageLoadDurations, setImageLoadDurations] = useState({})
     const estimatedCount = getEstimatedImageCount(normalizedSettings)
     const estimatedTotalImages = estimatedCount.batchCount * estimatedCount.numImages
-    const savedApiKey = apiKeys?.[normalizedSettings.provider] || ''
+    const savedApiKey = apiKeys?.[normalizedSettings.provider]
+        || (normalizedSettings.provider === IMAGE_GENERATION_PROVIDERS.DEVART
+            ? apiKeys?.[LEGACY_OPENAI_IMAGE_PROVIDER]
+            : '')
+        || ''
     const hasApiKey = Boolean(savedApiKey)
 
     const setField = (field, value) => {
@@ -455,11 +480,16 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
 
     const handleProviderChange = (provider) => {
         const nextProviderInfo = IMAGE_GENERATION_PROVIDER_INFO[provider]
+        const nextOpenAIConfig = nextProviderInfo?.openaiCompatible
         setSettings(prev => ({
             ...mergeSettings(prev),
             settingsVersion: IMAGE_GENERATION_SETTINGS_VERSION,
             provider,
             model: nextProviderInfo?.defaultModel || '',
+            ...(nextOpenAIConfig && {
+                openaiSizePreset: nextOpenAIConfig.defaultSize || 'auto',
+                openaiBackground: nextOpenAIConfig.backgroundOptions?.[0] || 'auto',
+            }),
         }))
         setDraftApiKey('')
     }
@@ -493,6 +523,9 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
         setApiKeys(prev => {
             const nextApiKeys = { ...(prev || {}) }
             delete nextApiKeys[normalizedSettings.provider]
+            if (normalizedSettings.provider === IMAGE_GENERATION_PROVIDERS.DEVART) {
+                delete nextApiKeys[LEGACY_OPENAI_IMAGE_PROVIDER]
+            }
             return nextApiKeys
         })
         setDraftApiKey('')
@@ -608,9 +641,9 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                     value={normalizedSettings.model}
                                     placeholder={providerInfo?.defaultModel}
                                     onChange={(event) => setField('model', event.target.value)}
-                                    disabled={batch.isRunning}
+                                    disabled={batch.isRunning || isModelLocked}
                                 />
-                                {providerInfo?.models?.length > 0 && (
+                                {providerInfo?.models?.length > 0 && !isModelLocked && (
                                     <Select
                                         value={providerInfo.models.includes(normalizedSettings.model) ? normalizedSettings.model : ''}
                                         onChange={(event) => event.target.value && setField('model', event.target.value)}
@@ -622,6 +655,11 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                             <option key={model} value={model}>{model}</option>
                                         ))}
                                     </Select>
+                                )}
+                                {isModelLocked && (
+                                    <div className="text-[11px] text-primary/80">
+                                        当前渠道固定测试 {providerInfo.defaultModel}
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -1058,23 +1096,8 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                 </div>
                             )}
 
-                            {normalizedSettings.provider === IMAGE_GENERATION_PROVIDERS.OPENAI && (
+                            {isOpenAICompatibleProvider && (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4 p-4">
-                                    <div className="sm:col-span-2 lg:col-span-4">
-                                        <Label className={FIELD_LABEL_CLASS}>Base URL</Label>
-                                        <Input
-                                            type="text"
-                                            value={normalizedSettings.openaiBaseUrl}
-                                            placeholder={providerInfo?.baseUrl || 'https://llmapi.devart.ai/v1'}
-                                            onChange={(event) => setField('openaiBaseUrl', event.target.value)}
-                                            disabled={batch.isRunning}
-                                            className="h-9 text-xs font-mono"
-                                        />
-                                        <div className="mt-1 text-[11px] text-primary/80">
-                                            留空使用默认 llmapi；自定义地址需要目标服务允许当前页面 CORS
-                                        </div>
-                                    </div>
-
                                     <div>
                                         <Label className={FIELD_LABEL_CLASS}>图像尺寸</Label>
                                         <Select
@@ -1082,19 +1105,21 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                             onChange={(event) => setField('openaiSizePreset', event.target.value)}
                                             disabled={batch.isRunning}
                                         >
-                                            {OPENAI_IMAGE_SIZE_PRESETS.map(size => (
+                                            {openAICompatibleConfig.sizePresets.map(size => (
                                                 <option key={size.value} value={size.value}>{size.label}</option>
                                             ))}
-                                            <option value="custom">custom - WIDTHxHEIGHT</option>
+                                            {openAICompatibleConfig.allowCustomSize && (
+                                                <option value="custom">custom - WIDTHxHEIGHT</option>
+                                            )}
                                         </Select>
                                         <div className="mt-1 text-[11px] text-primary/80">
                                             {normalizedSettings.openaiSizePreset === 'custom'
                                                 ? `${normalizedSettings.openaiCustomWidth}x${normalizedSettings.openaiCustomHeight}`
-                                                : getOpenAIImageSizeLabel(normalizedSettings.openaiSizePreset)}
+                                                : getOpenAICompatibleSizeLabel(normalizedSettings.provider, normalizedSettings.openaiSizePreset)}
                                         </div>
                                     </div>
 
-                                    {normalizedSettings.openaiSizePreset === 'custom' && (
+                                    {openAICompatibleConfig.allowCustomSize && normalizedSettings.openaiSizePreset === 'custom' && (
                                         <>
                                             <div>
                                                 <Label className={FIELD_LABEL_CLASS}>宽度</Label>
@@ -1146,7 +1171,7 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                             onChange={(event) => setField('openaiNumImages', event.target.value)}
                                             disabled={batch.isRunning}
                                         >
-                                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(value => (
+                                            {Array.from({ length: openAICompatibleConfig.maxImages || 10 }, (_, index) => index + 1).map(value => (
                                                 <option key={value} value={value}>{value}</option>
                                             ))}
                                         </Select>
@@ -1187,9 +1212,9 @@ export function ImageGenerationLab({ isOpen, onClose, onToast }) {
                                             onChange={(event) => setField('openaiBackground', event.target.value)}
                                             disabled={batch.isRunning}
                                         >
-                                            <option value="auto">auto</option>
-                                            <option value="opaque">opaque</option>
-                                            <option value="transparent">transparent</option>
+                                            {openAICompatibleConfig.backgroundOptions.map(value => (
+                                                <option key={value} value={value}>{value}</option>
+                                            ))}
                                         </Select>
                                     </div>
 
