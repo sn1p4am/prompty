@@ -1,5 +1,16 @@
 # Release Notes
 
+## v3.8.27 (2026-06-09)
+
+### 本次更新
+
+- 🌐 新增 `Wangsu Gemini` 常规文本测试渠道，固定接入网关 `ytagcuik` 的 Google Gemini 直连模式
+- 🌊 Wangsu 普通请求区分非流式 `generateContent` 与流式 `streamGenerateContent`，统一使用 `x-goog-api-key` 发送 AI Gateway Token
+- 🧠 关闭 Thinking 时会向 Wangsu Gemini 发送 `thinkingConfig.thinkingBudget: 0`，避免短输出被思考 token 吃满
+- 📊 缓存命中测试新增 `Wangsu Gemini` API 格式，内置网关 Base URL 与 `gemini.gemini-3-flash-preview` 模型，并支持流式/非流式响应模式
+- 🧪 已用实际网关验证 generateContent、streamGenerateContent 可通；`cachedContents` 返回网关不支持，因此缓存测试按隐式缓存读取 `usageMetadata.cachedContentTokenCount`
+- 🔒 用户提供的 AI Gateway Token 不写入源码、文档或提交，只通过页面本地配置保存
+
 ## v3.8.26 (2026-05-15)
 
 ### 本次更新

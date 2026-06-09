@@ -2,6 +2,7 @@ export const CACHE_API_FORMATS = {
     OPENAI: 'openai',
     CLAUDE: 'claude',
     GEMINI: 'gemini',
+    WANGSU_GEMINI: 'wangsu_gemini',
 }
 
 export const CACHE_MODES = {
@@ -40,6 +41,20 @@ export const CACHE_API_FORMAT_INFO = {
         docsLabel: 'Gemini Context Caching',
         note: 'Gemini 2.5+ 支持隐式缓存；显式缓存会按 Google GenAI SDK 形态先 POST /cachedContents，再在 generateContent 里引用，默认 TTL 为 1 小时。Gemini Native 格式优先使用 x-goog-api-key；若代理要求 Bearer，会在鉴权错误时自动回退。若 cachedContents 创建请求被当前端点返回 unsupported，工具会自动降级为隐式缓存测试。',
     },
+    [CACHE_API_FORMATS.WANGSU_GEMINI]: {
+        name: 'Wangsu Gemini',
+        defaultBaseUrl: 'https://aigateway.edgecloudapp.com/v2/gws/ytagcuik/gemini/v1beta',
+        defaultModel: 'gemini.gemini-3-flash-preview',
+        supportedModes: [CACHE_MODES.AUTO],
+        usagePath: 'usageMetadata.cachedContentTokenCount',
+        docsUrl: 'http://doc.model-store.ai/ai-gateway/model/api-detail?endpoint=api-gemini-direct-mode1',
+        docsLabel: 'Wangsu Gemini Direct Mode',
+        note: '网宿 AI Gateway 的 Google Gemini 直连模式使用 Gemini 原生 generateContent / streamGenerateContent 请求体，通过 x-goog-api-key 发送网关 Token。实测该网关只开放 models/{model}:action 路径，cachedContents 显式缓存不可用，因此这里按隐式缓存读取 usageMetadata.cachedContentTokenCount。',
+    },
+}
+
+export function isGeminiCacheApiFormat(apiFormat) {
+    return apiFormat === CACHE_API_FORMATS.GEMINI || apiFormat === CACHE_API_FORMATS.WANGSU_GEMINI
 }
 
 const KNOWLEDGE_BASE = `
@@ -71,6 +86,7 @@ Provider behavior summary:
 OpenAI prompt caching is automatic for long prompts. The usage object exposes cached_tokens under prompt_tokens_details for Chat-style responses, while Responses-style payloads may expose input_tokens_details.cached_tokens. The tester requests stream_options.include_usage for streaming-compatible gateways because some proxies only include cache usage in the final stream event. Cache hits require identical prompt prefixes, and static content should be placed before dynamic user content.
 Claude prompt caching can be explicit with cache_control breakpoints. The usage object exposes input_tokens, cache_creation_input_tokens, and cache_read_input_tokens. The first request often creates the cache and later requests read from it.
 Gemini context caching can be implicit on supported models or explicit with cachedContents. The usage metadata exposes promptTokenCount and cachedContentTokenCount. Explicit cached content has a TTL and may have storage-related billing implications. Gemini Native endpoints use x-goog-api-key first and retry Bearer auth when the gateway reports an auth mismatch. Explicit cache creation follows the Google GenAI SDK shape: POST /cachedContents with model names such as models/google/gemini-3-flash-preview when a gateway lists provider-prefixed model IDs. If the current endpoint reports cachedContents as unsupported, the tester falls back to implicit generateContent caching.
+Wangsu Gemini direct mode uses https://aigateway.edgecloudapp.com/v2/gws/ytagcuik/gemini/v1beta and the gemini.gemini-3-flash-preview model. It supports both generateContent and streamGenerateContent with x-goog-api-key gateway token auth. The gateway currently rejects cachedContents and should be measured through implicit cache usage metadata.
 
 Testing protocol:
 The recommended test uses one long static prefix and several short dynamic questions. A good first run uses four serial rounds with an interval of at least one second. The first round warms the cache. Rounds two through four provide the meaningful cache-read signal. A stable test should keep tools, images, schemas, system prompts, and static content byte-identical between rounds.
@@ -234,6 +250,7 @@ export const DEFAULT_CACHE_HIT_SETTINGS = {
     baseUrl: CACHE_API_FORMAT_INFO[CACHE_API_FORMATS.OPENAI].defaultBaseUrl,
     apiKey: '',
     model: CACHE_API_FORMAT_INFO[CACHE_API_FORMATS.OPENAI].defaultModel,
+    streamMode: false,
     rounds: 4,
     interval: 1200,
     maxTokens: 128,

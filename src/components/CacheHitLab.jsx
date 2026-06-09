@@ -22,6 +22,7 @@ import {
     CACHE_PRESET_CASES,
     DEFAULT_CACHE_HIT_SETTINGS,
     buildCacheCasePrompt,
+    isGeminiCacheApiFormat,
 } from '../constants/cacheHit'
 import { useCacheHitTest } from '../hooks/useCacheHitTest'
 import { useLocalStorage } from '../hooks/useLocalStorage'
@@ -61,6 +62,7 @@ function getDefaultsForFormat(apiFormat) {
         baseUrl: info.defaultBaseUrl,
         model: info.defaultModel,
         cacheMode: info.supportedModes[0],
+        streamMode: false,
     }
 }
 
@@ -118,6 +120,7 @@ function ProviderGuide({ apiFormat, cacheMode }) {
         [CACHE_API_FORMATS.OPENAI]: 'cached_tokens / prompt_tokens (兼容 cached_read_tokens)',
         [CACHE_API_FORMATS.CLAUDE]: 'cache_read_input_tokens / (input_tokens + cache_creation_input_tokens + cache_read_input_tokens)',
         [CACHE_API_FORMATS.GEMINI]: 'cachedContentTokenCount / promptTokenCount',
+        [CACHE_API_FORMATS.WANGSU_GEMINI]: 'cachedContentTokenCount / promptTokenCount',
     }[apiFormat]
 
     return (
@@ -310,6 +313,7 @@ export function CacheHitLab({ isOpen, onClose, onToast }) {
                 model: !merged.model || defaultModels.includes(merged.model)
                     ? defaults.model
                     : merged.model,
+                streamMode: defaults.streamMode,
             }
         })
     }
@@ -399,6 +403,23 @@ export function CacheHitLab({ isOpen, onClose, onToast }) {
                                 {supportedModes.includes(CACHE_MODES.EXPLICIT) && <option value={CACHE_MODES.EXPLICIT}>显式缓存</option>}
                             </Select>
                         </div>
+
+                        {isGeminiCacheApiFormat(settings.apiFormat) && (
+                            <div>
+                                <Label>响应模式</Label>
+                                <Select
+                                    value={settings.streamMode ? 'true' : 'false'}
+                                    onChange={(event) => setField('streamMode', event.target.value === 'true')}
+                                    disabled={cacheTest.isRunning}
+                                >
+                                    <option value="false">非流式 generateContent</option>
+                                    <option value="true">流式 streamGenerateContent</option>
+                                </Select>
+                                <div className="mt-2 text-[11px] text-muted leading-relaxed">
+                                    Wangsu/Gemini 会按所选模式请求，并从最终响应解析 usageMetadata。
+                                </div>
+                            </div>
+                        )}
 
                         <div>
                             <Label>Base URL</Label>

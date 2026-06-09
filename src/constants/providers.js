@@ -9,6 +9,7 @@ export const PROVIDERS = {
     AIONLY: 'aionly',
     MOXIN: 'moxin',
     HOXKAI: 'hoxkai',
+    WANGSU: 'wangsu',
 }
 
 // API 供应商信息
@@ -100,6 +101,18 @@ export const PROVIDER_INFO = {
             'gemini-3-flash-preview'
         ],
     },
+    [PROVIDERS.WANGSU]: {
+        name: 'Wangsu Gemini',
+        baseUrl: 'https://aigateway.edgecloudapp.com/v2/gws/ytagcuik/gemini/v1beta',
+        keyStorageKey: 'wangsu_gemini_api_key',
+        getKeyUrl: 'http://doc.model-store.ai/ai-gateway/model/api-detail?endpoint=api-gemini-direct-mode1',
+        credentialLabel: 'AI Gateway Token',
+        credentialPlaceholder: '输入网宿 AI Gateway Token',
+        credentialHelpText: 'Google Gemini 直连模式，使用网关 ytagcuik，通过 x-goog-api-key 调用 Gemini 原生接口。',
+        models: [
+            'gemini.gemini-3-flash-preview'
+        ],
+    },
 }
 
 // 默认配置
@@ -112,7 +125,7 @@ export const DEFAULT_CONFIG = {
     concurrency: 3,
     interval: 500,
     streamMode: true,
-    enableThinking: false, // 深度思考模式（阿里/火山/Vertex 原生支持，AiOnly/AiIIOnly 按兼容协议尝试）
+    enableThinking: false, // 深度思考模式（阿里/火山/Vertex/Wangsu 原生支持，AiOnly/AiIIOnly 按兼容协议尝试）
 }
 
 export const DEFAULT_VERTEX_OPTIONS = {

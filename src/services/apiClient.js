@@ -8,6 +8,10 @@ function isVertexProvider(provider) {
     return provider === PROVIDERS.VERTEX
 }
 
+function isWangsuProvider(provider) {
+    return provider === PROVIDERS.WANGSU
+}
+
 function prefersEnableThinking(model = '') {
     const normalizedModel = String(model).toLowerCase()
     return /(^|[/:_-])(qwq|qvq|qwen)([/:_-]|$)/.test(normalizedModel)
@@ -253,6 +257,20 @@ function buildVertexRequestUrl(baseUrl, model, streamMode, apiKey) {
     return `${pathPrefix}:${action}${queryString ? `?${queryString}` : ''}`
 }
 
+function normalizeWangsuModelId(model = '') {
+    return String(model)
+        .trim()
+        .replace(/^models\//, '')
+}
+
+function buildWangsuRequestUrl(baseUrl, model, streamMode) {
+    const normalizedBaseUrl = String(baseUrl || '').replace(/\/+$/, '')
+    const normalizedModel = normalizeWangsuModelId(model)
+    const action = streamMode ? 'streamGenerateContent' : 'generateContent'
+
+    return `${normalizedBaseUrl}/models/${normalizedModel}:${action}`
+}
+
 function normalizeVertexUsage(usageMetadata) {
     if (!usageMetadata) {
         return null
@@ -318,11 +336,12 @@ function buildVertexMetadata({
     firstTokenLatency,
     requestStartTime,
     usageMetadata,
+    provider = 'vertex',
 }) {
     return {
         firstTokenLatency,
         totalDuration: Date.now() - requestStartTime,
-        provider: 'vertex',
+        provider,
         ...(usageMetadata && {
             usage: usageMetadata,
         })
@@ -539,6 +558,171 @@ async function streamVertexRequest(params, onChunk, onComplete, onError, onMetad
                 firstTokenLatency,
                 requestStartTime,
                 usageMetadata,
+            }))
+        }
+
+        onComplete()
+    } catch (error) {
+        onError(error)
+    }
+}
+
+async function streamWangsuRequest(params, onChunk, onComplete, onError, onMetadata) {
+    const {
+        apiKey,
+        baseUrl,
+        model,
+        systemPrompt,
+        userPrompt,
+        temperature,
+        topP,
+        maxTokens,
+        streamMode,
+        enableThinking,
+        signal,
+    } = params
+
+    try {
+        const requestStartTime = Date.now()
+        const requestUrl = buildWangsuRequestUrl(baseUrl, model, streamMode)
+        const requestBody = buildVertexNativeRequestBody({
+            systemPrompt,
+            userPrompt,
+            temperature,
+            topP,
+            maxTokens,
+            enableThinking,
+            vertexOptions: {
+                thinkingBudget: null,
+            },
+        })
+
+        const response = await fetch(requestUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey,
+            },
+            body: JSON.stringify(requestBody),
+            signal,
+        })
+
+        if (!response.ok) {
+            const errorText = await response.text()
+            throw new Error(normalizeApiError(response, errorText, model, PROVIDERS.WANGSU))
+        }
+
+        if (!streamMode) {
+            const data = await response.json()
+            const { answer, thinking, toolCalls } = extractVertexResponseContent(data)
+
+            let mergedContent = ''
+            if (thinking) {
+                mergedContent += `<think>${thinking}</think>`
+            }
+            if (answer) {
+                mergedContent += answer
+            }
+            if (toolCalls.length) {
+                mergedContent += serializeToolCalls(toolCalls)
+            }
+
+            onChunk(mergedContent)
+
+            if (onMetadata) {
+                onMetadata(buildVertexMetadata({
+                    firstTokenLatency: null,
+                    requestStartTime,
+                    usageMetadata: normalizeVertexUsage(data.usageMetadata),
+                    provider: PROVIDERS.WANGSU,
+                }))
+            }
+
+            onComplete()
+            return
+        }
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let firstTokenReceived = false
+        let firstTokenLatency = null
+        let accumulatedThinking = ''
+        let thinkingComplete = false
+        const accumulatedToolCalls = []
+        let usageMetadata = null
+
+        while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split('\n')
+            buffer = lines.pop() || ''
+
+            for (const line of lines) {
+                if (!line.trim() || line.startsWith(':')) continue
+
+                if (!line.startsWith('data: ')) continue
+
+                const data = line.slice(6)
+                if (data === '[DONE]') continue
+
+                try {
+                    const json = JSON.parse(data)
+                    const { answer, thinking, toolCalls } = extractVertexResponseContent(json)
+
+                    let mergedContent = ''
+
+                    if (thinking) {
+                        accumulatedThinking += thinking
+                    }
+
+                    if (toolCalls.length) {
+                        accumulatedToolCalls.push(...toolCalls)
+                    }
+
+                    if (answer && !thinkingComplete && accumulatedThinking) {
+                        mergedContent += `<think>${accumulatedThinking}</think>`
+                        thinkingComplete = true
+                    }
+
+                    if (answer) {
+                        mergedContent += answer
+                    }
+
+                    if (!firstTokenReceived && (mergedContent || thinking || toolCalls.length)) {
+                        firstTokenReceived = true
+                        firstTokenLatency = Date.now() - requestStartTime
+                    }
+
+                    if (mergedContent) {
+                        onChunk(mergedContent)
+                    }
+
+                    if (json.usageMetadata) {
+                        usageMetadata = normalizeVertexUsage(json.usageMetadata)
+                    }
+                } catch {
+                    // 忽略解析错误
+                }
+            }
+        }
+
+        if (accumulatedThinking && !thinkingComplete) {
+            onChunk(`<think>${accumulatedThinking}</think>`)
+        }
+
+        if (accumulatedToolCalls.length) {
+            onChunk(serializeToolCalls(accumulatedToolCalls))
+        }
+
+        if (onMetadata) {
+            onMetadata(buildVertexMetadata({
+                firstTokenLatency,
+                requestStartTime,
+                usageMetadata,
+                provider: PROVIDERS.WANGSU,
             }))
         }
 
@@ -829,6 +1013,11 @@ export async function streamRequest(params, onChunk, onComplete, onError, onMeta
 
     if (isVertexProvider(provider)) {
         await streamVertexRequest(params, onChunk, onComplete, onError, onMetadata)
+        return
+    }
+
+    if (isWangsuProvider(provider)) {
+        await streamWangsuRequest(params, onChunk, onComplete, onError, onMetadata)
         return
     }
 

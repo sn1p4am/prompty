@@ -26,6 +26,22 @@ describe('providers registry', () => {
         })
     })
 
+    test('includes wangsu as a Gemini native provider with the configured gateway', () => {
+        expect(PROVIDERS.WANGSU).toBe('wangsu')
+        expect(PROVIDER_INFO[PROVIDERS.WANGSU]).toEqual({
+            name: 'Wangsu Gemini',
+            baseUrl: 'https://aigateway.edgecloudapp.com/v2/gws/ytagcuik/gemini/v1beta',
+            keyStorageKey: 'wangsu_gemini_api_key',
+            getKeyUrl: 'http://doc.model-store.ai/ai-gateway/model/api-detail?endpoint=api-gemini-direct-mode1',
+            credentialLabel: 'AI Gateway Token',
+            credentialPlaceholder: '输入网宿 AI Gateway Token',
+            credentialHelpText: 'Google Gemini 直连模式，使用网关 ytagcuik，通过 x-goog-api-key 调用 Gemini 原生接口。',
+            models: [
+                'gemini.gemini-3-flash-preview',
+            ],
+        })
+    })
+
     test('keeps Cloudsway App ID out of provider-level header config', () => {
         expect(PROVIDER_INFO[PROVIDERS.CLOUDSWAY].extraConfigFields).toBeUndefined()
         expect(PROVIDER_INFO[PROVIDERS.CLOUDSWAY].appIdStorageKey).toBeUndefined()

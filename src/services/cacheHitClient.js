@@ -2,6 +2,7 @@ import {
     CACHE_API_FORMATS,
     CACHE_API_FORMAT_INFO,
     CACHE_MODES,
+    isGeminiCacheApiFormat,
 } from '../constants/cacheHit'
 
 const DEFAULT_GEMINI_CACHE_TTL = '3600s'
@@ -51,7 +52,7 @@ export function normalizeCacheBaseUrl(apiFormat, baseUrl) {
         pathname = `${pathname}/v1`
     }
 
-    if (apiFormat === CACHE_API_FORMATS.GEMINI && !/(^|\/)v\d+(beta|alpha)?$/i.test(pathname)) {
+    if (isGeminiCacheApiFormat(apiFormat) && !/(^|\/)v\d+(beta|alpha)?$/i.test(pathname)) {
         pathname = `${pathname}/v1beta`
     }
 
@@ -453,6 +454,38 @@ function extractOpenAiStreamingResult(responseText) {
     }
 }
 
+function extractGeminiContent(data) {
+    return data.candidates?.[0]?.content?.parts
+        ?.map(part => part.text || '')
+        .join('\n') || ''
+}
+
+function extractGeminiStreamingResult(responseText) {
+    const events = parseServerSentEvents(responseText)
+    const content = []
+    let usageMetadata = null
+
+    for (const event of events) {
+        const eventContent = extractGeminiContent(event)
+        if (eventContent) {
+            content.push(eventContent)
+        }
+
+        if (event.usageMetadata) {
+            usageMetadata = event.usageMetadata
+        }
+    }
+
+    return {
+        content: content.join(''),
+        usageMetadata,
+        rawResponse: {
+            events,
+            usageMetadata,
+        },
+    }
+}
+
 function buildClaudeRequest({ model, staticPrefix, dynamicPrompt, roundIndex, maxTokens, temperature, cacheMode, claudeUserId }) {
     const normalizedUserId = String(claudeUserId || '').trim()
     const systemBlock = {
@@ -556,6 +589,55 @@ async function fetchGeminiJson({
 
             return {
                 data: parsed,
+                authMode,
+                responseHeaders,
+            }
+        }
+
+        lastError = buildProviderError(providerName, response, responseText, parsed)
+
+        if (!shouldRetryGeminiAuth(response, parsed, responseText)) {
+            throw lastError
+        }
+
+        authModes = getGeminiAuthRetryModes(baseUrl, authMode, parsed, responseText)
+    }
+
+    throw lastError || new Error(`${providerName} 请求失败`)
+}
+
+async function fetchGeminiStreamText({
+    apiKey,
+    baseUrl,
+    path,
+    body,
+    signal,
+    providerName = 'Gemini',
+}) {
+    let authModes = getGeminiAuthModeOrder(baseUrl)
+    const attemptedAuthModes = new Set()
+    let lastError = null
+
+    while (authModes.length > 0) {
+        const authMode = authModes.shift()
+        if (attemptedAuthModes.has(authMode)) {
+            continue
+        }
+        attemptedAuthModes.add(authMode)
+        const request = buildGeminiRequest(baseUrl, path, apiKey, authMode)
+        const response = await fetch(request.url, {
+            method: 'POST',
+            headers: request.headers,
+            body: JSON.stringify(body),
+            signal,
+        })
+        const responseText = await response.text()
+        const parsed = safeParseErrorPayload(responseText)
+        const responseHeaders = collectResponseHeaders(response)
+
+        if (response.ok) {
+            return {
+                text: responseText,
                 authMode,
                 responseHeaders,
             }
@@ -717,6 +799,29 @@ async function runGeminiRound(params) {
         signal,
     } = params
     const normalizedModel = normalizeGeminiModelId(model)
+
+    if (params.streamMode) {
+        const { text, authMode, responseHeaders } = await fetchGeminiStreamText({
+            apiKey,
+            baseUrl,
+            path: `/models/${normalizedModel}:streamGenerateContent`,
+            body: buildGeminiGenerateRequest(params),
+            signal,
+            providerName: 'Gemini stream',
+        })
+        const streamingResult = extractGeminiStreamingResult(text)
+
+        return {
+            content: streamingResult.content,
+            usage: normalizeGeminiUsage(streamingResult.usageMetadata),
+            rawResponse: {
+                ...streamingResult.rawResponse,
+                authMode,
+            },
+            responseHeaders,
+        }
+    }
+
     const { data, authMode, responseHeaders } = await fetchGeminiJson({
         apiKey,
         baseUrl,
@@ -727,7 +832,7 @@ async function runGeminiRound(params) {
     })
 
     return {
-        content: data.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('\n') || '',
+        content: extractGeminiContent(data),
         usage: normalizeGeminiUsage(data.usageMetadata),
         rawResponse: {
             ...data,
@@ -757,6 +862,7 @@ export function normalizeCacheHitSettings(settings) {
         maxTokens,
         temperature: Number.isFinite(Number(settings.temperature)) ? Number(settings.temperature) : 0,
         claudeUserId: String(settings.claudeUserId || '').trim(),
+        streamMode: Boolean(settings.streamMode),
     }
 }
 
@@ -855,6 +961,7 @@ export async function runCacheHitTest(settings, callbacks = {}) {
                 [CACHE_API_FORMATS.OPENAI]: runOpenAiRound,
                 [CACHE_API_FORMATS.CLAUDE]: runClaudeRound,
                 [CACHE_API_FORMATS.GEMINI]: runGeminiRound,
+                [CACHE_API_FORMATS.WANGSU_GEMINI]: runGeminiRound,
             }[apiFormat]
 
             const roundResult = await runRound(roundParams)

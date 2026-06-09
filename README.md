@@ -8,7 +8,7 @@
 
 ## ✨ 特性
 
-- 🚀 **多 Provider 支持** - OpenRouter、Vertex AI、Cloudsway、阿里百炼、火山引擎、AiOnly、AiIIOnly
+- 🚀 **多 Provider 支持** - OpenRouter、Vertex AI、Wangsu Gemini、Cloudsway、阿里百炼、火山引擎、AiOnly、AiIIOnly
 - 📊 **批量测试** - 并发控制、间隔设置、实时流式输出
 - 🧠 **Thinking 支持** - 火山 / 阿里 / Vertex 原生支持，AiOnly / AiIIOnly 按兼容协议自动尝试
 - 🎯 **详细元数据** - Token 统计、首字延迟、费用估算、生成速度
@@ -78,6 +78,18 @@ Prompty 中的 Vertex AI 渠道现在只保留 **Vertex Express Mode**：
 - 顶部通用 `Thinking` 开关关闭时，会向原生接口发送 `thinkingBudget: 0`
 - `responseSchema` 只有在 `responseMimeType` 不是 `text/plain` 时才有效
 - `application/json` 可以不带 schema；`text/x.enum` 建议搭配 schema 使用
+
+## 🌐 Wangsu Gemini 配置说明
+
+`Wangsu Gemini` 渠道使用网宿 AI Gateway 的 Google Gemini 直连模式：
+
+- 网关 ID：`ytagcuik`
+- Base URL：`https://aigateway.edgecloudapp.com/v2/gws/ytagcuik/gemini/v1beta`
+- 模型：`gemini.gemini-3-flash-preview`
+- 鉴权：在页面中保存 AI Gateway Token，请求通过 `x-goog-api-key` 发送
+- 普通文本测试支持流式与非流式，缓存命中测试也可选择 `generateContent` 或 `streamGenerateContent`
+
+注意：该网关当前只开放 `models/{model}:generateContent` 与 `models/{model}:streamGenerateContent` 形态，缓存命中测试按隐式缓存读取 `usageMetadata.cachedContentTokenCount`。
 
 ### Express Mode 官方 curl
 

@@ -37,6 +37,8 @@ describe('normalizeCacheBaseUrl', () => {
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.GEMINI, 'https://proxy.test/google/v1beta/models/google/gemini-3-flash-preview:generateContent')).toBe('https://proxy.test/google/v1beta')
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.GEMINI, 'https://proxy.test/google/v1beta/models/google/gemini-3-flash-preview:streamGenerateContent')).toBe('https://proxy.test/google/v1beta')
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.GEMINI, 'https://api.ofox.ai/gemini')).toBe('https://api.ofox.ai/gemini/v1beta')
+    expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.WANGSU_GEMINI, 'https://aigateway.edgecloudapp.com/v2/gws/ytagcuik/gemini')).toBe('https://aigateway.edgecloudapp.com/v2/gws/ytagcuik/gemini/v1beta')
+    expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.WANGSU_GEMINI, 'https://aigateway.edgecloudapp.com/v2/gws/ytagcuik/gemini/v1beta/models/gemini.gemini-3-flash-preview:streamGenerateContent')).toBe('https://aigateway.edgecloudapp.com/v2/gws/ytagcuik/gemini/v1beta')
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.OPENAI, '/api/openai')).toBe('/api/openai')
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.OPENAI, '/api/openai/chat/completions')).toBe('/api/openai')
   })
@@ -328,6 +330,82 @@ describe('runCacheHitTest provider usage parsing', () => {
     expect(results[0].usage.cachedReadTokens).toBe(1000)
     expect(results[0].debug.responseHeaders['x-request-id']).toBe('req-gemini-round')
     expect(results[0].debug.responseHeaders['x-cloud-trace-context']).toBe('trace-id/123;o=1')
+  })
+
+  test('runs Wangsu Gemini cache rounds through non-stream generateContent', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({
+      candidates: [{ content: { parts: [{ text: 'ok' }] } }],
+      usageMetadata: {
+        promptTokenCount: 1400,
+        cachedContentTokenCount: 1000,
+        candidatesTokenCount: 16,
+        totalTokenCount: 1416,
+      },
+    }, true, 200, {
+      'x-ws-request-id': 'req-wangsu-round',
+    }))
+    globalThis.fetch = fetchMock
+
+    const { results } = await runCacheHitTest({
+      apiFormat: CACHE_API_FORMATS.WANGSU_GEMINI,
+      cacheMode: CACHE_MODES.AUTO,
+      apiKey: 'test-key',
+      baseUrl: 'https://aigateway.edgecloudapp.com/v2/gws/ytagcuik/gemini',
+      model: 'gemini.gemini-3-flash-preview',
+      staticPrefix: 'static '.repeat(800),
+      dynamicPromptsText: 'question',
+      rounds: 2,
+      interval: 0,
+      maxTokens: 64,
+      temperature: 0,
+      streamMode: false,
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[0][0]).toBe('https://aigateway.edgecloudapp.com/v2/gws/ytagcuik/gemini/v1beta/models/gemini.gemini-3-flash-preview:generateContent')
+    expect(fetchMock.mock.calls[0][1].headers['x-goog-api-key']).toBe('test-key')
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined()
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).cachedContent).toBeUndefined()
+    expect(results[0].usage.cachedReadTokens).toBe(1000)
+    expect(results[0].debug.responseHeaders['x-ws-request-id']).toBe('req-wangsu-round')
+  })
+
+  test('runs Wangsu Gemini cache rounds through streamGenerateContent when enabled', async () => {
+    const fetchMock = vi.fn(async () => sseResponse([
+      { candidates: [{ content: { parts: [{ text: 'ok' }] } }] },
+      {
+        candidates: [],
+        usageMetadata: {
+          promptTokenCount: 1400,
+          cachedContentTokenCount: 1000,
+          candidatesTokenCount: 16,
+          totalTokenCount: 1416,
+        },
+      },
+    ]))
+    globalThis.fetch = fetchMock
+
+    const { results, summary } = await runCacheHitTest({
+      apiFormat: CACHE_API_FORMATS.WANGSU_GEMINI,
+      cacheMode: CACHE_MODES.AUTO,
+      apiKey: 'test-key',
+      baseUrl: 'https://aigateway.edgecloudapp.com/v2/gws/ytagcuik/gemini/v1beta',
+      model: 'gemini.gemini-3-flash-preview',
+      staticPrefix: 'static '.repeat(800),
+      dynamicPromptsText: 'question',
+      rounds: 2,
+      interval: 0,
+      maxTokens: 64,
+      temperature: 0,
+      streamMode: true,
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[0][0]).toBe('https://aigateway.edgecloudapp.com/v2/gws/ytagcuik/gemini/v1beta/models/gemini.gemini-3-flash-preview:streamGenerateContent')
+    expect(fetchMock.mock.calls[0][1].headers['x-goog-api-key']).toBe('test-key')
+    expect(results[0].content).toBe('ok')
+    expect(results[0].usage.cachedReadTokens).toBe(1000)
+    expect(summary.hitRate).toBeCloseTo(1000 / 1400)
   })
 
   test('falls back to Bearer auth when a Gemini native proxy rejects API key auth', async () => {
