@@ -12,6 +12,10 @@ function isWangsuProvider(provider) {
     return provider === PROVIDERS.WANGSU
 }
 
+function isWangsuAnthropicProvider(provider) {
+    return provider === PROVIDERS.WANGSU_ANTHROPIC
+}
+
 function prefersEnableThinking(model = '') {
     const normalizedModel = String(model).toLowerCase()
     return /(^|[/:_-])(qwq|qvq|qwen)([/:_-]|$)/.test(normalizedModel)
@@ -271,6 +275,13 @@ function buildWangsuRequestUrl(baseUrl, model, streamMode) {
     return `${normalizedBaseUrl}/models/${normalizedModel}:${action}`
 }
 
+function buildAnthropicMessagesUrl(baseUrl) {
+    const normalizedBaseUrl = String(baseUrl || '').replace(/\/+$/, '')
+    return /\/messages$/i.test(normalizedBaseUrl)
+        ? normalizedBaseUrl
+        : `${normalizedBaseUrl}/messages`
+}
+
 function normalizeVertexUsage(usageMetadata) {
     if (!usageMetadata) {
         return null
@@ -330,6 +341,128 @@ function extractVertexResponseContent(data) {
         thinking,
         toolCalls,
     }
+}
+
+function normalizeAnthropicUsage(usage) {
+    if (!usage) {
+        return null
+    }
+
+    const promptTokens = (usage.input_tokens || 0)
+        + (usage.cache_read_input_tokens || 0)
+        + (usage.cache_creation_input_tokens || 0)
+
+    return {
+        prompt_tokens: promptTokens,
+        completion_tokens: usage.output_tokens || 0,
+        total_tokens: promptTokens + (usage.output_tokens || 0),
+        cache_read_input_tokens: usage.cache_read_input_tokens,
+        cache_creation_input_tokens: usage.cache_creation_input_tokens,
+    }
+}
+
+function extractAnthropicTextContent(contentBlocks = []) {
+    let answer = ''
+    let thinking = ''
+    const toolCalls = []
+
+    for (const block of contentBlocks || []) {
+        if (block.type === 'thinking' || block.type === 'redacted_thinking') {
+            thinking += block.thinking || block.data || ''
+            continue
+        }
+
+        if (block.type === 'tool_use') {
+            toolCalls.push({
+                type: 'function',
+                function: {
+                    name: block.name || '',
+                    arguments: block.input ? JSON.stringify(block.input, null, 2) : '{}',
+                },
+            })
+            continue
+        }
+
+        if (block.text) {
+            answer += block.text
+        }
+    }
+
+    return {
+        answer,
+        thinking,
+        toolCalls,
+    }
+}
+
+function buildAnthropicNativeRequestBody({
+    model,
+    systemPrompt,
+    userPrompt,
+    temperature,
+    maxTokens,
+    streamMode,
+}) {
+    const normalizedMaxTokens = maxTokens ? parseInt(maxTokens, 10) : null
+    const body = {
+        model,
+        messages: [
+            {
+                role: 'user',
+                content: userPrompt || systemPrompt || '',
+            }
+        ],
+        max_tokens: normalizedMaxTokens || 1024,
+        stream: streamMode,
+        ...(typeof temperature === 'number' && !Number.isNaN(temperature) && { temperature }),
+    }
+
+    if (systemPrompt && userPrompt) {
+        body.system = systemPrompt
+    }
+
+    return body
+}
+
+function mergeAnthropicStreamText(blocksState, index, text) {
+    const block = blocksState[index] || { type: 'text', text: '' }
+    blocksState[index] = {
+        ...block,
+        text: `${block.text || ''}${text || ''}`,
+    }
+}
+
+function mergeAnthropicToolInput(blocksState, index, inputJson) {
+    const block = blocksState[index] || { type: 'tool_use', inputJson: '' }
+    blocksState[index] = {
+        ...block,
+        inputJson: `${block.inputJson || ''}${inputJson || ''}`,
+    }
+}
+
+function serializeAnthropicToolBlocks(blocksState) {
+    const toolCalls = blocksState
+        .filter(block => block?.type === 'tool_use')
+        .map(block => {
+            let input = {}
+            try {
+                input = block.inputJson ? JSON.parse(block.inputJson) : {}
+            } catch {
+                input = block.inputJson || {}
+            }
+
+            return {
+                type: 'function',
+                function: {
+                    name: block.name || '',
+                    arguments: typeof input === 'string'
+                        ? input
+                        : JSON.stringify(input, null, 2),
+                },
+            }
+        })
+
+    return serializeToolCalls(toolCalls)
 }
 
 function buildVertexMetadata({
@@ -732,6 +865,163 @@ async function streamWangsuRequest(params, onChunk, onComplete, onError, onMetad
     }
 }
 
+async function streamWangsuAnthropicRequest(params, onChunk, onComplete, onError, onMetadata) {
+    const {
+        apiKey,
+        baseUrl,
+        model,
+        streamMode,
+        signal,
+    } = params
+
+    try {
+        const requestStartTime = Date.now()
+        const requestBody = buildAnthropicNativeRequestBody(params)
+        const response = await fetch(buildAnthropicMessagesUrl(baseUrl), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'anthropic-version': '2023-06-01',
+                'X-Api-Key': apiKey,
+            },
+            body: JSON.stringify(requestBody),
+            signal,
+        })
+
+        if (!response.ok) {
+            const errorText = await response.text()
+            throw new Error(normalizeApiError(response, errorText, model, PROVIDERS.WANGSU_ANTHROPIC))
+        }
+
+        if (!streamMode) {
+            const data = await response.json()
+            const { answer, thinking, toolCalls } = extractAnthropicTextContent(data.content)
+
+            let mergedContent = ''
+            if (thinking) {
+                mergedContent += `<think>${thinking}</think>`
+            }
+            if (answer) {
+                mergedContent += answer
+            }
+            if (toolCalls.length) {
+                mergedContent += serializeToolCalls(toolCalls)
+            }
+
+            onChunk(mergedContent)
+
+            if (onMetadata) {
+                onMetadata({
+                    firstTokenLatency: null,
+                    totalDuration: Date.now() - requestStartTime,
+                    provider: PROVIDERS.WANGSU_ANTHROPIC,
+                    ...(data.usage && { usage: normalizeAnthropicUsage(data.usage) }),
+                })
+            }
+
+            onComplete()
+            return
+        }
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let firstTokenReceived = false
+        let firstTokenLatency = null
+        let accumulatedThinking = ''
+        let usage = null
+        const blocksState = []
+
+        while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            buffer += decoder.decode(value, { stream: true })
+            const lines = buffer.split('\n')
+            buffer = lines.pop() || ''
+
+            for (const line of lines) {
+                if (!line.trim() || line.startsWith(':')) continue
+                if (!line.startsWith('data: ')) continue
+
+                const data = line.slice(6)
+                if (data === '[DONE]') continue
+
+                try {
+                    const json = JSON.parse(data)
+
+                    if (json.message?.usage || json.usage) {
+                        usage = {
+                            ...(usage || {}),
+                            ...(json.message?.usage || {}),
+                            ...(json.usage || {}),
+                        }
+                    }
+
+                    if (json.type === 'content_block_start' && json.content_block) {
+                        blocksState[json.index || 0] = {
+                            ...json.content_block,
+                            inputJson: '',
+                        }
+                    }
+
+                    if (json.type !== 'content_block_delta') {
+                        continue
+                    }
+
+                    const index = json.index || 0
+                    const delta = json.delta || {}
+
+                    if (delta.type === 'text_delta' && delta.text) {
+                        mergeAnthropicStreamText(blocksState, index, delta.text)
+                        if (!firstTokenReceived) {
+                            firstTokenReceived = true
+                            firstTokenLatency = Date.now() - requestStartTime
+                        }
+                        onChunk(delta.text)
+                    } else if (delta.type === 'thinking_delta' && delta.thinking) {
+                        accumulatedThinking += delta.thinking
+                        if (!firstTokenReceived) {
+                            firstTokenReceived = true
+                            firstTokenLatency = Date.now() - requestStartTime
+                        }
+                    } else if (delta.type === 'input_json_delta' && delta.partial_json) {
+                        mergeAnthropicToolInput(blocksState, index, delta.partial_json)
+                        if (!firstTokenReceived) {
+                            firstTokenReceived = true
+                            firstTokenLatency = Date.now() - requestStartTime
+                        }
+                    }
+                } catch {
+                    // 忽略解析错误
+                }
+            }
+        }
+
+        if (accumulatedThinking) {
+            onChunk(`<think>${accumulatedThinking}</think>`)
+        }
+
+        const serializedTools = serializeAnthropicToolBlocks(blocksState)
+        if (serializedTools) {
+            onChunk(serializedTools)
+        }
+
+        if (onMetadata) {
+            onMetadata({
+                firstTokenLatency,
+                totalDuration: Date.now() - requestStartTime,
+                provider: PROVIDERS.WANGSU_ANTHROPIC,
+                ...(usage && { usage: normalizeAnthropicUsage(usage) }),
+            })
+        }
+
+        onComplete()
+    } catch (error) {
+        onError(error)
+    }
+}
+
 async function streamOpenAiCompatibleRequest(params, onChunk, onComplete, onError, onMetadata) {
     const {
         provider,
@@ -1018,6 +1308,11 @@ export async function streamRequest(params, onChunk, onComplete, onError, onMeta
 
     if (isWangsuProvider(provider)) {
         await streamWangsuRequest(params, onChunk, onComplete, onError, onMetadata)
+        return
+    }
+
+    if (isWangsuAnthropicProvider(provider)) {
+        await streamWangsuAnthropicRequest(params, onChunk, onComplete, onError, onMetadata)
         return
     }
 

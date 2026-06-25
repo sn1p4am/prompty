@@ -66,6 +66,11 @@ function getDefaultsForFormat(apiFormat) {
     }
 }
 
+function isClaudeLikeCacheApiFormat(apiFormat) {
+    return apiFormat === CACHE_API_FORMATS.CLAUDE
+        || apiFormat === CACHE_API_FORMATS.WANGSU_ANTHROPIC
+}
+
 function mergeSettings(settings) {
     return {
         ...DEFAULT_CACHE_HIT_SETTINGS,
@@ -121,6 +126,7 @@ function ProviderGuide({ apiFormat, cacheMode }) {
         [CACHE_API_FORMATS.CLAUDE]: 'cache_read_input_tokens / (input_tokens + cache_creation_input_tokens + cache_read_input_tokens)',
         [CACHE_API_FORMATS.GEMINI]: 'cachedContentTokenCount / promptTokenCount',
         [CACHE_API_FORMATS.WANGSU_GEMINI]: 'cachedContentTokenCount / promptTokenCount',
+        [CACHE_API_FORMATS.WANGSU_ANTHROPIC]: 'cache_read_input_tokens / (input_tokens + cache_creation_input_tokens + cache_read_input_tokens)',
     }[apiFormat]
 
     return (
@@ -459,7 +465,7 @@ export function CacheHitLab({ isOpen, onClose, onToast }) {
                             />
                         </div>
 
-                        {settings.apiFormat === CACHE_API_FORMATS.CLAUDE && (
+                        {isClaudeLikeCacheApiFormat(settings.apiFormat) && (
                             <div>
                                 <Label>Claude metadata.user_id</Label>
                                 <Input

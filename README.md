@@ -79,17 +79,25 @@ Prompty 中的 Vertex AI 渠道现在只保留 **Vertex Express Mode**：
 - `responseSchema` 只有在 `responseMimeType` 不是 `text/plain` 时才有效
 - `application/json` 可以不带 schema；`text/x.enum` 建议搭配 schema 使用
 
-## 🌐 Wangsu Gemini 配置说明
+## 🌐 网宿 AI Gateway 配置说明
 
 `Wangsu Gemini` 渠道使用网宿 AI Gateway 的 Google Gemini 直连模式：
 
 - 网关 ID：`ytagcuik`
 - Base URL：`https://aigateway.edgecloudapp.com/v2/gws/ytagcuik/gemini/v1beta`
-- 模型：`gemini.gemini-3-flash-preview`
+- 文本模型：`gemini.gemini-3-flash-preview`、`gemini.gemini-3.5-flash`、`gemini.gemini-3.1-pro-preview`
 - 鉴权：在页面中保存 AI Gateway Token，请求通过 `x-goog-api-key` 发送
 - 普通文本测试支持流式与非流式，缓存命中测试也可选择 `generateContent` 或 `streamGenerateContent`
 
 注意：该网关当前只开放 `models/{model}:generateContent` 与 `models/{model}:streamGenerateContent` 形态，缓存命中测试按隐式缓存读取 `usageMetadata.cachedContentTokenCount`。
+
+`Wangsu Anthropic` 渠道使用网宿 AI Gateway 的 Anthropic 直连模式：
+
+- 网关 ID：`3s9bal7f`
+- Base URL：`https://aigateway.edgecloudapp.com/v2/gws/3s9bal7f/anthropic/v1`
+- 模型：`anthropic.claude-opus-4-8`、`anthropic.claude-sonnet-4-6`
+- 鉴权：与 Wangsu Gemini 共用页面中的 AI Gateway Token，请求通过 `X-Api-Key` 发送
+- 普通文本测试使用 Anthropic 原生 `/v1/messages` 协议，缓存命中测试读取 `cache_read_input_tokens` 与 `cache_creation_input_tokens`
 
 ### Express Mode 官方 curl
 

@@ -1,5 +1,15 @@
 # Release Notes
 
+## v3.8.28 (2026-06-25)
+
+### 本次更新
+
+- 🌐 `Wangsu Gemini` 常规文本测试补全 `gemini.gemini-3-flash-preview`、`gemini.gemini-3.5-flash`、`gemini.gemini-3.1-pro-preview`，并按要求排除 Gemini image 模型
+- 🧭 新增 `Wangsu Anthropic` 常规文本测试渠道，固定接入网关 `3s9bal7f` 的 Anthropic 直连 `/v1/messages` 模式
+- 📊 缓存命中测试新增 `Wangsu Anthropic` API 格式，内置网关 Base URL 与 `anthropic.claude-sonnet-4-6` 默认模型，沿用 Claude cache usage 字段计算命中率
+- 🔑 `Wangsu Gemini` 与 `Wangsu Anthropic` 共用本地 `AI Gateway Token`，并兼容读取旧版 `wangsu_gemini_api_key` 本地存储
+- 🔒 用户提供的 AI Gateway Token 不写入源码、文档或提交，只通过页面本地配置保存
+
 ## v3.8.27 (2026-06-09)
 
 ### 本次更新

@@ -12,6 +12,11 @@ const GEMINI_AUTH_MODES = {
     BEARER: 'bearer',
 }
 
+function isClaudeCacheApiFormat(apiFormat) {
+    return apiFormat === CACHE_API_FORMATS.CLAUDE
+        || apiFormat === CACHE_API_FORMATS.WANGSU_ANTHROPIC
+}
+
 function trimTrailingSlash(value = '') {
     return String(value).trim().replace(/\/+$/, '')
 }
@@ -48,7 +53,7 @@ export function normalizeCacheBaseUrl(apiFormat, baseUrl) {
         pathname = `${pathname}/v1`
     }
 
-    if (apiFormat === CACHE_API_FORMATS.CLAUDE && !/(^|\/)v\d+$/i.test(pathname)) {
+    if (isClaudeCacheApiFormat(apiFormat) && !/(^|\/)v\d+$/i.test(pathname)) {
         pathname = `${pathname}/v1`
     }
 
@@ -768,13 +773,14 @@ async function runOpenAiRound(params) {
 async function runClaudeRound(params) {
     const {
         apiKey,
+        apiFormat,
         baseUrl,
         signal,
     } = params
     const response = await fetch(appendPath(baseUrl, '/messages'), {
         method: 'POST',
         headers: {
-            'x-api-key': apiKey,
+            [apiFormat === CACHE_API_FORMATS.WANGSU_ANTHROPIC ? 'X-Api-Key' : 'x-api-key']: apiKey,
             'anthropic-version': '2023-06-01',
             'content-type': 'application/json',
         },
@@ -962,6 +968,7 @@ export async function runCacheHitTest(settings, callbacks = {}) {
                 [CACHE_API_FORMATS.CLAUDE]: runClaudeRound,
                 [CACHE_API_FORMATS.GEMINI]: runGeminiRound,
                 [CACHE_API_FORMATS.WANGSU_GEMINI]: runGeminiRound,
+                [CACHE_API_FORMATS.WANGSU_ANTHROPIC]: runClaudeRound,
             }[apiFormat]
 
             const roundResult = await runRound(roundParams)

@@ -52,9 +52,18 @@ export function useApiConfig() {
 
     // 获取指定供应商的 API Key（使用供应商专属的 key）
     const getApiKey = useCallback((provider = currentProvider) => {
-        const keyName = PROVIDER_INFO[provider]?.keyStorageKey
-        if (!keyName) return ''
-        return localStorage.getItem(keyName) || ''
+        const providerInfo = PROVIDER_INFO[provider]
+        const storageKeys = [
+            providerInfo?.keyStorageKey,
+            ...(providerInfo?.keyStorageAliases || []),
+        ].filter(Boolean)
+
+        for (const keyName of storageKeys) {
+            const storedKey = localStorage.getItem(keyName)
+            if (storedKey) return storedKey
+        }
+
+        return ''
     }, [currentProvider])
 
     // 保存 API Key
@@ -67,10 +76,15 @@ export function useApiConfig() {
 
     // 清除 API Key
     const clearApiKey = useCallback((provider) => {
-        const keyName = PROVIDER_INFO[provider]?.keyStorageKey
-        if (keyName) {
+        const providerInfo = PROVIDER_INFO[provider]
+        const storageKeys = [
+            providerInfo?.keyStorageKey,
+            ...(providerInfo?.keyStorageAliases || []),
+        ].filter(Boolean)
+
+        storageKeys.forEach(keyName => {
             localStorage.removeItem(keyName)
-        }
+        })
     }, [])
 
     // 获取 provider 额外配置字段定义

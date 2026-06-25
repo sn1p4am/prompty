@@ -73,3 +73,25 @@ describe('useApiConfig Cloudsway model app ids', () => {
         })
     })
 })
+
+describe('useApiConfig Wangsu shared token storage', () => {
+    test('shares the AI Gateway token across Wangsu Gemini and Anthropic providers', async () => {
+        const state = await renderApiConfig()
+
+        act(() => {
+            state.apiConfig.saveApiKey(PROVIDERS.WANGSU, 'gateway-token')
+        })
+
+        expect(state.apiConfig.getApiKey(PROVIDERS.WANGSU)).toBe('gateway-token')
+        expect(state.apiConfig.getApiKey(PROVIDERS.WANGSU_ANTHROPIC)).toBe('gateway-token')
+    })
+
+    test('keeps reading the previous Wangsu Gemini storage key as a fallback', async () => {
+        window.localStorage.setItem('wangsu_gemini_api_key', 'legacy-gateway-token')
+
+        const state = await renderApiConfig()
+
+        expect(state.apiConfig.getApiKey(PROVIDERS.WANGSU)).toBe('legacy-gateway-token')
+        expect(state.apiConfig.getApiKey(PROVIDERS.WANGSU_ANTHROPIC)).toBe('legacy-gateway-token')
+    })
+})

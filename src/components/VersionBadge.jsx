@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.27',
-    date: '2026-06-09',
+    version: 'v3.8.28',
+    date: '2026-06-25',
     changes: [
-        { emoji: '🌐', label: 'Wangsu', desc: '新增 Wangsu Gemini 常规文本测试渠道' },
-        { emoji: '🌊', label: '双模式', desc: '支持 generateContent 与 streamGenerateContent' },
-        { emoji: '📊', label: '缓存', desc: '缓存命中测试新增 Wangsu Gemini 格式' },
-        { emoji: '🧪', label: '验证', desc: '补充网宿 Gemini 原生协议单元测试' },
+        { emoji: '🌐', label: 'Gemini', desc: '补全网宿 Gemini 文本模型清单' },
+        { emoji: '🧭', label: 'Anthropic', desc: '新增网宿 Anthropic 直连测试渠道' },
+        { emoji: '📊', label: '缓存', desc: '缓存命中测试支持 Wangsu Anthropic 格式' },
+        { emoji: '🔑', label: '密钥', desc: '两个网宿渠道共用本地 AI Gateway Token' },
     ]
 }
 

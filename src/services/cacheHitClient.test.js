@@ -32,6 +32,8 @@ describe('normalizeCacheBaseUrl', () => {
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.OPENAI, 'https://proxy.test/v1/chat/completions')).toBe('https://proxy.test/v1')
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.CLAUDE, 'https://proxy.test/anthropic')).toBe('https://proxy.test/anthropic/v1')
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.CLAUDE, 'https://proxy.test/anthropic/v1/messages')).toBe('https://proxy.test/anthropic/v1')
+    expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.WANGSU_ANTHROPIC, 'https://aigateway.edgecloudapp.com/v2/gws/3s9bal7f/anthropic')).toBe('https://aigateway.edgecloudapp.com/v2/gws/3s9bal7f/anthropic/v1')
+    expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.WANGSU_ANTHROPIC, 'https://aigateway.edgecloudapp.com/v2/gws/3s9bal7f/anthropic/v1/messages')).toBe('https://aigateway.edgecloudapp.com/v2/gws/3s9bal7f/anthropic/v1')
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.GEMINI, 'https://proxy.test/google/v1beta')).toBe('https://proxy.test/google/v1beta')
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.GEMINI, 'https://proxy.test/google/v1beta/cachedContents')).toBe('https://proxy.test/google/v1beta')
     expect(normalizeCacheBaseUrl(CACHE_API_FORMATS.GEMINI, 'https://proxy.test/google/v1beta/models/google/gemini-3-flash-preview:generateContent')).toBe('https://proxy.test/google/v1beta')
@@ -292,6 +294,51 @@ describe('runCacheHitTest provider usage parsing', () => {
     const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body)
     expect(requestBody.cache_control).toEqual({ type: 'ephemeral' })
     expect(requestBody.system[0].cache_control).toBeUndefined()
+  })
+
+  test('runs Wangsu Anthropic cache rounds through native messages', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({
+      content: [{ type: 'text', text: 'ok' }],
+      usage: {
+        input_tokens: 120,
+        cache_creation_input_tokens: 0,
+        cache_read_input_tokens: 900,
+        output_tokens: 20,
+      },
+    }, true, 200, {
+      'x-ws-request-id': 'req-wangsu-anthropic-round',
+    }))
+    globalThis.fetch = fetchMock
+
+    const { results, summary } = await runCacheHitTest({
+      apiFormat: CACHE_API_FORMATS.WANGSU_ANTHROPIC,
+      cacheMode: CACHE_MODES.EXPLICIT,
+      apiKey: 'test-key',
+      baseUrl: 'https://aigateway.edgecloudapp.com/v2/gws/3s9bal7f/anthropic',
+      model: 'anthropic.claude-sonnet-4-6',
+      staticPrefix: 'static '.repeat(800),
+      dynamicPromptsText: 'question',
+      rounds: 2,
+      interval: 0,
+      maxTokens: 64,
+      temperature: 0,
+      claudeUserId: 'anon-user-hash',
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[0][0]).toBe('https://aigateway.edgecloudapp.com/v2/gws/3s9bal7f/anthropic/v1/messages')
+    expect(fetchMock.mock.calls[0][1].headers['X-Api-Key']).toBe('test-key')
+    expect(fetchMock.mock.calls[0][1].headers['x-api-key']).toBeUndefined()
+    expect(fetchMock.mock.calls[0][1].headers['anthropic-version']).toBe('2023-06-01')
+
+    const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(requestBody.model).toBe('anthropic.claude-sonnet-4-6')
+    expect(requestBody.system[0].cache_control).toEqual({ type: 'ephemeral' })
+    expect(requestBody.metadata).toEqual({ user_id: 'anon-user-hash' })
+    expect(results[0].usage.inputTokens).toBe(1020)
+    expect(results[0].usage.cachedReadTokens).toBe(900)
+    expect(results[0].debug.responseHeaders['x-ws-request-id']).toBe('req-wangsu-anthropic-round')
+    expect(summary.hitRate).toBeCloseTo(900 / 1020)
   })
 
   test('uses x-goog-api-key auth for custom Gemini native proxies', async () => {
