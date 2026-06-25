@@ -374,6 +374,9 @@ describe('runCacheHitTest provider usage parsing', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://api.ofox.ai/gemini/v1beta/models/google/gemini-3-flash-preview:generateContent')
     expect(fetchMock.mock.calls[0][1].headers['x-goog-api-key']).toBe('test-key')
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined()
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).generationConfig.thinkingConfig).toEqual({
+      thinkingBudget: 0,
+    })
     expect(results[0].usage.cachedReadTokens).toBe(1000)
     expect(results[0].debug.responseHeaders['x-request-id']).toBe('req-gemini-round')
     expect(results[0].debug.responseHeaders['x-cloud-trace-context']).toBe('trace-id/123;o=1')
@@ -412,7 +415,11 @@ describe('runCacheHitTest provider usage parsing', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('https://aigateway.edgecloudapp.com/v2/gws/ytagcuik/gemini/v1beta/models/gemini.gemini-3-flash-preview:generateContent')
     expect(fetchMock.mock.calls[0][1].headers['x-goog-api-key']).toBe('test-key')
     expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined()
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body).cachedContent).toBeUndefined()
+    const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(requestBody.cachedContent).toBeUndefined()
+    expect(requestBody.generationConfig.thinkingConfig).toEqual({
+      thinkingBudget: 0,
+    })
     expect(results[0].usage.cachedReadTokens).toBe(1000)
     expect(results[0].debug.responseHeaders['x-ws-request-id']).toBe('req-wangsu-round')
   })
@@ -450,6 +457,9 @@ describe('runCacheHitTest provider usage parsing', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(fetchMock.mock.calls[0][0]).toBe('https://aigateway.edgecloudapp.com/v2/gws/ytagcuik/gemini/v1beta/models/gemini.gemini-3-flash-preview:streamGenerateContent')
     expect(fetchMock.mock.calls[0][1].headers['x-goog-api-key']).toBe('test-key')
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).generationConfig.thinkingConfig).toEqual({
+      thinkingBudget: 0,
+    })
     expect(results[0].content).toBe('ok')
     expect(results[0].usage.cachedReadTokens).toBe(1000)
     expect(summary.hitRate).toBeCloseTo(1000 / 1400)

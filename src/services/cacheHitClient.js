@@ -553,6 +553,9 @@ function buildGeminiGenerateRequest({ staticPrefix, dynamicPrompt, roundIndex, m
         generationConfig: {
             temperature,
             ...(maxTokens && { maxOutputTokens: maxTokens }),
+            thinkingConfig: {
+                thinkingBudget: 0,
+            },
         },
     }
 }
