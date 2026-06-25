@@ -16,6 +16,10 @@ function isWangsuAnthropicProvider(provider) {
     return provider === PROVIDERS.WANGSU_ANTHROPIC
 }
 
+function isCloudswayProvider(provider) {
+    return provider === PROVIDERS.CLOUDSWAY
+}
+
 function prefersEnableThinking(model = '') {
     const normalizedModel = String(model).toLowerCase()
     return /(^|[/:_-])(qwq|qvq|qwen)([/:_-]|$)/.test(normalizedModel)
@@ -42,6 +46,10 @@ function buildThinkingPayload(style, enableThinking) {
 }
 
 function getThinkingPayloadVariants(provider, model, enableThinking) {
+    if (isCloudswayProvider(provider)) {
+        return [buildThinkingPayload('thinking_object', enableThinking)]
+    }
+
     if (provider === PROVIDERS.VOLCENGINE) {
         return [buildThinkingPayload('thinking_object', enableThinking)]
     }

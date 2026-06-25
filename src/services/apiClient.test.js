@@ -427,5 +427,54 @@ describe('streamRequest Claude parameter handling', () => {
     const body = JSON.parse(fetchCalls[0].options.body)
     expect(body.temperature).toBeUndefined()
     expect(body.top_p).toBeUndefined()
+    expect(body.thinking).toEqual({ type: 'disabled' })
+    expect(body.enable_thinking).toBeUndefined()
+  })
+
+  test('sends Cloudsway thinking object when thinking is enabled', async () => {
+    const fetchCalls = []
+
+    globalThis.fetch = async (url, options) => {
+      fetchCalls.push({ url, options })
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: 'ok',
+              },
+            },
+          ],
+        }),
+      }
+    }
+
+    await streamRequest(
+      {
+        provider: PROVIDERS.CLOUDSWAY,
+        apiKey: 'test-key',
+        baseUrl: 'https://genaiapi.cloudsway.net/v1/ai/app-id',
+        model: 'MaaS_Ge_3_flash_preview_20251217',
+        systemPrompt: '',
+        userPrompt: 'Say OK',
+        temperature: '',
+        topP: '',
+        maxTokens: undefined,
+        streamMode: false,
+        enableThinking: true,
+      },
+      () => {},
+      () => {},
+      (error) => {
+        throw error
+      },
+      () => {}
+    )
+
+    expect(fetchCalls).toHaveLength(1)
+
+    const body = JSON.parse(fetchCalls[0].options.body)
+    expect(body.thinking).toEqual({ type: 'enabled' })
   })
 })

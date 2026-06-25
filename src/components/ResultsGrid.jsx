@@ -4,6 +4,7 @@ import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import { memo, useEffect, useMemo, useRef } from "react"
 import { Maximize2, Loader2, SquareTerminal, AlertTriangle, Brain, Wrench } from "lucide-react"
+import { formatTokenSpeed, formatTokenSummary } from "../utils/tokenUsage"
 
 const THINK_TAG_REGEX = /<think>([\s\S]*?)<\/think>|<thinking>([\s\S]*?)<\/thinking>|<thought>([\s\S]*?)<\/thought>/gi
 const TOOL_CALL_REGEX = /<tool_call>([\s\S]*?)<\/tool_call>/gi
@@ -51,9 +52,15 @@ function StatusBadge({ status }) {
 const ResultCard = memo(function ResultCard({ result, onViewFull, onCopy }) {
     // Auto-scroll logic
     const contentRef = useRef(null)
+    const metadata = result.metadata
+    const usage = metadata?.usage
     const parsedContent = useMemo(
         () => parseResponseContent(result.content),
         [result.content]
+    )
+    const tokenSummary = useMemo(
+        () => (usage ? formatTokenSummary(usage) : null),
+        [usage]
     )
 
     useEffect(() => {
@@ -63,7 +70,7 @@ const ResultCard = memo(function ResultCard({ result, onViewFull, onCopy }) {
     }, [result.content])
 
     // Check if metadata should be shown (available for all providers)
-    const showMeta = result.metadata && (result.metadata.totalDuration || result.metadata.usage || result.metadata.provider !== undefined)
+    const showMeta = metadata && (metadata.totalDuration || metadata.usage || metadata.provider !== undefined)
 
     return (
         <Card className="flex flex-col h-[300px] overflow-hidden group border-dashed hover:border-solid hover:shadow-glow transition-all duration-300">
@@ -129,34 +136,32 @@ const ResultCard = memo(function ResultCard({ result, onViewFull, onCopy }) {
                         {/* Row 1: Provider | 首字延迟 | 耗时 */}
                         <div className="flex items-center justify-between">
                             <span title="实际供应商" className="truncate flex-1">
-                                {result.metadata.provider === null
+                                {metadata.provider === null
                                     ? <span className="animate-pulse">加载中...</span>
-                                    : (result.metadata.provider || '-')}
+                                    : (metadata.provider || '-')}
                             </span>
                             <span title="首字延迟" className="flex-1 text-center">
-                                首字:{result.metadata.firstTokenLatency || 0}ms
+                                首字:{metadata.firstTokenLatency || 0}ms
                             </span>
                             <span title="总耗时" className="flex-1 text-right">
-                                耗时:{result.metadata.totalDuration ? (result.metadata.totalDuration / 1000).toFixed(2) : 0}s
+                                耗时:{metadata.totalDuration ? (metadata.totalDuration / 1000).toFixed(2) : 0}s
                             </span>
                         </div>
                         {/* Row 2: Tokens | 速度 | 费用（仅OpenRouter） */}
-                        {result.metadata.usage && (
+                        {usage && tokenSummary && (
                             <div className="flex items-center justify-between">
-                                <span title={result.metadata.usage.reasoning_tokens ? "入/出(思考)/总 Tokens" : "入/出/总 Tokens"} className="flex-1">
-                                    {result.metadata.usage.prompt_tokens || 0}/{result.metadata.usage.completion_tokens || 0}
-                                    {result.metadata.usage.reasoning_tokens && `(${result.metadata.usage.reasoning_tokens})`}
-                                    ({result.metadata.usage.total_tokens || 0})
+                                <span title={tokenSummary.reasoningTokens ? "入/出(思考)/总 Tokens" : "入/出/总 Tokens"} className="flex-1">
+                                    {tokenSummary.promptTokens}/{tokenSummary.completionTokens}
+                                    {tokenSummary.reasoningTokens ? `(${tokenSummary.reasoningTokens})` : ''}
+                                    ({tokenSummary.totalTokens})
                                 </span>
-                                <span title="生成速度" className="flex-1 text-center">
-                                    {result.metadata.usage.completion_tokens && result.metadata.totalDuration
-                                        ? (result.metadata.usage.completion_tokens / (result.metadata.totalDuration / 1000)).toFixed(1)
-                                        : 0}tok/s
+                                <span title={tokenSummary.reasoningTokens ? "可见输出速度（已扣除思考 Tokens）" : "可见输出速度"} className="flex-1 text-center">
+                                    {formatTokenSpeed(usage, metadata.totalDuration)}tok/s
                                 </span>
                                 {/* 费用仅 OpenRouter 显示 */}
-                                {result.metadata.usage.cost !== undefined ? (
+                                {usage.cost !== undefined ? (
                                     <span title="费用 (USD)" className="flex-1 text-right text-yellow-400/80">
-                                        ${result.metadata.usage.cost.toFixed(6)}
+                                        ${usage.cost.toFixed(6)}
                                     </span>
                                 ) : (
                                     <span className="flex-1 text-right opacity-60">-</span>

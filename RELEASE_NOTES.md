@@ -1,5 +1,14 @@
 # Release Notes
 
+## v3.8.29 (2026-06-25)
+
+### 本次更新
+
+- ☁️ `Cloudsway` 关闭 Thinking 时改为发送 `thinking: { type: "disabled" }`，避免仅在页面关闭开关但模型仍消耗 reasoning tokens
+- 📊 结果卡片的 `tok/s` 改为按可见输出 tokens 计算，自动扣除 `reasoning_tokens` / `thought tokens`，避免思考 token 把速度指标抬高
+- 🧠 Token 统计兼容 OpenAI-compatible `completion_tokens_details.reasoning_tokens`、通用 `reasoning_tokens` 与 Gemini/Wangsu `thoughtsTokenCount` 归一化结果
+- 🧪 补充 `Cloudsway` Thinking 参数与 token usage 速度计算单元测试
+
 ## v3.8.28 (2026-06-25)
 
 ### 本次更新

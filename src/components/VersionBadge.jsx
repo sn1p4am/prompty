@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.28',
+    version: 'v3.8.29',
     date: '2026-06-25',
     changes: [
-        { emoji: '🌐', label: 'Gemini', desc: '补全网宿 Gemini 文本模型清单' },
-        { emoji: '🧭', label: 'Anthropic', desc: '新增网宿 Anthropic 直连测试渠道' },
-        { emoji: '📊', label: '缓存', desc: '缓存命中测试支持 Wangsu Anthropic 格式' },
-        { emoji: '🔑', label: '密钥', desc: '两个网宿渠道共用本地 AI Gateway Token' },
+        { emoji: '☁️', label: 'Cloudsway', desc: '关闭 Thinking 时发送兼容的 thinking disabled 参数' },
+        { emoji: '📊', label: '速度', desc: 'Token/s 改为按可见输出 Tokens 计算' },
+        { emoji: '🧠', label: '思考', desc: '速度统计自动扣除 reasoning/thought tokens' },
+        { emoji: '🧪', label: '测试', desc: '补充 usage 归一化与 Cloudsway Thinking 参数覆盖' },
     ]
 }
 
