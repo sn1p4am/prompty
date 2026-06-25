@@ -99,6 +99,8 @@ Prompty 中的 Vertex AI 渠道现在只保留 **Vertex Express Mode**：
 - 鉴权：与 Wangsu Gemini 共用页面中的 AI Gateway Token，请求通过 `X-Api-Key` 发送
 - 普通文本测试使用 Anthropic 原生 `/v1/messages` 协议，缓存命中测试读取 `cache_read_input_tokens` 与 `cache_creation_input_tokens`
 
+排查缓存命中问题可参考：[Wangsu Anthropic 缓存命中检测方案](docs/wangsu-anthropic-cache-detection.md)。
+
 ### Express Mode 官方 curl
 
 ```bash
