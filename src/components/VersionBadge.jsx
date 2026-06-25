@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.29',
+    version: 'v3.8.30',
     date: '2026-06-25',
     changes: [
-        { emoji: '☁️', label: 'Cloudsway', desc: '关闭 Thinking 时发送兼容的 thinking disabled 参数' },
-        { emoji: '📊', label: '速度', desc: 'Token/s 改为按可见输出 Tokens 计算' },
-        { emoji: '🧠', label: '思考', desc: '速度统计自动扣除 reasoning/thought tokens' },
-        { emoji: '🧪', label: '测试', desc: '补充 usage 归一化与 Cloudsway Thinking 参数覆盖' },
+        { emoji: '📦', label: '构建', desc: '拆分 React、KaTeX 与 Highlight vendor chunks' },
+        { emoji: '🧭', label: 'Mermaid', desc: '保留图表模块按需加载并匹配合理 chunk 阈值' },
+        { emoji: '🌐', label: '兼容', desc: '更新 Browserslist 数据源' },
+        { emoji: '⚡', label: '首屏', desc: '主入口包体进一步缩小' },
     ]
 }
 

@@ -1,5 +1,14 @@
 # Release Notes
 
+## v3.8.30 (2026-06-25)
+
+### 本次更新
+
+- 📦 Vite 构建新增 vendor chunk 策略，单独拆分 `React`、`KaTeX` 与 `Highlight.js`，让主入口包更轻
+- 🧭 保留 `Mermaid` 图表模块按需加载，并将 chunk 警告阈值调整到覆盖当前已知的懒加载图表模块
+- 🌐 更新 `Browserslist` / `caniuse-lite` 锁文件数据，消除构建时浏览器兼容数据过期提示
+- ⚡ 生产构建主入口 chunk 从约 `296 kB` 降到约 `103 kB`，首屏仍只预加载 React vendor 与主入口
+
 ## v3.8.29 (2026-06-25)
 
 ### 本次更新
