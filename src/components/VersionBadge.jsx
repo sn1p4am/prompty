@@ -3,13 +3,13 @@ import { Calendar, CheckCircle2 } from 'lucide-react'
 
 // 版本信息配置
 const VERSION_INFO = {
-    version: 'v3.8.30',
-    date: '2026-06-25',
+    version: 'v3.8.31',
+    date: '2026-06-26',
     changes: [
-        { emoji: '📦', label: '构建', desc: '拆分 React、KaTeX 与 Highlight vendor chunks' },
-        { emoji: '🧭', label: 'Mermaid', desc: '保留图表模块按需加载并匹配合理 chunk 阈值' },
-        { emoji: '🌐', label: '兼容', desc: '更新 Browserslist 数据源' },
-        { emoji: '⚡', label: '首屏', desc: '主入口包体进一步缩小' },
+        { emoji: '📚', label: 'Gemini', desc: '新增 Gemini 缓存命中检测方案文档' },
+        { emoji: '🌐', label: 'Wangsu', desc: '补充 Wangsu Gemini 隐式缓存排查流程' },
+        { emoji: '🧮', label: 'Usage', desc: '说明 cachedContentTokenCount 计算口径' },
+        { emoji: '🧠', label: 'Thinking', desc: '记录缓存测试禁用 thinking 的原因' },
     ]
 }
 

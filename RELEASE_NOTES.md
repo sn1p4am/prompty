@@ -1,5 +1,14 @@
 # Release Notes
 
+## v3.8.31 (2026-06-26)
+
+### 本次更新
+
+- 📚 新增 [Gemini 缓存命中检测方案](docs/gemini-cache-detection.md)，说明 Prompty 当前的 Gemini / Wangsu Gemini 缓存检测实现
+- 🧮 文档明确 Gemini 缓存命中读取 `usageMetadata.cachedContentTokenCount`，并说明整体命中率与预热后命中率的计算口径
+- 🌐 补充 Wangsu Gemini 直连模式的 Base URL、`x-goog-api-key` 鉴权、`generateContent` / `streamGenerateContent` 请求形态和排查步骤
+- 🧠 记录缓存测试中发送 `thinkingConfig.thinkingBudget: 0` 的原因，避免 Gemini 3 短输出被 thinking token 吃空
+
 ## v3.8.30 (2026-06-25)
 
 ### 本次更新

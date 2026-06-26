@@ -91,6 +91,8 @@ Prompty 中的 Vertex AI 渠道现在只保留 **Vertex Express Mode**：
 
 注意：该网关当前只开放 `models/{model}:generateContent` 与 `models/{model}:streamGenerateContent` 形态，缓存命中测试按隐式缓存读取 `usageMetadata.cachedContentTokenCount`。
 
+Gemini 缓存检测实现和排查可参考：[Gemini 缓存命中检测方案](docs/gemini-cache-detection.md)。
+
 `Wangsu Anthropic` 渠道使用网宿 AI Gateway 的 Anthropic 直连模式：
 
 - 网关 ID：`3s9bal7f`
